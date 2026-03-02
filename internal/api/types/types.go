@@ -83,8 +83,8 @@ type Settings struct {
 
 // MonitoringSettings controls dashboard monitoring features.
 type MonitoringSettings struct {
-	MemoryMetrics bool `json:"memoryMetrics"`  // Enable per-tab memory aggregation (can be heavy)
-	PollInterval  int  `json:"pollInterval"`   // Poll interval in seconds (default 30)
+	MemoryMetrics bool `json:"memoryMetrics"` // Enable per-tab memory aggregation (can be heavy)
+	PollInterval  int  `json:"pollInterval"`  // Poll interval in seconds (default 30)
 }
 
 // ServerInfo contains health/status information.

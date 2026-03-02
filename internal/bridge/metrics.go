@@ -47,8 +47,6 @@ func (b *Bridge) GetAggregatedMemoryMetrics() (*MemoryMetrics, error) {
 	return b.getMemoryViaProcessTree()
 }
 
-
-
 // getMemoryViaProcessTree is a fallback that walks the browser process tree
 func (b *Bridge) getMemoryViaProcessTree() (*MemoryMetrics, error) {
 	result := &MemoryMetrics{}

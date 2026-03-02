@@ -30,17 +30,17 @@ func SnapshotMetrics() map[string]any {
 	runtime.ReadMemStats(&memStats)
 
 	return map[string]any{
-		"requestsTotal":    total,
-		"requestsFailed":   failed,
-		"avgLatencyMs":     avgMs,
-		"rateLimited":      atomic.LoadUint64(&metricRateLimited),
-		"staleRefRetries":  atomic.LoadUint64(&metricStaleRefRetries),
-		"rateBucketHosts":  RateBucketHostCount(),
-		"goHeapAllocMB":    float64(memStats.HeapAlloc) / (1024 * 1024),
-		"goHeapSysMB":      float64(memStats.HeapSys) / (1024 * 1024),
-		"goNumGoroutine":   runtime.NumGoroutine(),
-		"goHeapObjects":    memStats.HeapObjects,
-		"goGCPauseNs":      memStats.PauseNs[(memStats.NumGC+255)%256], // Last GC pause
-		"goNumGC":          memStats.NumGC,
+		"requestsTotal":   total,
+		"requestsFailed":  failed,
+		"avgLatencyMs":    avgMs,
+		"rateLimited":     atomic.LoadUint64(&metricRateLimited),
+		"staleRefRetries": atomic.LoadUint64(&metricStaleRefRetries),
+		"rateBucketHosts": RateBucketHostCount(),
+		"goHeapAllocMB":   float64(memStats.HeapAlloc) / (1024 * 1024),
+		"goHeapSysMB":     float64(memStats.HeapSys) / (1024 * 1024),
+		"goNumGoroutine":  runtime.NumGoroutine(),
+		"goHeapObjects":   memStats.HeapObjects,
+		"goGCPauseNs":     memStats.PauseNs[(memStats.NumGC+255)%256], // Last GC pause
+		"goNumGC":         memStats.NumGC,
 	}
 }
