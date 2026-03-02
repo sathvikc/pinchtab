@@ -10,8 +10,8 @@ interface Tab {
 
 const tabs: Tab[] = [
   { id: 'monitoring', path: '/monitoring', label: 'Monitoring' },
-  { id: 'profiles', path: '/profiles', label: 'Profiles' },
   { id: 'agents', path: '/agents', label: 'Agents' },
+  { id: 'profiles', path: '/profiles', label: 'Profiles' },
   { id: 'settings', path: '/settings', label: 'Settings' },
 ]
 
