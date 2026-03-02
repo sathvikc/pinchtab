@@ -37,27 +37,27 @@ export default function MonitoringPage() {
     const runningInstances = instances.filter((i) => i.status === 'running')
     if (runningInstances.length === 0) return
 
-    const timestamp = Date.now()
-    const dataPoint: Record<string, number> = { timestamp }
-    const tabsByInstance: Record<string, InstanceTab[]> = {}
+    try {
+      // Use aggregated endpoint that returns proper format
+      const allTabs = await api.fetchAllTabs()
+      const tabsArray = Array.isArray(allTabs) ? allTabs : []
 
-    await Promise.all(
-      runningInstances.map(async (inst) => {
-        try {
-          const tabs = await api.fetchInstanceTabs(inst.id)
-          const tabsArray = Array.isArray(tabs) ? tabs : []
-          dataPoint[inst.id] = tabsArray.length
-          tabsByInstance[inst.id] = tabsArray
-        } catch (e) {
-          console.error(`Failed to fetch tabs for ${inst.id}:`, e)
-          dataPoint[inst.id] = 0
-          tabsByInstance[inst.id] = []
-        }
-      })
-    )
+      const timestamp = Date.now()
+      const dataPoint: Record<string, number> = { timestamp }
+      const tabsByInstance: Record<string, InstanceTab[]> = {}
 
-    addChartDataPoint(dataPoint as any)
-    setCurrentTabs(tabsByInstance)
+      // Group tabs by instance
+      for (const inst of runningInstances) {
+        const instTabs = tabsArray.filter((t) => t.instanceId === inst.id)
+        dataPoint[inst.id] = instTabs.length
+        tabsByInstance[inst.id] = instTabs
+      }
+
+      addChartDataPoint(dataPoint as any)
+      setCurrentTabs(tabsByInstance)
+    } catch (e) {
+      console.error('Failed to fetch tabs:', e)
+    }
   }, [instances, addChartDataPoint, setCurrentTabs])
 
   // Initial load

@@ -53,11 +53,15 @@ export default function ProfileDetailsModal({
     if (!instance?.id) return
 
     try {
-      const [tabsData, agentsData] = await Promise.all([
-        api.fetchInstanceTabs(instance.id).catch(() => []),
+      const [allTabs, agentsData] = await Promise.all([
+        api.fetchAllTabs().catch(() => []),
         api.fetchAgents().catch(() => []),
       ])
-      setTabs(Array.isArray(tabsData) ? tabsData : [])
+      // Filter tabs for this instance
+      const instanceTabs = Array.isArray(allTabs)
+        ? allTabs.filter((t) => t.instanceId === instance.id)
+        : []
+      setTabs(instanceTabs)
       setAgents(agentsData.filter((a) => a.name === profile?.name))
     } catch (e) {
       console.error('Failed to load live data', e)
