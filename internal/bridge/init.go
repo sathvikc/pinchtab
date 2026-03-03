@@ -324,7 +324,8 @@ func startChromeWithRemoteAllocator(parentCtx context.Context, cfg *config.Runti
 	args := buildChromeArgs(cfg, debugPort)
 	slog.Debug("launching chrome directly", "binary", chromeBinary, "port", debugPort, "args", args)
 
-	cmd := exec.Command(chromeBinary, args...) //nolint:gosec // binary path comes from user config or known system locations
+	// #nosec G204 -- chromeBinary from CHROME_BIN env var, user config, or findChromeBinary() known system paths
+	cmd := exec.Command(chromeBinary, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, nil, fmt.Errorf("failed to start chrome directly: %w", err)
 	}
