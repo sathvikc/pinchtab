@@ -9,15 +9,16 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
 
 var (
-	serverURL      string
-	currentTabID   string // Track current tab for action operations
-	testBinaryPath string
+	serverURL    string
+	currentTabID string // Track current tab for action operations
 )
 
 func TestMain(m *testing.M) {
@@ -27,23 +28,51 @@ func TestMain(m *testing.M) {
 	}
 	serverURL = fmt.Sprintf("http://localhost:%s", port)
 
-	// Use unique binary path to avoid conflicts with other users
-	testBinaryPath = fmt.Sprintf("/tmp/pinchtab-test-%d", os.Getpid())
+	// Single parent temp dir for all test artifacts (binary, state, profiles).
+	// Cleaned up explicitly before os.Exit — defer won't run after os.Exit.
+	testDir, err := os.MkdirTemp("", "pinchtab-test-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create test dir: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "TestMain: test dir: %s\n", testDir)
 
-	// Build the binary
-	build := exec.Command("go", "build", "-o", testBinaryPath, "./cmd/pinchtab/")
+	cleanup := func() {
+		if os.Getenv("PINCHTAB_TEST_KEEP_DIR") != "" {
+			fmt.Fprintf(os.Stderr, "TestMain: keeping test dir (PINCHTAB_TEST_KEEP_DIR set): %s\n", testDir)
+			return
+		}
+		os.RemoveAll(testDir)
+	}
+
+	binaryPath := filepath.Join(testDir, "pinchtab")
+	stateDir := filepath.Join(testDir, "state")
+	profileDir := filepath.Join(testDir, "profiles")
+
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create state dir: %v\n", err)
+		cleanup()
+		os.Exit(1)
+	}
+	if err := os.MkdirAll(profileDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create profile dir: %v\n", err)
+		cleanup()
+		os.Exit(1)
+	}
+
+	// Build the binary into the test dir
+	build := exec.Command("go", "build", "-o", binaryPath, "./cmd/pinchtab/")
 	build.Dir = findRepoRoot()
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build pinchtab: %v\n", err)
+		cleanup()
 		os.Exit(1)
 	}
-	// Clean up binary on exit
-	defer os.Remove(testBinaryPath)
 
-	// Start server
-	cmd := exec.Command(testBinaryPath)
+	// Start server in its own process group so we can kill Chrome children on shutdown.
+	cmd := exec.Command(binaryPath)
 
 	// Build environment for subprocess
 	// Start with a filtered set of inherited env vars, then add test-specific ones
@@ -56,14 +85,14 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	// Add test-specific environment
+	// Add test-specific environment (use PINCHTAB_* names, BRIDGE_* are deprecated)
 	env = append(env,
-		"BRIDGE_PORT="+port,
-		"BRIDGE_HEADLESS=true",
-		"BRIDGE_NO_RESTORE=true",
-		"BRIDGE_STEALTH=light",
-		fmt.Sprintf("BRIDGE_STATE_DIR=%s", mustTempDir()),
-		fmt.Sprintf("BRIDGE_PROFILE=%s", mustTempDir()),
+		"PINCHTAB_PORT="+port,
+		"PINCHTAB_HEADLESS=true",
+		"PINCHTAB_NO_RESTORE=true",
+		"PINCHTAB_STEALTH=light",
+		"PINCHTAB_STATE_DIR="+stateDir,
+		"PINCHTAB_PROFILE_DIR="+profileDir,
 	)
 
 	// Pass CHROME_BINARY if set by CI workflow or environment
@@ -74,9 +103,11 @@ func TestMain(m *testing.M) {
 	cmd.Env = env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to start pinchtab: %v\n", err)
+		cleanup()
 		os.Exit(1)
 	}
 
@@ -88,6 +119,7 @@ func TestMain(m *testing.M) {
 	if !waitForHealth(serverURL, healthTimeout) {
 		fmt.Fprintf(os.Stderr, "pinchtab did not become healthy within timeout (%v)\n", healthTimeout)
 		_ = cmd.Process.Kill()
+		cleanup()
 		os.Exit(1)
 	}
 
@@ -96,47 +128,46 @@ func TestMain(m *testing.M) {
 	if err := launchTestInstance(serverURL); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to launch test instance: %v\n", err)
 		_ = cmd.Process.Kill()
+		cleanup()
 		os.Exit(1)
 	}
 
 	code := m.Run()
 
-	// Shutdown
-	_ = cmd.Process.Signal(os.Interrupt)
+	// Shutdown — send SIGTERM to the process group to also kill Chrome children.
+	if pgid, err := syscall.Getpgid(cmd.Process.Pid); err == nil {
+		_ = syscall.Kill(-pgid, syscall.SIGTERM)
+	} else {
+		_ = cmd.Process.Signal(os.Interrupt)
+	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):
+		if pgid, err := syscall.Getpgid(cmd.Process.Pid); err == nil {
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		}
 		_ = cmd.Process.Kill()
 	}
 
+	cleanup()
 	os.Exit(code)
 }
 
 func findRepoRoot() string {
-	// Walk up from test dir to find go.mod
 	dir, _ := os.Getwd()
 	for {
-		if _, err := os.Stat(dir + "/go.mod"); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir
 		}
-		parent := dir[:strings.LastIndex(dir, "/")]
+		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
 		dir = parent
 	}
-	// fallback
-	return "../.."
-}
-
-func mustTempDir() string {
-	d, err := os.MkdirTemp("", "pinchtab-test-*")
-	if err != nil {
-		panic(err)
-	}
-	return d
+	return filepath.Join("..", "..")
 }
 
 func waitForHealth(base string, timeout time.Duration) bool {
