@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -48,7 +46,7 @@ func runBridgeServer(cfg *config.RuntimeConfig) {
 	// HTTP server
 	server := &http.Server{
 		Addr:              listenAddr,
-		Handler:           recoveryMiddleware(loggingMiddleware(handlers.AuthMiddleware(cfg, mux))),
+		Handler:           handlers.RequestIDMiddleware(handlers.LoggingMiddleware(recoveryMiddleware(handlers.AuthMiddleware(cfg, mux)))),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -77,23 +75,6 @@ func runBridgeServer(cfg *config.RuntimeConfig) {
 	}
 }
 
-// Simple middleware to log HTTP requests
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		recorder := &statusRecorder{ResponseWriter: w, statusCode: 200}
-
-		next.ServeHTTP(recorder, r)
-
-		slog.Info("request",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", recorder.statusCode,
-			"ms", time.Since(start).Milliseconds(),
-		)
-	})
-}
-
 // recoveryMiddleware catches panics in HTTP handlers and returns a 500
 // instead of crashing the bridge process. Go's net/http server only
 // recovers panics in the serve goroutine; this middleware provides the
@@ -102,7 +83,9 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if p := recover(); p != nil {
+				handlers.RecordRecoveredPanic()
 				slog.Error("handler panic recovered",
+					"requestId", w.Header().Get("X-Request-Id"),
 					"method", r.Method,
 					"path", r.URL.Path,
 					"panic", fmt.Sprintf("%v", p),
@@ -112,22 +95,4 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
-}
-
-type statusRecorder struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (r *statusRecorder) WriteHeader(code int) {
-	r.statusCode = code
-	r.ResponseWriter.WriteHeader(code)
-}
-
-func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	h, ok := r.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, fmt.Errorf("given http.ResponseWriter is not a http.Hijacker")
-	}
-	return h.Hijack()
 }
