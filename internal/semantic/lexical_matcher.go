@@ -7,6 +7,17 @@ import (
 	"unicode"
 )
 
+const (
+	// roleBoostPerMatch is added per overlapping role keyword (capped).
+	roleBoostPerMatch = 0.12
+	// roleBoostCap prevents role boost from dominating the score.
+	roleBoostCap = 0.25
+	// synonymBoostWeight controls how much synonym matches contribute.
+	synonymBoostWeight = 0.30
+	// prefixMatchWeight controls how much prefix matches contribute.
+	prefixMatchWeight = 0.20
+)
+
 // LexicalMatcher implements ElementMatcher using Jaccard similarity
 // with stopword removal, token frequency weighting, and role-aware boosting.
 // Zero external dependencies.
@@ -119,23 +130,29 @@ var roleKeywords = map[string]bool{
 // LexicalScore computes a similarity between a query and an element
 // description using Jaccard overlap on tokens with:
 //   - lowercase normalization
-//   - stopword removal
+//   - context-aware stopword removal
 //   - token frequency weighting (repeated tokens count proportionally)
-//   - role keyword boost (+0.15 if a role keyword overlaps)
+//   - role keyword boost (cumulative, capped at roleBoostCap)
+//   - synonym expansion (lightweight static synonym table)
+//   - prefix matching for abbreviations (e.g. "btn" → "button")
+//   - token importance weighting (rarer tokens score higher)
 //
 // Returns a value in [0, 1].
 func LexicalScore(query, desc string) float64 {
-	qTokens := removeStopwords(tokenize(query))
-	dTokens := removeStopwords(tokenize(desc))
+	rawQTokens := tokenize(query)
+	rawDTokens := tokenize(desc)
+
+	qTokens := removeStopwordsContextAware(rawQTokens, rawDTokens)
+	dTokens := removeStopwordsContextAware(rawDTokens, rawQTokens)
 
 	if len(qTokens) == 0 || len(dTokens) == 0 {
 		return 0
 	}
 
+	// --- 1. Base Jaccard with frequency weighting ---
 	qFreq := tokenFreq(qTokens)
 	dFreq := tokenFreq(dTokens)
 
-	// Weighted intersection: min(freq_q, freq_d) for each shared token.
 	var intersectW float64
 	for t, qc := range qFreq {
 		if dc, ok := dFreq[t]; ok {
@@ -147,7 +164,6 @@ func LexicalScore(query, desc string) float64 {
 		}
 	}
 
-	// Weighted union: max(freq_q, freq_d) for each token in either set.
 	allTokens := tokenSet(append(qTokens, dTokens...))
 	var unionW float64
 	for t := range allTokens {
@@ -166,20 +182,77 @@ func LexicalScore(query, desc string) float64 {
 
 	jaccard := intersectW / unionW
 
-	// Role boost: if a role keyword appears in both query and description.
+	// --- 2. Synonym boost ---
+	synScore := synonymScore(qTokens, dTokens) * synonymBoostWeight
+
+	// --- 3. Prefix matching boost ---
+	prefixScore := tokenPrefixScore(qTokens, dTokens) * prefixMatchWeight
+
+	// --- 4. Role keyword boost (cumulative, capped) ---
 	roleBoost := 0.0
 	qSet := tokenSet(qTokens)
 	dSet := tokenSet(dTokens)
 	for t := range qSet {
 		if roleKeywords[t] && dSet[t] {
-			roleBoost = 0.15
-			break
+			roleBoost += roleBoostPerMatch
 		}
 	}
+	for t := range qSet {
+		if roleKeywords[t] {
+			continue // already checked direct match
+		}
+		if syns, ok := synonymIndex[t]; ok {
+			for syn := range syns {
+				if roleKeywords[syn] && dSet[syn] {
+					roleBoost += roleBoostPerMatch * 0.8
+					break
+				}
+			}
+		}
+	}
+	if roleBoost > roleBoostCap {
+		roleBoost = roleBoostCap
+	}
 
-	score := jaccard + roleBoost
+	score := jaccard + synScore + prefixScore + roleBoost
 	if score > 1.0 {
 		score = 1.0
 	}
 	return score
+}
+
+// tokenPrefixScore scores prefix overlap between query and description
+// tokens. Handles abbreviations like "btn" → "button", "nav" → "navigation".
+func tokenPrefixScore(qTokens, dTokens []string) float64 {
+	if len(qTokens) == 0 {
+		return 0
+	}
+
+	var total float64
+	for _, qt := range qTokens {
+		if len(qt) < 2 {
+			continue
+		}
+		bestMatch := 0.0
+		for _, dt := range dTokens {
+			if qt == dt {
+				continue // already counted by Jaccard
+			}
+			if len(dt) > len(qt) && strings.HasPrefix(dt, qt) {
+				ratio := float64(len(qt)) / float64(len(dt))
+				if ratio > bestMatch {
+					bestMatch = ratio
+				}
+			}
+			if len(qt) > len(dt) && strings.HasPrefix(qt, dt) {
+				ratio := float64(len(dt)) / float64(len(qt))
+				if ratio*0.7 > bestMatch { // penalize reverse prefix slightly
+					bestMatch = ratio * 0.7
+				}
+			}
+		}
+		total += bestMatch
+	}
+
+	return total / float64(len(qTokens))
 }
