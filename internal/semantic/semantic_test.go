@@ -95,7 +95,7 @@ func TestRemoveStopwords(t *testing.T) {
 	}
 
 	// When ALL tokens are stopwords, the original should be preserved.
-	allStop := []string{"the", "a", "is", "in"}
+	allStop := []string{"the", "a", "is", "was"}
 	kept := removeStopwords(allStop)
 	if len(kept) != len(allStop) {
 		t.Errorf("expected original tokens when all are stopwords, got %d", len(kept))

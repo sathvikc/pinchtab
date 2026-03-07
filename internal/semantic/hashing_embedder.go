@@ -54,7 +54,7 @@ func (h *HashingEmbedder) Embed(texts []string) ([][]float32, error) {
 }
 
 // vectorize converts a single text into a hashed feature vector combining
-// word-level and character n-gram features.
+// word-level, character n-gram, role-aware, and synonym features.
 func (h *HashingEmbedder) vectorize(text string) []float32 {
 	vec := make([]float32, h.dim)
 
@@ -87,6 +87,37 @@ func (h *HashingEmbedder) vectorize(text string) []float32 {
 		if roleKeywords[word] {
 			idx, sign := h.hashFeature("role:" + word)
 			vec[idx] += sign * 0.8
+		}
+	}
+
+	// 4. Synonym features: inject word-level features for known synonyms
+	//    at a reduced weight so "sign in" and "log in" share vector space.
+	for _, word := range words {
+		if syns, ok := synonymIndex[word]; ok {
+			for syn := range syns {
+				synTokens := strings.Fields(syn)
+				for _, st := range synTokens {
+					idx, sign := h.hashFeature("w:" + st)
+					vec[idx] += sign * h.wordWeight * 0.3
+				}
+			}
+		}
+	}
+
+	// 5. Multi-word synonym phrases: check consecutive word pairs/triples
+	//    so "look up" → "search" gets injected at the embedding level.
+	for n := 2; n <= 3 && n <= len(words); n++ {
+		for i := 0; i <= len(words)-n; i++ {
+			phrase := strings.Join(words[i:i+n], " ")
+			if syns, ok := synonymIndex[phrase]; ok {
+				for syn := range syns {
+					synTokens := strings.Fields(syn)
+					for _, st := range synTokens {
+						idx, sign := h.hashFeature("w:" + st)
+						vec[idx] += sign * h.wordWeight * 0.3
+					}
+				}
+			}
 		}
 	}
 
