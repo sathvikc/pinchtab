@@ -39,8 +39,8 @@ ENV PINCHTAB_BIND=0.0.0.0 \
     PINCHTAB_STATE_DIR=/data \
     CHROME_BIN=/usr/bin/chromium-browser
 
-# Create config with Chrome flags for Docker and IDPI whitelist for test fixtures
-RUN echo '{"browser":{"extraFlags":"--no-sandbox --disable-dev-shm-usage"},"security":{"idpi":{"enabled":true,"allowedDomains":["fixtures","localhost","127.0.0.1"]}}}' > /data/config.json
+# Create config with Chrome flags for Docker and IDPI disabled for tests
+RUN echo '{"browser":{"extraFlags":"--no-sandbox --disable-dev-shm-usage"},"security":{"idpi":{"enabled":false}}}' > /data/config.json
 
 EXPOSE 9999
 
