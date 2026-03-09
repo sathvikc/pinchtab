@@ -45,7 +45,7 @@ ENV PINCHTAB_BIND=0.0.0.0 \
 # Enable evaluate/download/upload for comprehensive E2E testing
 # Increase maxTabs for E2E test suite (40 tests open many tabs)
 RUN mkdir -p /root/.config/pinchtab && \
-    echo '{"browser":{"extraFlags":"--no-sandbox --disable-dev-shm-usage","maxTabs":50},"security":{"allowEvaluate":true,"allowDownload":true,"allowUpload":true,"idpi":{"enabled":true,"allowedDomains":["localhost","127.0.0.1","::1","fixtures"]}}}' > /root/.config/pinchtab/config.json
+    echo '{"browser":{"extraFlags":"--no-sandbox --disable-dev-shm-usage"},"instanceDefaults":{"maxTabs":50},"security":{"allowEvaluate":true,"allowDownload":true,"allowUpload":true,"idpi":{"enabled":true,"allowedDomains":["localhost","127.0.0.1","::1","fixtures"]}}}' > /root/.config/pinchtab/config.json
 
 EXPOSE 9999
 
