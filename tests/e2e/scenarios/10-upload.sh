@@ -10,11 +10,11 @@ sleep 1
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab upload (base64 file)"
 
-# Create a simple base64-encoded test file
+# Files are base64 strings with optional data: prefix
 # "Hello from E2E test!" in base64
-FILE_CONTENT="SGVsbG8gZnJvbSBFMkUgdGVzdCE="
+FILE_CONTENT="data:text/plain;base64,SGVsbG8gZnJvbSBFMkUgdGVzdCE="
 
-pt_post /upload -d "{\"selector\":\"#single-file\",\"files\":[{\"name\":\"test.txt\",\"content\":\"${FILE_CONTENT}\"}]}"
+pt_post /upload -d "{\"selector\":\"#single-file\",\"files\":[\"${FILE_CONTENT}\"]}"
 assert_ok "upload base64"
 
 end_test
@@ -22,7 +22,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab upload (multiple files)"
 
-pt_post /upload -d "{\"selector\":\"#multi-file\",\"files\":[{\"name\":\"file1.txt\",\"content\":\"${FILE_CONTENT}\"},{\"name\":\"file2.txt\",\"content\":\"${FILE_CONTENT}\"}]}"
+pt_post /upload -d "{\"selector\":\"#multi-file\",\"files\":[\"${FILE_CONTENT}\",\"${FILE_CONTENT}\"]}"
 assert_ok "upload multiple"
 
 end_test
@@ -33,7 +33,10 @@ start_test "pinchtab upload --tab <id>"
 pt_get /tabs
 TAB_ID=$(get_first_tab)
 
-pt_post "/tabs/${TAB_ID}/upload" -d "{\"selector\":\"#image-upload\",\"files\":[{\"name\":\"test.png\",\"content\":\"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"}]}"
+# 1x1 transparent PNG
+PNG_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+pt_post "/tabs/${TAB_ID}/upload" -d "{\"selector\":\"#image-upload\",\"files\":[\"${PNG_DATA}\"]}"
 assert_ok "tab upload"
 
 end_test

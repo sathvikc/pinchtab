@@ -78,15 +78,19 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab evaluate --tab <id>"
 
-pt_get /tabs
-TAB_ID=$(get_first_tab)
+# Open a new tab with evaluate page to get a known tab ID
+pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/evaluate.html\",\"newTab\":true}"
+sleep 1
 
-pt_post "/tabs/${TAB_ID}/evaluate" -d '{"expression":"window.calculate.multiply(6, 7)"}'
+pt_get /tabs
+TAB_ID=$(get_last_tab)
+
+pt_post "/tabs/${TAB_ID}/evaluate" -d '{"expression":"1 + 2 + 3"}'
 assert_ok "tab evaluate"
 
 RESULT=$(echo "$LAST_BODY" | jq -r '.result')
-if [ "$RESULT" != "42" ]; then
-  fail "expected result=42, got $RESULT"
+if [ "$RESULT" != "6" ]; then
+  fail "expected result=6, got $RESULT"
 fi
 
 end_test

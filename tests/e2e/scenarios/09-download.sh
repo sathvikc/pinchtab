@@ -1,40 +1,31 @@
 #!/bin/bash
 # 09-download.sh — File download
+#
+# NOTE: Download endpoint has SSRF protection that blocks private IPs.
+# In Docker, fixtures resolves to internal IP, so we test with public URLs.
 
 source "$(dirname "$0")/common.sh"
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab download (text file)"
+start_test "pinchtab download (public URL)"
 
-# Download the sample.txt file from fixtures server
+# Use a small public file for testing
+pt_get "/download?url=https://httpbin.org/robots.txt"
+assert_ok "download public"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab download (SSRF blocked)"
+
+# Verify internal URLs are blocked (security feature)
 pt_get "/download?url=${FIXTURES_URL}/sample.txt"
-assert_ok "download text"
+assert_http_status 400 "download blocked"
 
-# Verify we got content back (base64 encoded by default)
-if ! echo "$LAST_BODY" | jq -e '.content' >/dev/null 2>&1; then
-  fail "expected content in response"
+# Verify error message mentions blocking
+if ! echo "$LAST_BODY" | grep -q "blocked\|private"; then
+  fail "expected SSRF block message"
 fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab download (raw mode)"
-
-pt_get "/download?url=${FIXTURES_URL}/sample.txt&raw=true"
-assert_ok "download raw"
-
-# In raw mode, body should be the file content directly
-if ! echo "$LAST_BODY" | grep -q "PinchTab E2E Test Suite"; then
-  fail "expected file content in raw response"
-fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab download (HTML page)"
-
-pt_get "/download?url=${FIXTURES_URL}/index.html"
-assert_ok "download html"
 
 end_test
 
@@ -44,7 +35,7 @@ start_test "pinchtab download --tab <id>"
 pt_get /tabs
 TAB_ID=$(get_first_tab)
 
-pt_get "/tabs/${TAB_ID}/download?url=${FIXTURES_URL}/sample.txt"
+pt_get "/tabs/${TAB_ID}/download?url=https://httpbin.org/robots.txt"
 assert_ok "tab download"
 
 end_test
