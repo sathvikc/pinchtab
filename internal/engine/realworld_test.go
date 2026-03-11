@@ -883,7 +883,7 @@ func TestRealworld_LargePagePerformance(t *testing.T) {
 	var b strings.Builder
 	b.WriteString(`<!DOCTYPE html><html><head><title>Large</title></head><body>`)
 	for i := range 200 {
-		b.WriteString(fmt.Sprintf(`<div><h3>Section %d</h3><p>Content %d</p><a href="/s%d">Link %d</a></div>`, i, i, i, i))
+		_, _ = fmt.Fprintf(&b, `<div><h3>Section %d</h3><p>Content %d</p><a href="/s%d">Link %d</a></div>`, i, i, i, i)
 	}
 	b.WriteString(`</body></html>`)
 	largePage := b.String()
