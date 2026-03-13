@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestScreenshot(t *testing.T) {
@@ -14,7 +16,11 @@ func TestScreenshot(t *testing.T) {
 	client := m.server.Client()
 
 	outFile := filepath.Join(t.TempDir(), "test.jpg")
-	Screenshot(client, m.base(), "", []string{"-o", outFile, "-q", "50"})
+	cmd := &cobra.Command{}
+	cmd.Flags().String("output", outFile, "")
+	cmd.Flags().String("quality", "50", "")
+	cmd.Flags().String("tab", "", "")
+	Screenshot(client, m.base(), "", cmd)
 	if m.lastPath != "/screenshot" {
 		t.Errorf("expected /screenshot, got %s", m.lastPath)
 	}

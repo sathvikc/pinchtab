@@ -3,7 +3,15 @@ package actions
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newEvalCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("tab", "", "")
+	return cmd
+}
 
 func TestEvaluate(t *testing.T) {
 	m := newMockServer()
@@ -11,7 +19,8 @@ func TestEvaluate(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Evaluate(client, m.base(), "", []string{"document.title"})
+	cmd := newEvalCmd()
+	Evaluate(client, m.base(), "", []string{"document.title"}, cmd)
 	if m.lastPath != "/evaluate" {
 		t.Errorf("expected /evaluate, got %s", m.lastPath)
 	}
@@ -27,7 +36,8 @@ func TestEvaluateMultiWord(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Evaluate(client, m.base(), "", []string{"1", "+", "2"})
+	cmd := newEvalCmd()
+	Evaluate(client, m.base(), "", []string{"1", "+", "2"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["expression"] != "1 + 2" {

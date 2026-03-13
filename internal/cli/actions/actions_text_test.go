@@ -3,7 +3,16 @@ package actions
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newTextCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("raw", false, "")
+	cmd.Flags().String("tab", "", "")
+	return cmd
+}
 
 func TestText(t *testing.T) {
 	m := newMockServer()
@@ -11,7 +20,8 @@ func TestText(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Text(client, m.base(), "", nil)
+	cmd := newTextCmd()
+	Text(client, m.base(), "", cmd)
 	if m.lastPath != "/text" {
 		t.Errorf("expected /text, got %s", m.lastPath)
 	}
@@ -22,7 +32,9 @@ func TestTextRaw(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Text(client, m.base(), "", []string{"--raw"})
+	cmd := newTextCmd()
+	cmd.Flags().Set("raw", "true")
+	Text(client, m.base(), "", cmd)
 	if !strings.Contains(m.lastQuery, "mode=raw") {
 		t.Errorf("expected mode=raw, got %s", m.lastQuery)
 	}
@@ -33,7 +45,9 @@ func TestTextTab(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Text(client, m.base(), "", []string{"--tab", "TAB1"})
+	cmd := newTextCmd()
+	cmd.Flags().Set("tab", "TAB1")
+	Text(client, m.base(), "", cmd)
 	if !strings.Contains(m.lastQuery, "tabId=TAB1") {
 		t.Errorf("expected tabId=TAB1, got %s", m.lastQuery)
 	}

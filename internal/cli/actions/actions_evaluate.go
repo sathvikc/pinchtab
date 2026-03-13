@@ -2,24 +2,13 @@ package actions
 
 import (
 	"fmt"
-	"github.com/pinchtab/pinchtab/internal/cli"
 	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
 	"github.com/spf13/cobra"
 	"net/http"
 	"strings"
 )
 
-func Evaluate(client *http.Client, base, token string, args []string) {
-	if len(args) < 1 {
-		cli.Fatal("Usage: pinchtab eval <expression>")
-	}
-	expr := strings.Join(args, " ")
-	apiclient.DoPost(client, base, token, "/evaluate", map[string]any{
-		"expression": expr,
-	})
-}
-
-func EvaluateWithFlags(client *http.Client, base, token string, args []string, cmd *cobra.Command) {
+func Evaluate(client *http.Client, base, token string, args []string, cmd *cobra.Command) {
 	body := map[string]any{"expression": strings.Join(args, " ")}
 	tabID, _ := cmd.Flags().GetString("tab")
 	path := "/evaluate"

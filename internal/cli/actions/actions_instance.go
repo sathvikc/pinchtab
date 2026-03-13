@@ -8,57 +8,7 @@ import (
 	"net/http"
 )
 
-func Instance(client *http.Client, base, token string, args []string) {
-	if len(args) < 1 {
-		cli.Fatal("Usage: pinchtab instance <subcommand> [options]\nSubcommands: start, launch (alias), navigate, logs, stop")
-	}
-
-	subCmd := args[0]
-	subArgs := args[1:]
-
-	switch subCmd {
-	case "start", "launch": // "start" is new Phase 2 API, "launch" is legacy
-		InstanceStart(client, base, token, subArgs)
-	case "navigate":
-		InstanceNavigate(client, base, token, subArgs)
-	case "logs":
-		InstanceLogs(client, base, token, subArgs)
-	case "stop":
-		InstanceStop(client, base, token, subArgs)
-	default:
-		cli.Fatal("Unknown subcommand: %s", subCmd)
-	}
-}
-
-func InstanceStart(client *http.Client, base, token string, args []string) {
-	body := map[string]any{}
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--profileId":
-			if i+1 < len(args) {
-				body["profileId"] = args[i+1]
-				i++
-			}
-		case "--mode":
-			if i+1 < len(args) {
-				body["mode"] = args[i+1]
-				i++
-			}
-		case "--port":
-			if i+1 < len(args) {
-				body["port"] = args[i+1]
-				i++
-			}
-		}
-	}
-
-	// Use new /instances/start endpoint if available, fall back to /instances/launch for backward compat
-	endpoint := "/instances/start"
-	apiclient.DoPost(client, base, token, endpoint, body)
-}
-
-func InstanceStartWithFlags(client *http.Client, base, token string, cmd *cobra.Command) {
+func InstanceStart(client *http.Client, base, token string, cmd *cobra.Command) {
 	body := map[string]any{}
 	if v, _ := cmd.Flags().GetString("profileId"); v != "" {
 		body["profileId"] = v

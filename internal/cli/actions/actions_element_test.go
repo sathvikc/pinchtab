@@ -3,14 +3,31 @@ package actions
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newActionCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("css", "", "")
+	cmd.Flags().Bool("wait-nav", false, "")
+	cmd.Flags().String("tab", "", "")
+	return cmd
+}
+
+func newSimpleCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("tab", "", "")
+	return cmd
+}
 
 func TestClick(t *testing.T) {
 	m := newMockServer()
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "click", []string{"e5"})
+	cmd := newActionCmd()
+	Action(client, m.base(), "", "click", "e5", cmd)
 	if m.lastPath != "/action" {
 		t.Errorf("expected /action, got %s", m.lastPath)
 	}
@@ -29,7 +46,9 @@ func TestClickWaitNav(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "click", []string{"e5", "--wait-nav"})
+	cmd := newActionCmd()
+	cmd.Flags().Set("wait-nav", "true")
+	Action(client, m.base(), "", "click", "e5", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["waitNav"] != true {
@@ -42,7 +61,8 @@ func TestType(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "type", []string{"e12", "hello", "world"})
+	cmd := newSimpleCmd()
+	ActionSimple(client, m.base(), "", "type", []string{"e12", "hello", "world"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["kind"] != "type" {
@@ -61,7 +81,8 @@ func TestPress(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "press", []string{"Enter"})
+	cmd := newSimpleCmd()
+	ActionSimple(client, m.base(), "", "press", []string{"Enter"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["key"] != "Enter" {
@@ -74,7 +95,9 @@ func TestClickWithCSS(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "click", []string{"--css", "button.submit"})
+	cmd := newActionCmd()
+	cmd.Flags().Set("css", "button.submit")
+	Action(client, m.base(), "", "click", "", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["selector"] != "button.submit" {
@@ -90,7 +113,10 @@ func TestClickWithCSS_AndWaitNav(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "click", []string{"--wait-nav", "--css", "#login-btn"})
+	cmd := newActionCmd()
+	cmd.Flags().Set("wait-nav", "true")
+	cmd.Flags().Set("css", "#login-btn")
+	Action(client, m.base(), "", "click", "", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["selector"] != "#login-btn" {
@@ -106,7 +132,9 @@ func TestHoverWithCSS(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "hover", []string{"--css", ".nav-item"})
+	cmd := newActionCmd()
+	cmd.Flags().Set("css", ".nav-item")
+	Action(client, m.base(), "", "hover", "", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["selector"] != ".nav-item" {
@@ -119,7 +147,9 @@ func TestFocusWithCSS(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "focus", []string{"--css", "input[name='email']"})
+	cmd := newActionCmd()
+	cmd.Flags().Set("css", "input[name='email']")
+	Action(client, m.base(), "", "focus", "", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["selector"] != "input[name='email']" {
@@ -132,7 +162,8 @@ func TestClickRefStillWorks(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "click", []string{"e42"})
+	cmd := newActionCmd()
+	Action(client, m.base(), "", "click", "e42", cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["ref"] != "e42" {
@@ -148,8 +179,8 @@ func TestFill(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	// Fill with ref
-	Action(client, m.base(), "", "fill", []string{"e3", "test value"})
+	cmd := newSimpleCmd()
+	ActionSimple(client, m.base(), "", "fill", []string{"e3", "test value"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["ref"] != "e3" {
@@ -159,8 +190,7 @@ func TestFill(t *testing.T) {
 		t.Errorf("expected text='test value', got %v", body["text"])
 	}
 
-	// Fill with selector
-	Action(client, m.base(), "", "fill", []string{"#email", "user@test.com"})
+	ActionSimple(client, m.base(), "", "fill", []string{"#email", "user@test.com"}, cmd)
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["selector"] != "#email" {
 		t.Errorf("expected selector=#email, got %v", body["selector"])
@@ -172,23 +202,21 @@ func TestScroll(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	// Scroll by ref
-	Action(client, m.base(), "", "scroll", []string{"e20"})
+	cmd := newSimpleCmd()
+	ActionSimple(client, m.base(), "", "scroll", []string{"e20"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["ref"] != "e20" {
 		t.Errorf("expected ref=e20, got %v", body["ref"])
 	}
 
-	// Scroll by pixels
-	Action(client, m.base(), "", "scroll", []string{"800"})
+	ActionSimple(client, m.base(), "", "scroll", []string{"800"}, cmd)
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["scrollY"] != float64(800) {
 		t.Errorf("expected scrollY=800, got %v", body["scrollY"])
 	}
 
-	// Scroll by direction
-	Action(client, m.base(), "", "scroll", []string{"down"})
+	ActionSimple(client, m.base(), "", "scroll", []string{"down"}, cmd)
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["scrollY"] != float64(800) {
 		t.Errorf("expected scrollY=800 for direction=down, got %v", body["scrollY"])
@@ -200,7 +228,8 @@ func TestSelect(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Action(client, m.base(), "", "select", []string{"e10", "option2"})
+	cmd := newSimpleCmd()
+	ActionSimple(client, m.base(), "", "select", []string{"e10", "option2"}, cmd)
 	var body map[string]any
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["ref"] != "e10" {

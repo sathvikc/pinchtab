@@ -3,7 +3,22 @@ package actions
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newSnapshotCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("compact", false, "")
+	cmd.Flags().Bool("text", false, "")
+	cmd.Flags().Bool("diff", false, "")
+	cmd.Flags().String("selector", "", "")
+	cmd.Flags().String("max-tokens", "", "")
+	cmd.Flags().String("depth", "", "")
+	cmd.Flags().String("tab", "", "")
+	return cmd
+}
 
 func TestSnapshot(t *testing.T) {
 	m := newMockServer()
@@ -11,7 +26,10 @@ func TestSnapshot(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Snapshot(client, m.base(), "", []string{"-i", "-c"})
+	cmd := newSnapshotCmd()
+	cmd.Flags().Set("interactive", "true")
+	cmd.Flags().Set("compact", "true")
+	Snapshot(client, m.base(), "", cmd)
 	if m.lastMethod != "GET" {
 		t.Errorf("expected GET, got %s", m.lastMethod)
 	}
@@ -31,7 +49,12 @@ func TestSnapshotDiff(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Snapshot(client, m.base(), "", []string{"--diff", "--selector", "main", "--max-tokens", "2000", "--depth", "5"})
+	cmd := newSnapshotCmd()
+	cmd.Flags().Set("diff", "true")
+	cmd.Flags().Set("selector", "main")
+	cmd.Flags().Set("max-tokens", "2000")
+	cmd.Flags().Set("depth", "5")
+	Snapshot(client, m.base(), "", cmd)
 	if !strings.Contains(m.lastQuery, "diff=true") {
 		t.Errorf("expected diff=true, got %s", m.lastQuery)
 	}
@@ -51,7 +74,9 @@ func TestSnapshotTabId(t *testing.T) {
 	defer m.close()
 	client := m.server.Client()
 
-	Snapshot(client, m.base(), "", []string{"--tab", "ABC123"})
+	cmd := newSnapshotCmd()
+	cmd.Flags().Set("tab", "ABC123")
+	Snapshot(client, m.base(), "", cmd)
 	if !strings.Contains(m.lastQuery, "tabId=ABC123") {
 		t.Errorf("expected tabId=ABC123, got %s", m.lastQuery)
 	}

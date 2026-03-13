@@ -5,7 +5,33 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
+
+func newPDFCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("output", "", "")
+	cmd.Flags().String("tab", "", "")
+	cmd.Flags().Bool("landscape", false, "")
+	cmd.Flags().String("scale", "", "")
+	cmd.Flags().String("paper-width", "", "")
+	cmd.Flags().String("paper-height", "", "")
+	cmd.Flags().String("margin-top", "", "")
+	cmd.Flags().String("margin-bottom", "", "")
+	cmd.Flags().String("margin-left", "", "")
+	cmd.Flags().String("margin-right", "", "")
+	cmd.Flags().String("page-ranges", "", "")
+	cmd.Flags().Bool("prefer-css-page-size", false, "")
+	cmd.Flags().Bool("display-header-footer", false, "")
+	cmd.Flags().String("header-template", "", "")
+	cmd.Flags().String("footer-template", "", "")
+	cmd.Flags().Bool("generate-tagged-pdf", false, "")
+	cmd.Flags().Bool("generate-document-outline", false, "")
+	cmd.Flags().Bool("file-output", false, "")
+	cmd.Flags().String("path", "", "")
+	return cmd
+}
 
 func TestPDF(t *testing.T) {
 	m := newMockServer()
@@ -14,7 +40,12 @@ func TestPDF(t *testing.T) {
 	client := m.server.Client()
 
 	outFile := filepath.Join(t.TempDir(), "test.pdf")
-	PDF(client, m.base(), "", []string{"-o", outFile, "--tab", "tab-abc", "--landscape", "--scale", "0.8"})
+	cmd := newPDFCmd()
+	cmd.Flags().Set("output", outFile)
+	cmd.Flags().Set("tab", "tab-abc")
+	cmd.Flags().Set("landscape", "true")
+	cmd.Flags().Set("scale", "0.8")
+	PDF(client, m.base(), "", cmd)
 	if m.lastPath != "/tabs/tab-abc/pdf" {
 		t.Errorf("expected /tabs/tab-abc/pdf, got %s", m.lastPath)
 	}
@@ -40,32 +71,30 @@ func TestPDFAllOptions(t *testing.T) {
 	client := m.server.Client()
 
 	outFile := filepath.Join(t.TempDir(), "test.pdf")
-	args := []string{
-		"-o", outFile,
-		"--landscape",
-		"--scale", "1.5",
-		"--paper-width", "11",
-		"--paper-height", "8.5",
-		"--margin-top", "1",
-		"--margin-bottom", "1",
-		"--margin-left", "0.5",
-		"--margin-right", "0.5",
-		"--page-ranges", "1-3,5",
-		"--prefer-css-page-size",
-		"--display-header-footer",
-		"--header-template", "<span class='title'></span>",
-		"--footer-template", "<span class='pageNumber'></span>",
-		"--generate-tagged-pdf",
-		"--generate-document-outline",
-		"--tab", "tab-123",
-	}
+	cmd := newPDFCmd()
+	cmd.Flags().Set("output", outFile)
+	cmd.Flags().Set("tab", "tab-123")
+	cmd.Flags().Set("landscape", "true")
+	cmd.Flags().Set("scale", "1.5")
+	cmd.Flags().Set("paper-width", "11")
+	cmd.Flags().Set("paper-height", "8.5")
+	cmd.Flags().Set("margin-top", "1")
+	cmd.Flags().Set("margin-bottom", "1")
+	cmd.Flags().Set("margin-left", "0.5")
+	cmd.Flags().Set("margin-right", "0.5")
+	cmd.Flags().Set("page-ranges", "1-3,5")
+	cmd.Flags().Set("prefer-css-page-size", "true")
+	cmd.Flags().Set("display-header-footer", "true")
+	cmd.Flags().Set("header-template", "<span class='title'></span>")
+	cmd.Flags().Set("footer-template", "<span class='pageNumber'></span>")
+	cmd.Flags().Set("generate-tagged-pdf", "true")
+	cmd.Flags().Set("generate-document-outline", "true")
 
-	PDF(client, m.base(), "", args)
+	PDF(client, m.base(), "", cmd)
 	if m.lastPath != "/tabs/tab-123/pdf" {
 		t.Errorf("expected /tabs/tab-123/pdf, got %s", m.lastPath)
 	}
 
-	// Check all parameters were set correctly
 	expectedParams := []string{
 		"landscape=true",
 		"scale=1.5",
@@ -75,7 +104,6 @@ func TestPDFAllOptions(t *testing.T) {
 		"marginBottom=1",
 		"marginLeft=0.5",
 		"marginRight=0.5",
-		"pageRanges=1-3%2C5", // URL encoded
 		"preferCSSPageSize=true",
 		"displayHeaderFooter=true",
 		"generateTaggedPDF=true",

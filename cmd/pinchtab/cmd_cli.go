@@ -31,7 +31,7 @@ var navCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.NavigateWithFlags(client, base, token, args[0], cmd)
+			browseractions.Navigate(client, base, token, args[0], cmd)
 		})
 	},
 }
@@ -42,7 +42,7 @@ var snapCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.SnapshotWithFlags(client, base, token, cmd)
+			browseractions.Snapshot(client, base, token, cmd)
 		})
 	},
 }
@@ -58,7 +58,7 @@ var clickCmd = &cobra.Command{
 		}
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionWithFlags(client, base, token, "click", ref, cmd)
+			browseractions.Action(client, base, token, "click", ref, cmd)
 		})
 	},
 }
@@ -70,7 +70,7 @@ var typeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionSimpleWithFlags(client, base, token, "type", args, cmd)
+			browseractions.ActionSimple(client, base, token, "type", args, cmd)
 		})
 	},
 }
@@ -81,7 +81,7 @@ var screenshotCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ScreenshotWithFlags(client, base, token, cmd)
+			browseractions.Screenshot(client, base, token, cmd)
 		})
 	},
 }
@@ -92,7 +92,7 @@ var tabsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.Tabs(client, base, token, nil)
+			browseractions.TabList(client, base, token)
 		})
 	},
 }
@@ -126,7 +126,7 @@ var pressCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionSimpleWithFlags(client, base, token, "press", args, cmd)
+			browseractions.ActionSimple(client, base, token, "press", args, cmd)
 		})
 	},
 }
@@ -138,7 +138,7 @@ var fillCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionSimpleWithFlags(client, base, token, "fill", args, cmd)
+			browseractions.ActionSimple(client, base, token, "fill", args, cmd)
 		})
 	},
 }
@@ -154,7 +154,7 @@ var hoverCmd = &cobra.Command{
 		}
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionWithFlags(client, base, token, "hover", ref, cmd)
+			browseractions.Action(client, base, token, "hover", ref, cmd)
 		})
 	},
 }
@@ -166,7 +166,7 @@ var scrollCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionSimpleWithFlags(client, base, token, "scroll", args, cmd)
+			browseractions.ActionSimple(client, base, token, "scroll", args, cmd)
 		})
 	},
 }
@@ -178,7 +178,7 @@ var evalCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.EvaluateWithFlags(client, base, token, args, cmd)
+			browseractions.Evaluate(client, base, token, args, cmd)
 		})
 	},
 }
@@ -189,7 +189,7 @@ var pdfCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.PDFWithFlags(client, base, token, cmd)
+			browseractions.PDF(client, base, token, cmd)
 		})
 	},
 }
@@ -200,7 +200,7 @@ var textCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.TextWithFlags(client, base, token, cmd)
+			browseractions.Text(client, base, token, cmd)
 		})
 	},
 }
@@ -254,7 +254,7 @@ var findCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.FindWithFlags(client, base, token, args[0], cmd)
+			browseractions.Find(client, base, token, args[0], cmd)
 		})
 	},
 }
@@ -266,7 +266,7 @@ var selectCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.ActionSimpleWithFlags(client, base, token, "select", args, cmd)
+			browseractions.ActionSimple(client, base, token, "select", args, cmd)
 		})
 	},
 }
@@ -426,7 +426,7 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := config.Load()
 			runCLIWith(cfg, func(client *http.Client, base, token string) {
-				browseractions.InstanceStartWithFlags(client, base, token, cmd)
+				browseractions.InstanceStart(client, base, token, cmd)
 			})
 		},
 	}
