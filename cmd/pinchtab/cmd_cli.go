@@ -42,7 +42,7 @@ var snapCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Load()
 		runCLIWith(cfg, func(client *http.Client, base, token string) {
-			browseractions.Snapshot(client, base, token, args)
+			browseractions.SnapshotWithFlags(client, base, token, cmd)
 		})
 	},
 }
@@ -287,7 +287,7 @@ func init() {
 	// Disable cobra flag parsing for commands that parse flags manually.
 	// FParseErrWhitelist silently swallows unknown flags (dropping them from args),
 	// so we must disable cobra's parser entirely and let the action code handle flags.
-	snapCmd.DisableFlagParsing = true
+	// snapCmd now uses proper cobra flags (see below)
 	// screenshotCmd now uses proper cobra flags (see below)
 	// pdfCmd now uses proper cobra flags (see below)
 	// findCmd now uses proper cobra flags (see below)
@@ -299,6 +299,15 @@ func init() {
 
 	uploadCmd.Flags().StringP("selector", "s", "", "CSS selector for file input")
 	downloadCmd.Flags().StringP("output", "o", "", "Save downloaded file to path")
+
+	snapCmd.Flags().BoolP("interactive", "i", false, "Filter interactive elements only")
+	snapCmd.Flags().BoolP("compact", "c", false, "Compact output format")
+	snapCmd.Flags().Bool("text", false, "Text output format")
+	snapCmd.Flags().BoolP("diff", "d", false, "Show diff from previous snapshot")
+	snapCmd.Flags().StringP("selector", "s", "", "CSS selector to scope snapshot")
+	snapCmd.Flags().String("max-tokens", "", "Maximum token budget")
+	snapCmd.Flags().String("depth", "", "Tree depth limit")
+	snapCmd.Flags().String("tab", "", "Tab ID")
 
 	screenshotCmd.Flags().StringP("output", "o", "", "Save screenshot to file path")
 	screenshotCmd.Flags().StringP("quality", "q", "", "JPEG quality (0-100)")
