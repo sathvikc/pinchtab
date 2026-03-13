@@ -10,7 +10,7 @@ import (
 
 func InstanceStart(client *http.Client, base, token string, cmd *cobra.Command) {
 	body := map[string]any{}
-	if v, _ := cmd.Flags().GetString("profileId"); v != "" {
+	if v, _ := cmd.Flags().GetString("profile-id"); v != "" {
 		body["profileId"] = v
 	}
 	if v, _ := cmd.Flags().GetString("mode"); v != "" {

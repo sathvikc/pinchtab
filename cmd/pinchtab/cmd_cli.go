@@ -430,7 +430,7 @@ func init() {
 			})
 		},
 	}
-	startInstanceCmd.Flags().String("profileId", "", "Profile ID to use")
+	startInstanceCmd.Flags().String("profile-id", "", "Profile ID to use")
 	startInstanceCmd.Flags().String("mode", "", "Instance mode")
 	startInstanceCmd.Flags().String("port", "", "Port number")
 	instanceCmd.AddCommand(startInstanceCmd)
