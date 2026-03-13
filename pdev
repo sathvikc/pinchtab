@@ -27,6 +27,8 @@ COMMANDS=(
   "  system:🔬:System tests only"
   "doctor:🩺:Setup dev environment"
   "e2e:🐳:E2E tests (Docker)"
+  "  curl:🐳:E2E curl tests"
+  "  cli:🐳:E2E CLI tests"
   "check go:🧪:Go only"
   "check dashboard:🧪:Dashboard only"
   "check security:🧪:Gosec security scan"
@@ -120,10 +122,19 @@ run_command() {
       echo ""
       exec bash scripts/test.sh system
       ;;
-    "e2e")
-      echo "  ${ACCENT}${BOLD}🐳 E2E tests (Docker)${NC}"
+    "e2e"|"e2e curl")
+      echo "  ${ACCENT}${BOLD}🐳 E2E Curl tests (Docker)${NC}"
       echo ""
       exec docker compose -f tests/e2e/docker-compose.yml up --build --abort-on-container-exit
+      ;;
+    "e2e cli")
+      echo "  ${ACCENT}${BOLD}🐳 E2E CLI tests (Docker)${NC}"
+      echo ""
+      echo "  ${MUTED}Building static binary...${NC}"
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o tests/e2e/runner-cli/pinchtab ./cmd/pinchtab
+      echo "  ${SUCCESS}✓${NC} Binary built"
+      echo ""
+      exec docker compose -f tests/e2e/docker-compose-cli.yml up --build --abort-on-container-exit
       ;;
     "dev")          exec bash scripts/dev.sh ;;
     "build")        exec bash scripts/build.sh ;;
