@@ -4,7 +4,10 @@
     "port": "9999"
   },
   "browser": {
-    "extraFlags": "--no-sandbox --disable-dev-shm-usage"
+    "extraFlags": "--no-sandbox --disable-dev-shm-usage",
+    "extensionPaths": [
+      "/extensions/test-extension"
+    ]
   },
   "instanceDefaults": {
     "maxTabs": 10

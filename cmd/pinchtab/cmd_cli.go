@@ -422,6 +422,7 @@ func init() {
 	startInstanceCmd.Flags().String("profile", "", "Profile to use")
 	startInstanceCmd.Flags().String("mode", "", "Instance mode")
 	startInstanceCmd.Flags().String("port", "", "Port number")
+	startInstanceCmd.Flags().StringArray("extension", nil, "Load browser extension (repeatable)")
 	instanceCmd.AddCommand(startInstanceCmd)
 
 	instanceCmd.AddCommand(&cobra.Command{

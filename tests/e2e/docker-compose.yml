@@ -9,6 +9,8 @@ services:
       PINCHTAB_PORT: "9999"
     volumes:
       - ./config/pinchtab.json:/config/pinchtab.json:ro
+      - ./fixtures/test-extension:/extensions/test-extension
+      - ./fixtures/test-extension-api:/extensions/test-extension-api
     ports:
       - "9999:9999"
     # Chrome needs more shared memory in Docker

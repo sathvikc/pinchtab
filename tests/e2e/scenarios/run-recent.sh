@@ -1,5 +1,6 @@
 #!/bin/bash
-# run-all.sh - Run all E2E test scenarios
+# run-recent.sh - Run only recently added/changed E2E test scenarios
+# This runs a fast subset for fail-fast CI before the full suites.
 
 set -uo pipefail
 
@@ -7,7 +8,7 @@ SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/common.sh"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "${BLUE}PinchTab E2E Test Suite${NC}"
+echo -e "${BLUE}PinchTab E2E Recent Tests${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "PINCHTAB_URL: ${PINCHTAB_URL}"
 echo "FIXTURES_URL: ${FIXTURES_URL}"
@@ -19,19 +20,26 @@ wait_for_instance_ready "${PINCHTAB_URL}"
 wait_for_instance_ready "${PINCHTAB_SECURE_URL}"
 echo ""
 
-# Find and run all test scripts in order
-for script in "${SCRIPT_DIR}"/[0-9][0-9]-*.sh; do
+# Recent test files — add new scenarios here for fast CI feedback.
+# Move to the full suite (run-all.sh) once stable.
+RECENT_TESTS=(
+  "41-extensions.sh"
+)
+
+for name in "${RECENT_TESTS[@]}"; do
+  script="${SCRIPT_DIR}/${name}"
   if [ -f "$script" ]; then
-    echo -e "${YELLOW}Running: $(basename "$script")${NC}"
+    echo -e "${YELLOW}Running: ${name}${NC}"
     echo ""
     source "$script"
     echo ""
+  else
+    echo -e "${RED}Missing: ${name}${NC}"
   fi
 done
 
 print_summary
 
-# Save results if results dir exists
 if [ -d "${RESULTS_DIR:-}" ]; then
   echo "passed=$TESTS_PASSED" > "${RESULTS_DIR}/summary.txt"
   echo "failed=$TESTS_FAILED" >> "${RESULTS_DIR}/summary.txt"

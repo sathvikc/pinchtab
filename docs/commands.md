@@ -4,6 +4,7 @@
 
 ```
 pinchtab server                  # Start the full server (dashboard + API)
+pinchtab server --extension /path/to/ext # Start with extension (repeatable)
 pinchtab bridge                  # Start bridge-only server (no dashboard)
 pinchtab mcp                     # Start the MCP stdio server
 pinchtab daemon                  # Show daemon status
@@ -99,6 +100,7 @@ pinchtab instances               # List running instances
 pinchtab instance start          # Start a new browser instance
 pinchtab instance start --profile <name> # Start with specific profile
 pinchtab instance start --port <n> # Start on specific port
+pinchtab instance start --extension /path/to/ext # Load extension (repeatable)
 pinchtab instance stop <id>      # Stop an instance
 pinchtab instance logs <id>      # View instance logs
 pinchtab instance navigate <id> <url>  # Navigate instance to URL

@@ -7,7 +7,10 @@ End-to-end tests for PinchTab that exercise the full stack including browser aut
 ### With Docker (recommended)
 
 ```bash
-./dev e2e
+./dev e2e          # Run all E2E tests
+./dev e2e recent   # Run only recently added/changed scenarios (fast feedback)
+./dev e2e curl     # Run only Curl-based scenarios
+./dev e2e cli      # Run only CLI-based scenarios
 ```
 
 Or directly:

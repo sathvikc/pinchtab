@@ -19,6 +19,9 @@ func InstanceStart(client *http.Client, base, token string, cmd *cobra.Command) 
 	if v, _ := cmd.Flags().GetString("port"); v != "" {
 		body["port"] = v
 	}
+	if exts, _ := cmd.Flags().GetStringArray("extension"); len(exts) > 0 {
+		body["extensionPaths"] = exts
+	}
 	apiclient.DoPost(client, base, token, "/instances/start", body)
 }
 

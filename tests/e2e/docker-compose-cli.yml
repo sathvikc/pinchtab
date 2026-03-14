@@ -9,6 +9,7 @@ services:
       PINCHTAB_PORT: "9999"
     volumes:
       - ./config/pinchtab.json:/config/pinchtab.json:ro
+      - ./fixtures/test-extension:/extensions/test-extension:ro
     ports:
       - "9999:9999"
     shm_size: '2gb'

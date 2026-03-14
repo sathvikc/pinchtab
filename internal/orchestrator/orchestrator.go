@@ -361,8 +361,23 @@ func (o *Orchestrator) writeChildConfig(port, profilePath, instanceStateDir stri
 	}
 	noRestore := true
 	fc.InstanceDefaults.NoRestore = &noRestore
+
 	if len(extensionPaths) > 0 {
-		fc.Browser.ExtensionPaths = append([]string(nil), extensionPaths...)
+		seen := make(map[string]bool)
+		unique := make([]string, 0, len(fc.Browser.ExtensionPaths)+len(extensionPaths))
+		for _, p := range fc.Browser.ExtensionPaths {
+			if !seen[p] {
+				seen[p] = true
+				unique = append(unique, p)
+			}
+		}
+		for _, p := range extensionPaths {
+			if !seen[p] {
+				seen[p] = true
+				unique = append(unique, p)
+			}
+		}
+		fc.Browser.ExtensionPaths = unique
 	}
 
 	configPath := filepath.Join(instanceStateDir, "config.json")

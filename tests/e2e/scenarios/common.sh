@@ -6,10 +6,12 @@ set -uo pipefail
 
 # Colors
 RED='\033[0;31m'
+ERROR="$RED"
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 MUTED='\033[0;90m'
+BOLD='\033[1m'
 NC='\033[0m'
 
 # Defaults from environment
@@ -64,11 +66,15 @@ wait_for_instance_ready() {
       return 1
     fi
 
-    local inst_status
-    inst_status=$(curl -sf "${base_url}/health" 2>/dev/null | jq -r '.defaultInstance.status // empty' 2>/dev/null || true)
-    if [ "$inst_status" = "running" ]; then
-      echo -e "  ${GREEN}✓${NC} instance ready at ${base_url}"
-      return 0
+    local health_json
+    health_json=$(curl -sf "${base_url}/health" 2>/dev/null || true)
+    if [ -n "$health_json" ]; then
+      local inst_status
+      inst_status=$(echo "$health_json" | jq -r '.defaultInstance.status // .status // empty' 2>/dev/null || true)
+      if [ "$inst_status" = "running" ] || [ "$inst_status" = "ok" ]; then
+        echo -e "  ${GREEN}✓${NC} instance ready at ${base_url}"
+        return 0
+      fi
     fi
 
     sleep 1
@@ -228,7 +234,9 @@ assert_input_not_contains() {
   local forbidden="$2"
   local desc="${3:-$selector should not contain '$forbidden'}"
 
-  pt_post /evaluate -d "{\"expression\":\"document.querySelector('$selector')?.value || ''\"}"
+  local json_body
+  json_body=$(jq -n --arg sel "$selector" '{"expression": ("document.querySelector(\"" + $sel + "\")?.value || \"\"")}')
+  pt_post /evaluate "$json_body"
   local value
   value=$(echo "$RESULT" | jq -r '.result // empty')
 
@@ -291,7 +299,8 @@ pinchtab() {
   shift 2
 
   # Print the curl command in cyan so you see what's executed
-  echo -e "${BLUE}→ curl -X $method ${PINCHTAB_URL}$path $@${NC}" >&2
+  # Using printf %q to better show quoted arguments
+  echo -e "${BLUE}→ curl -X $method ${PINCHTAB_URL}$path $(printf "%q " "$@")${NC}" >&2
 
   # Execute and capture response + status
   local response
@@ -303,6 +312,11 @@ pinchtab() {
 
   RESULT=$(echo "$response" | head -n -1)
   HTTP_STATUS=$(echo "$response" | tail -n 1)
+
+  # Log response body on failure for debugging
+  if [[ ! "$HTTP_STATUS" =~ ^2 ]]; then
+    echo -e "${ERROR}  HTTP $HTTP_STATUS: $RESULT${NC}" >&2
+  fi
 }
 
 # Aliases for cleaner test files
@@ -621,18 +635,26 @@ assert_ref_found() {
 # Evaluate with polling (for stealth/async injection)
 # ================================================================
 
-# Poll an expression up to N times, assert result equals expected
-# Usage: assert_eval_poll "navigator.webdriver === undefined" "true" "webdriver is undefined" [attempts] [delay]
+# Poll an expression up to N times, assert result equals expected.
+# If a tab ID is provided, evaluate in that exact tab instead of the implicit current tab.
+# Usage: assert_eval_poll "navigator.webdriver === undefined" "true" "webdriver is undefined" [attempts] [delay] [tab_id]
 assert_eval_poll() {
   local expr="$1"
   local expected="$2"
   local desc="${3:-eval poll}"
   local attempts="${4:-5}"
   local delay="${5:-0.4}"
+  local tab_id="${6:-}"
 
   local ok=false
   for i in $(seq 1 "$attempts"); do
-    pt_post /evaluate "{\"expression\":\"$expr\"}"
+    local json_body
+    if [ -n "$tab_id" ]; then
+      json_body=$(jq -n --arg expr "$expr" --arg tabId "$tab_id" '{"expression": $expr, "tabId": $tabId}')
+    else
+      json_body=$(jq -n --arg expr "$expr" '{"expression": $expr}')
+    fi
+    pt_post /evaluate "$json_body"
     local actual
     actual=$(echo "$RESULT" | jq -r '.result // empty' 2>/dev/null)
     if [ "$actual" = "$expected" ]; then
@@ -645,9 +667,11 @@ assert_eval_poll() {
   if [ "$ok" = "true" ]; then
     echo -e "  ${GREEN}✓${NC} $desc"
     ((ASSERTIONS_PASSED++)) || true
+    return 0
   else
     echo -e "  ${RED}✗${NC} $desc (got: $actual, expected: $expected)"
     ((ASSERTIONS_FAILED++)) || true
+    return 1
   fi
 }
 
