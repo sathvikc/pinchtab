@@ -106,27 +106,54 @@ func TestHandleNavigateMissingURL(t *testing.T) {
 	}
 }
 
-func TestHandleNavigateInvalidURL(t *testing.T) {
+func TestHandleNavigateEmptyURL(t *testing.T) {
 	srv := mockPinchTab()
 	defer srv.Close()
 
-	r := callTool(t, "pinchtab_navigate", map[string]any{"url": "not-a-url"}, srv)
+	// Empty URL should fail
+	r := callTool(t, "pinchtab_navigate", map[string]any{"url": ""}, srv)
 	if !r.IsError {
-		t.Error("expected error for invalid URL scheme")
-	}
-	text := resultText(t, r)
-	if !strings.Contains(text, "invalid URL") {
-		t.Errorf("expected 'invalid URL' in error, got %s", text)
+		t.Error("expected error for empty URL")
 	}
 }
 
-func TestHandleNavigateFTPScheme(t *testing.T) {
+func TestHandleNavigateJavaScript(t *testing.T) {
 	srv := mockPinchTab()
 	defer srv.Close()
 
-	r := callTool(t, "pinchtab_navigate", map[string]any{"url": "ftp://files.example.com/readme"}, srv)
-	if !r.IsError {
-		t.Error("expected error for ftp:// URL")
+	// javascript: URLs should be allowed (user knows what they're doing)
+	r := callTool(t, "pinchtab_navigate", map[string]any{"url": "javascript:void(0)"}, srv)
+	if r.IsError {
+		t.Errorf("expected javascript: URL to succeed, got error: %s", resultText(t, r))
+	}
+}
+
+func TestHandleNavigateBareHostname(t *testing.T) {
+	srv := mockPinchTab()
+	defer srv.Close()
+
+	// Bare hostnames should be normalized to https://
+	r := callTool(t, "pinchtab_navigate", map[string]any{"url": "example.com"}, srv)
+	if r.IsError {
+		t.Errorf("expected bare hostname to succeed, got error: %s", resultText(t, r))
+	}
+}
+
+func TestHandleNavigateAnyScheme(t *testing.T) {
+	srv := mockPinchTab()
+	defer srv.Close()
+
+	// All explicit schemes should be allowed
+	urls := []string{
+		"ftp://files.example.com/readme",
+		"chrome://settings",
+		"file:///path/to/file.html",
+	}
+	for _, u := range urls {
+		r := callTool(t, "pinchtab_navigate", map[string]any{"url": u}, srv)
+		if r.IsError {
+			t.Errorf("expected %q to succeed, got error: %s", u, resultText(t, r))
+		}
 	}
 }
 
