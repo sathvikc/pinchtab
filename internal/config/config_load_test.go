@@ -62,6 +62,9 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.TrustProxyHeaders {
 		t.Errorf("default TrustProxyHeaders = %v, want false", cfg.TrustProxyHeaders)
 	}
+	if cfg.CookieSecure != nil {
+		t.Errorf("default CookieSecure = %v, want nil for auto-detect", *cfg.CookieSecure)
+	}
 	if len(cfg.DownloadAllowedDomains) != 0 {
 		t.Errorf("default DownloadAllowedDomains = %v, want empty list", cfg.DownloadAllowedDomains)
 	}
@@ -474,6 +477,33 @@ func TestApplyFileConfigToRuntime_TrustProxyHeaders(t *testing.T) {
 	applyFileConfig(cfg, fc2)
 	if cfg.TrustProxyHeaders {
 		t.Fatal("expected TrustProxyHeaders to be false after apply with false")
+	}
+}
+
+func TestApplyFileConfigToRuntime_CookieSecure(t *testing.T) {
+	cfg := &RuntimeConfig{}
+	if cfg.CookieSecure != nil {
+		t.Fatal("expected default CookieSecure to be nil")
+	}
+
+	enabled := true
+	fc := &FileConfig{Server: ServerConfig{CookieSecure: &enabled}}
+	applyFileConfig(cfg, fc)
+	if cfg.CookieSecure == nil || !*cfg.CookieSecure {
+		t.Fatal("expected CookieSecure to be true after apply")
+	}
+
+	disabled := false
+	fc2 := &FileConfig{Server: ServerConfig{CookieSecure: &disabled}}
+	applyFileConfig(cfg, fc2)
+	if cfg.CookieSecure == nil || *cfg.CookieSecure {
+		t.Fatal("expected CookieSecure to be false after apply with false")
+	}
+
+	fc3 := &FileConfig{}
+	applyFileConfig(cfg, fc3)
+	if cfg.CookieSecure != nil {
+		t.Fatal("expected CookieSecure to reset to nil when omitted")
 	}
 }
 

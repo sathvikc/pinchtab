@@ -14,6 +14,7 @@ func TestGetConfigValue_RoundTrip(t *testing.T) {
 		{"server.bind", "0.0.0.0", "0.0.0.0"},
 		{"server.token", "s3cr3t", "s3cr3t"},
 		{"server.stateDir", "/tmp/state", "/tmp/state"},
+		{"server.cookieSecure", "false", "false"},
 		{"browser.version", "120.0", "120.0"},
 		{"browser.binary", "/usr/bin/chrome", "/usr/bin/chrome"},
 		{"instanceDefaults.mode", "headed", "headed"},
@@ -101,6 +102,7 @@ func TestGetConfigValue_NilPointerReturnsEmpty(t *testing.T) {
 		"multiInstance.instancePortStart",
 		"multiInstance.instancePortEnd",
 		"security.attach.enabled",
+		"server.cookieSecure",
 	}
 	for _, path := range ptrs {
 		t.Run(path, func(t *testing.T) {

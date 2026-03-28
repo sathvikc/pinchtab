@@ -13,6 +13,7 @@ func TestSetConfigValue_ServerFields(t *testing.T) {
 		{"server.bind", "0.0.0.0", func(fc *FileConfig) bool { return fc.Server.Bind == "0.0.0.0" }, false},
 		{"server.token", "secret", func(fc *FileConfig) bool { return fc.Server.Token == "secret" }, false},
 		{"server.stateDir", "/tmp/state", func(fc *FileConfig) bool { return fc.Server.StateDir == "/tmp/state" }, false},
+		{"server.cookieSecure", "false", func(fc *FileConfig) bool { return fc.Server.CookieSecure != nil && *fc.Server.CookieSecure == false }, false},
 		{"server.unknown", "value", nil, true},
 	}
 

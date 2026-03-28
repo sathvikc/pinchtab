@@ -11,7 +11,7 @@ import (
 // SetSessionCookie stores the opaque dashboard session id in an HttpOnly
 // same-site cookie so browser APIs can authenticate without exposing the
 // underlying bearer token to JavaScript.
-func SetSessionCookie(w http.ResponseWriter, r *http.Request, sessionID string, maxLifetime time.Duration, trustProxy bool) {
+func SetSessionCookie(w http.ResponseWriter, r *http.Request, sessionID string, maxLifetime time.Duration, trustProxy bool, cookieSecure *bool) {
 	if maxLifetime <= 0 {
 		maxLifetime = DefaultSessionMaxLifetime
 	}
@@ -20,7 +20,7 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, sessionID string, 
 		Value:    url.QueryEscape(strings.TrimSpace(sessionID)),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   sessionCookieSecure(r, trustProxy),
+		Secure:   sessionCookieSecure(r, trustProxy, cookieSecure),
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(maxLifetime.Seconds()),
 		Expires:  time.Now().Add(maxLifetime),
@@ -28,20 +28,23 @@ func SetSessionCookie(w http.ResponseWriter, r *http.Request, sessionID string, 
 }
 
 // ClearSessionCookie expires the dashboard auth cookie.
-func ClearSessionCookie(w http.ResponseWriter, r *http.Request, trustProxy bool) {
+func ClearSessionCookie(w http.ResponseWriter, r *http.Request, trustProxy bool, cookieSecure *bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   sessionCookieSecure(r, trustProxy),
+		Secure:   sessionCookieSecure(r, trustProxy, cookieSecure),
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
 	})
 }
 
-func sessionCookieSecure(r *http.Request, trustProxy bool) bool {
+func sessionCookieSecure(r *http.Request, trustProxy bool, cookieSecure *bool) bool {
+	if cookieSecure != nil {
+		return *cookieSecure
+	}
 	if requestScheme(r, trustProxy) == "https" {
 		return true
 	}

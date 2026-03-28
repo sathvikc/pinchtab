@@ -100,6 +100,32 @@ func TestAuthAPIHandleLogin_TrustedProxyHTTPSUsesSecureCookie(t *testing.T) {
 	}
 }
 
+func TestAuthAPIHandleLogin_CookieSecureFalseOverridesHTTPS(t *testing.T) {
+	sessions := authn.NewSessionManager(authn.SessionConfig{})
+	forceInsecure := false
+	api := NewAuthAPI(&config.RuntimeConfig{
+		Token:        "secret-token",
+		CookieSecure: &forceInsecure,
+	}, sessions)
+
+	req := httptest.NewRequest("POST", "https://pinchtab.example/api/auth/login", strings.NewReader(`{"token":"secret-token"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	api.HandleLogin(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	cookies := w.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %d, want 1", len(cookies))
+	}
+	if cookies[0].Secure {
+		t.Fatal("expected explicit cookieSecure=false to disable Secure even on https request")
+	}
+}
+
 func TestAuthAPIHandleLoginRejectsBadToken(t *testing.T) {
 	api := NewAuthAPI(&config.RuntimeConfig{Token: "secret-token"}, authn.NewSessionManager(authn.SessionConfig{}))
 

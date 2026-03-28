@@ -96,6 +96,19 @@ The browser dashboard uses a different flow:
 3. sensitive dashboard actions can require token re-entry for short-lived
    elevation
 
+By default, PinchTab auto-detects whether the dashboard session cookie should
+use the `Secure` flag. For reverse-proxied HTTPS this stays enabled. If you
+intentionally access the dashboard over plain HTTP on a trusted LAN, you can
+explicitly disable it:
+
+```json
+{
+  "server": {
+    "cookieSecure": false
+  }
+}
+```
+
 Why this matters:
 
 - without a token, any process that can reach the server can call the API

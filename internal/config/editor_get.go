@@ -48,6 +48,8 @@ func getServerField(s *ServerConfig, field string) (string, error) {
 		return s.StateDir, nil
 	case "trustProxyHeaders":
 		return formatBoolPtr(s.TrustProxyHeaders), nil
+	case "cookieSecure":
+		return formatBoolPtr(s.CookieSecure), nil
 	default:
 		return "", fmt.Errorf("unknown field server.%s", field)
 	}

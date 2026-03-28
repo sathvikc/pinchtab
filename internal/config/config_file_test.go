@@ -13,6 +13,9 @@ func TestDefaultFileConfig(t *testing.T) {
 	if fc.Server.Bind != "127.0.0.1" {
 		t.Errorf("DefaultFileConfig.Server.Bind = %v, want 127.0.0.1", fc.Server.Bind)
 	}
+	if fc.Server.CookieSecure != nil {
+		t.Errorf("DefaultFileConfig.Server.CookieSecure = %v, want nil for auto-detect", formatBoolPtr(fc.Server.CookieSecure))
+	}
 	if fc.InstanceDefaults.Mode != "headless" {
 		t.Errorf("DefaultFileConfig.InstanceDefaults.Mode = %v, want headless", fc.InstanceDefaults.Mode)
 	}

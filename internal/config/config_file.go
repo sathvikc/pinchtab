@@ -132,6 +132,7 @@ type serverConfigJSON struct {
 	Engine            string `json:"engine"`
 	NetworkBufferSize *int   `json:"networkBufferSize,omitempty"`
 	TrustProxyHeaders *bool  `json:"trustProxyHeaders,omitempty"`
+	CookieSecure      *bool  `json:"cookieSecure,omitempty"`
 }
 
 type browserConfigJSON struct {
@@ -262,6 +263,7 @@ func (fc FileConfig) MarshalJSON() ([]byte, error) {
 			Engine:            fc.Server.Engine,
 			NetworkBufferSize: fc.Server.NetworkBufferSize,
 			TrustProxyHeaders: fc.Server.TrustProxyHeaders,
+			CookieSecure:      fc.Server.CookieSecure,
 		},
 		Browser: browserConfigJSON{
 			ChromeVersion:    fc.Browser.ChromeVersion,
@@ -415,6 +417,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 			Engine:            cfg.Engine,
 			NetworkBufferSize: netBufSize,
 			TrustProxyHeaders: &cfg.TrustProxyHeaders,
+			CookieSecure:      cfg.CookieSecure,
 		},
 		Browser: BrowserConfig{
 			ChromeVersion:    cfg.ChromeVersion,
