@@ -96,6 +96,14 @@ func Load() *RuntimeConfig {
 				RetentionDays:  1,
 			},
 		},
+
+		// AutoSolver defaults (disabled by default)
+		AutoSolver: AutoSolverConfig{
+			Enabled:     false,
+			MaxAttempts: 8,
+			Solvers:     []string{"cloudflare", "semantic", "capsolver", "twocaptcha"},
+			LLMFallback: false,
+		},
 	}
 	finalizeProfileConfig(cfg)
 
@@ -399,6 +407,26 @@ func applyFileConfig(cfg *RuntimeConfig, fc *FileConfig) {
 	if fc.Scheduler.WorkerCount != nil {
 		cfg.Scheduler.WorkerCount = *fc.Scheduler.WorkerCount
 	}
+
+	// AutoSolver
+	if fc.AutoSolver.Enabled != nil {
+		cfg.AutoSolver.Enabled = *fc.AutoSolver.Enabled
+	}
+	if fc.AutoSolver.MaxAttempts != nil && *fc.AutoSolver.MaxAttempts > 0 {
+		cfg.AutoSolver.MaxAttempts = *fc.AutoSolver.MaxAttempts
+	}
+	if len(fc.AutoSolver.Solvers) > 0 {
+		cfg.AutoSolver.Solvers = append([]string(nil), fc.AutoSolver.Solvers...)
+	}
+	if fc.AutoSolver.LLMProvider != "" {
+		cfg.AutoSolver.LLMProvider = fc.AutoSolver.LLMProvider
+	}
+	if fc.AutoSolver.LLMFallback != nil {
+		cfg.AutoSolver.LLMFallback = *fc.AutoSolver.LLMFallback
+	}
+	// External solver keys: env vars override config file.
+	cfg.AutoSolver.CapsolverKey = envOr("PINCHTAB_AUTOSOLVER_CAPSOLVER_KEY", fc.AutoSolver.External.CapsolverKey)
+	cfg.AutoSolver.TwoCaptchaKey = envOr("PINCHTAB_AUTOSOLVER_2CAPTCHA_KEY", fc.AutoSolver.External.TwoCaptchaKey)
 }
 
 // ApplyFileConfigToRuntime merges file configuration into an existing runtime

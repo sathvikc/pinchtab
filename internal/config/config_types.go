@@ -89,6 +89,9 @@ type RuntimeConfig struct {
 
 	// Observability settings
 	Observability ObservabilityConfig
+
+	// AutoSolver settings
+	AutoSolver AutoSolverConfig
 }
 
 // IDPIConfig holds the configuration for the Indirect Prompt Injection (IDPI)
@@ -119,6 +122,17 @@ type SchedulerConfig struct {
 	WorkerCount       int    `json:"workerCount,omitempty"`
 }
 
+// AutoSolverConfig holds autosolver runtime settings.
+type AutoSolverConfig struct {
+	Enabled        bool     `json:"enabled,omitempty"`
+	MaxAttempts    int      `json:"maxAttempts,omitempty"`
+	Solvers        []string `json:"solvers,omitempty"`        // Ordered solver names
+	LLMProvider    string   `json:"llmProvider,omitempty"`    // "openai", "anthropic", etc.
+	LLMFallback    bool     `json:"llmFallback,omitempty"`    // Enable LLM as last resort
+	CapsolverKey   string   `json:"capsolverKey,omitempty"`
+	TwoCaptchaKey  string   `json:"twoCaptchaKey,omitempty"`
+}
+
 type ObservabilityConfig struct {
 	Activity ActivityConfig `json:"activity,omitempty"`
 }
@@ -141,6 +155,7 @@ type FileConfig struct {
 	Timeouts         TimeoutsConfig          `json:"timeouts,omitempty"`
 	Scheduler        SchedulerFileConfig     `json:"scheduler,omitempty"`
 	Observability    ObservabilityFileConfig `json:"observability,omitempty"`
+	AutoSolver       AutoSolverFileConfig    `json:"autoSolver,omitempty"`
 }
 
 type ServerConfig struct {
@@ -250,4 +265,20 @@ type ActivityFileConfig struct {
 	Enabled        *bool `json:"enabled,omitempty"`
 	SessionIdleSec *int  `json:"sessionIdleSec,omitempty"`
 	RetentionDays  *int  `json:"retentionDays,omitempty"`
+}
+
+// AutoSolverFileConfig is the persistent configuration for the autosolver system.
+type AutoSolverFileConfig struct {
+	Enabled       *bool             `json:"enabled,omitempty"`
+	MaxAttempts   *int              `json:"maxAttempts,omitempty"`
+	Solvers       []string          `json:"solvers,omitempty"`
+	LLMProvider   string            `json:"llmProvider,omitempty"`
+	LLMFallback   *bool             `json:"llmFallback,omitempty"`
+	External      AutoSolverExtConf `json:"external,omitempty"`
+}
+
+// AutoSolverExtConf holds external solver API keys.
+type AutoSolverExtConf struct {
+	CapsolverKey  string `json:"capsolverKey,omitempty"`
+	TwoCaptchaKey string `json:"twoCaptchaKey,omitempty"`
 }

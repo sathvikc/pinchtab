@@ -122,6 +122,7 @@ type fileConfigJSON struct {
 	Timeouts         timeoutsConfigJSON          `json:"timeouts"`
 	Scheduler        schedulerFileConfigJSON     `json:"scheduler"`
 	Observability    observabilityFileConfigJSON `json:"observability"`
+	AutoSolver       autoSolverFileConfigJSON    `json:"autoSolver,omitempty"`
 }
 
 type serverConfigJSON struct {
@@ -242,6 +243,20 @@ type activityConfigJSON struct {
 	RetentionDays  *int  `json:"retentionDays"`
 }
 
+type autoSolverFileConfigJSON struct {
+	Enabled       *bool                   `json:"enabled,omitempty"`
+	MaxAttempts   *int                    `json:"maxAttempts,omitempty"`
+	Solvers       []string                `json:"solvers,omitempty"`
+	LLMProvider   string                  `json:"llmProvider,omitempty"`
+	LLMFallback   *bool                   `json:"llmFallback,omitempty"`
+	External      autoSolverExtConfigJSON `json:"external,omitempty"`
+}
+
+type autoSolverExtConfigJSON struct {
+	CapsolverKey  string `json:"capsolverKey,omitempty"`
+	TwoCaptchaKey string `json:"twoCaptchaKey,omitempty"`
+}
+
 func copyStringSlice(items []string) []string {
 	if items == nil {
 		return []string{}
@@ -354,6 +369,17 @@ func (fc FileConfig) MarshalJSON() ([]byte, error) {
 				Enabled:        fc.Observability.Activity.Enabled,
 				SessionIdleSec: fc.Observability.Activity.SessionIdleSec,
 				RetentionDays:  fc.Observability.Activity.RetentionDays,
+			},
+		},
+		AutoSolver: autoSolverFileConfigJSON{
+			Enabled:     fc.AutoSolver.Enabled,
+			MaxAttempts: fc.AutoSolver.MaxAttempts,
+			Solvers:     copyStringSlice(fc.AutoSolver.Solvers),
+			LLMProvider: fc.AutoSolver.LLMProvider,
+			LLMFallback: fc.AutoSolver.LLMFallback,
+			External: autoSolverExtConfigJSON{
+				CapsolverKey:  fc.AutoSolver.External.CapsolverKey,
+				TwoCaptchaKey: fc.AutoSolver.External.TwoCaptchaKey,
 			},
 		},
 	})

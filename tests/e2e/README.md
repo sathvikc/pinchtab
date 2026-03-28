@@ -88,6 +88,9 @@ The API and CLI suites are grouped by feature area:
 - `system-basic` / `system-full`
 - `stealth-basic` / `stealth-full` on API
 
+Manual real-world scenario:
+- `autosolver-realworld.sh` on API (opt-in, not CI): runs AutoSolver against Pixelscan/Sannysoft/BrowserScan and logs before/after detection text signals.
+
 The `basic` entrypoints are the PR-fast happy path. The `full` entrypoints add extra and edge-case coverage for the same feature. The top-level runner defaults to the basic layer; pass `all=true` to run both basic and full.
 
 Compose usage:

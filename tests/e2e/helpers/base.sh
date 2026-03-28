@@ -17,7 +17,13 @@ E2E_SECURE_SERVER="${E2E_SECURE_SERVER:-http://localhost:9998}"
 E2E_MEDIUM_SERVER="${E2E_MEDIUM_SERVER:-}"
 E2E_FULL_SERVER="${E2E_FULL_SERVER:-}"
 E2E_BRIDGE_URL="${E2E_BRIDGE_URL:-}"
+
+# Auto-load token from config file if not set
+if [ -z "${E2E_SERVER_TOKEN:-}" ] && [ -f "$HOME/.pinchtab/config.json" ]; then
+  E2E_SERVER_TOKEN=$(jq -r '.server.token // empty' "$HOME/.pinchtab/config.json" 2>/dev/null || echo "")
+fi
 E2E_SERVER_TOKEN="${E2E_SERVER_TOKEN:-}"
+
 E2E_BRIDGE_TOKEN="${E2E_BRIDGE_TOKEN:-}"
 FIXTURES_URL="${FIXTURES_URL:-http://localhost:8080}"
 RESULTS_DIR="${RESULTS_DIR:-/results}"
