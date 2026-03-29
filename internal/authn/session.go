@@ -370,7 +370,7 @@ func (m *SessionManager) saveLocked() {
 	if err := os.MkdirAll(filepath.Dir(m.persistPath), 0755); err != nil {
 		return
 	}
-	if err := os.WriteFile(m.persistPath, data, 0644); err != nil {
+	if err := os.WriteFile(m.persistPath, data, 0600); err != nil {
 		return
 	}
 }
