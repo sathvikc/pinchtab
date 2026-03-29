@@ -218,18 +218,6 @@ func (m *SessionManager) UpdateConfig(cfg SessionConfig) {
 		return
 	}
 
-	idle := cfg.IdleTimeout
-	if idle <= 0 {
-		idle = DefaultSessionIdleTimeout
-	}
-	maxLifetime := cfg.MaxLifetime
-	if maxLifetime <= 0 {
-		maxLifetime = DefaultSessionMaxLifetime
-	}
-	elevationWindow := cfg.ElevationWindow
-	if elevationWindow <= 0 {
-		elevationWindow = DefaultSessionElevationWindow
-	}
 	persistPath := strings.TrimSpace(cfg.PersistPath)
 	persist := cfg.Persist && persistPath != ""
 
