@@ -335,3 +335,39 @@ func (o *Orchestrator) singleRunningInstance() *InstanceInternal {
 	}
 	return only
 }
+
+// proxyToFirstInstance proxies requests to the first running instance.
+// Used for browser-wide operations like cache clearing that aren't tab-specific.
+func (o *Orchestrator) proxyToFirstInstance(w http.ResponseWriter, r *http.Request) {
+	inst := o.firstRunningInstance()
+	if inst == nil {
+		httpx.Error(w, 503, fmt.Errorf("no running instance available"))
+		return
+	}
+
+	activity.EnrichRequest(r, activity.Update{
+		InstanceID:  inst.ID,
+		ProfileID:   inst.ProfileID,
+		ProfileName: inst.ProfileName,
+	})
+
+	targetURL, err := o.instancePathURL(inst, r.URL.Path, r.URL.RawQuery)
+	if err != nil {
+		httpx.Error(w, 502, err)
+		return
+	}
+	o.proxyToURL(w, r, targetURL)
+}
+
+// firstRunningInstance returns any running instance (used for browser-wide ops).
+func (o *Orchestrator) firstRunningInstance() *InstanceInternal {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	for _, inst := range o.instances {
+		if inst.Status == "running" && instanceIsActive(inst) {
+			return inst
+		}
+	}
+	return nil
+}

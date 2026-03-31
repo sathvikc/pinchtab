@@ -89,6 +89,10 @@ func (o *Orchestrator) registerHandlers(mux *http.ServeMux, skipLaunch bool) {
 	registerCapabilityRoute(mux, "POST /tabs/{id}/evaluate", o.AllowsEvaluate(), "evaluate", "security.allowEvaluate", "evaluate_disabled", o.proxyTabRequest)
 	registerCapabilityRoute(mux, "GET /tabs/{id}/download", o.AllowsDownload(), "download", "security.allowDownload", "download_disabled", o.proxyTabRequest)
 	registerCapabilityRoute(mux, "POST /tabs/{id}/upload", o.AllowsUpload(), "upload", "security.allowUpload", "upload_disabled", o.proxyTabRequest)
+
+	// Cache operations - proxy to first running instance
+	mux.HandleFunc("POST /cache/clear", o.proxyToFirstInstance)
+	mux.HandleFunc("GET /cache/status", o.proxyToFirstInstance)
 }
 
 func (o *Orchestrator) handleList(w http.ResponseWriter, r *http.Request) {
