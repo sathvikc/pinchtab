@@ -77,21 +77,29 @@ func (b *Bridge) actionKeyboardType(ctx context.Context, req ActionRequest) (map
 		for _, ch := range req.Text {
 			s := string(ch)
 			params := map[string]any{
-				"type":                  "keyDown",
-				"text":                  s,
-				"key":                   s,
-				"unmodifiedText":        s,
-				"windowsVirtualKeyCode": int(ch),
-				"nativeVirtualKeyCode":  int(ch),
+				"type":           "keyDown",
+				"text":           s,
+				"key":            s,
+				"unmodifiedText": s,
+			}
+			// Only set virtualKeyCode for alphanumeric characters (A-Z, 0-9).
+			// Using ASCII values for punctuation like '.' (46) conflicts with
+			// special key codes (Delete=46), causing characters to be swallowed.
+			// See issue #412.
+			if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+				vk := int(ch)
+				if ch >= 'a' && ch <= 'z' {
+					vk = int(ch - 32) // Convert to uppercase for VK code
+				}
+				params["windowsVirtualKeyCode"] = vk
+				params["nativeVirtualKeyCode"] = vk
 			}
 			if err := chromedp.FromContext(ctx).Target.Execute(ctx, "Input.dispatchKeyEvent", params, nil); err != nil {
 				return err
 			}
 			paramsUp := map[string]any{
-				"type":                  "keyUp",
-				"key":                   s,
-				"windowsVirtualKeyCode": int(ch),
-				"nativeVirtualKeyCode":  int(ch),
+				"type": "keyUp",
+				"key":  s,
 			}
 			if err := chromedp.FromContext(ctx).Target.Execute(ctx, "Input.dispatchKeyEvent", paramsUp, nil); err != nil {
 				return err
