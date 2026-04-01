@@ -17,7 +17,7 @@ Use the `--server` CLI flag instead of environment variables:
 
 ```bash
 pinchtab --server http://192.168.1.50:9867 snap
-pinchtab --server https://pinchtab.example.com snap
+pinchtab --server https://pinchtab.com snap
 ```
 
 ## What is intentionally not listed

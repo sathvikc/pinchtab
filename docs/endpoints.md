@@ -380,6 +380,12 @@ Activity query parameters include:
 - `engine`
 - `pathPrefix`
 
+Activity attribution and source behavior:
+
+- requests tagged with `X-Agent-Id` are recorded as `agentId` and can be filtered with `GET /api/activity?agentId=<id>`
+- unfiltered `GET /api/activity` returns the primary activity feed
+- named internal sources such as `dashboard` or `orchestrator` are stored in source-specific daily files and can be queried with `?source=<name>`
+
 Scheduler routes are only present when `scheduler.enabled` is true.
 
 ## Feature Gates

@@ -35,7 +35,7 @@ func RunBridgeServer(cfg *config.RuntimeConfig, version string) {
 		Enabled:       cfg.Observability.Activity.Enabled,
 		SessionIdle:   time.Duration(cfg.Observability.Activity.SessionIdleSec) * time.Second,
 		RetentionDays: cfg.Observability.Activity.RetentionDays,
-	}, cfg.StateDir)
+	}, cfg.ActivityStateDir())
 	if err != nil {
 		slog.Error("activity store", "err", err)
 		os.Exit(1)

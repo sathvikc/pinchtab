@@ -150,18 +150,19 @@ func (s *Store) Record(evt Event) error {
 		return err
 	}
 
-	f, err := os.OpenFile(s.filePathFor(evt.Timestamp), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("open activity log: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
 	line, err := json.Marshal(evt)
 	if err != nil {
 		return fmt.Errorf("marshal activity event: %w", err)
 	}
-	if _, err := f.Write(append(line, '\n')); err != nil {
-		return fmt.Errorf("write activity event: %w", err)
+	if shouldWritePrimaryLog(evt.Source) {
+		if err := appendJSONL(s.filePathFor(evt.Timestamp), line); err != nil {
+			return err
+		}
+	}
+	if sourcePath := s.sourceFilePathFor(evt.Source, evt.Timestamp); sourcePath != "" {
+		if err := appendJSONL(sourcePath, line); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -174,7 +175,8 @@ func (s *Store) Query(filter Filter) ([]Event, error) {
 	limit := clampQueryLimit(filter.Limit)
 
 	var events []Event
-	for _, path := range s.queryFiles() {
+	seen := make(map[string]struct{})
+	for _, path := range s.queryFiles(filter.Source) {
 		f, err := os.Open(path)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -193,6 +195,11 @@ func (s *Store) Query(filter Filter) ([]Event, error) {
 			if !filter.matches(evt) {
 				continue
 			}
+			key := eventDedupKey(evt)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
 			if len(events) < limit {
 				events = append(events, evt)
 				continue
@@ -317,7 +324,15 @@ func (s *Store) filePathFor(ts time.Time) string {
 	return filepath.Join(s.dir, fmt.Sprintf("events-%s.jsonl", ts.UTC().Format(time.DateOnly)))
 }
 
-func (s *Store) queryFiles() []string {
+func (s *Store) sourceFilePathFor(source string, ts time.Time) string {
+	source = normalizeSourceName(source)
+	if source == "" {
+		return ""
+	}
+	return filepath.Join(s.dir, fmt.Sprintf("events-%s-%s.jsonl", source, ts.UTC().Format(time.DateOnly)))
+}
+
+func (s *Store) queryFiles(source string) []string {
 	_ = s.pruneExpiredFiles(time.Now().UTC())
 
 	entries, err := os.ReadDir(s.dir)
@@ -331,12 +346,16 @@ func (s *Store) queryFiles() []string {
 		files = append(files, legacyPath)
 	}
 
+	source = normalizeSourceName(source)
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 		name := entry.Name()
-		if !strings.HasPrefix(name, "events-") || !strings.HasSuffix(name, ".jsonl") {
+		if !isActivityLogFile(name) {
+			continue
+		}
+		if source == "" && !isPrimaryDailyActivityLog(name) {
 			continue
 		}
 		files = append(files, filepath.Join(s.dir, name))
@@ -377,11 +396,11 @@ func (s *Store) pruneExpiredFilesLocked(now time.Time) error {
 			}
 			continue
 		}
-		if !strings.HasPrefix(name, "events-") || !strings.HasSuffix(name, ".jsonl") {
+		if !isActivityLogFile(name) {
 			continue
 		}
-		day := strings.TrimSuffix(strings.TrimPrefix(name, "events-"), ".jsonl")
-		if len(day) != len(time.DateOnly) {
+		day, ok := activityLogDay(name)
+		if !ok {
 			continue
 		}
 		if day < keepFrom {
@@ -400,4 +419,83 @@ func randomID(prefix string) string {
 		return fmt.Sprintf("%s%x", prefix, time.Now().UnixNano()&0xffffffff)
 	}
 	return prefix + hex.EncodeToString(b)
+}
+
+func appendJSONL(path string, line []byte) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("open activity log: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		return fmt.Errorf("write activity event: %w", err)
+	}
+	return nil
+}
+
+func shouldWritePrimaryLog(source string) bool {
+	switch normalizeSourceName(source) {
+	case "", "server", "bridge":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeSourceName(source string) string {
+	source = strings.ToLower(strings.TrimSpace(source))
+	if source == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(source))
+	lastDash := false
+	for _, r := range source {
+		isAlphaNum := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if isAlphaNum {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func isActivityLogFile(name string) bool {
+	return name != "events.jsonl" && strings.HasPrefix(name, "events-") && strings.HasSuffix(name, ".jsonl")
+}
+
+func isPrimaryDailyActivityLog(name string) bool {
+	if !isActivityLogFile(name) {
+		return false
+	}
+	middle := strings.TrimSuffix(strings.TrimPrefix(name, "events-"), ".jsonl")
+	return len(middle) == len(time.DateOnly)
+}
+
+func activityLogDay(name string) (string, bool) {
+	if !isActivityLogFile(name) {
+		return "", false
+	}
+	middle := strings.TrimSuffix(strings.TrimPrefix(name, "events-"), ".jsonl")
+	if len(middle) < len(time.DateOnly) {
+		return "", false
+	}
+	day := middle[len(middle)-len(time.DateOnly):]
+	if len(day) != len(time.DateOnly) {
+		return "", false
+	}
+	return day, true
+}
+
+func eventDedupKey(evt Event) string {
+	data, err := json.Marshal(evt)
+	if err != nil {
+		return fmt.Sprintf("%s|%s|%s|%s|%d", evt.Timestamp.UTC().Format(time.RFC3339Nano), evt.Source, evt.Method, evt.Path, evt.Status)
+	}
+	return string(data)
 }

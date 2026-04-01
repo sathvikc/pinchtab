@@ -288,8 +288,16 @@ export async function fetchAgents(): Promise<Agent[]> {
   return request<Agent[]>("/api/agents");
 }
 
-export async function fetchAgent(id: string): Promise<AgentDetail> {
-  return request<AgentDetail>(`/api/agents/${encodeURIComponent(id)}`);
+export async function fetchAgent(
+  id: string,
+  mode?: string,
+): Promise<AgentDetail> {
+  const params = new URLSearchParams();
+  if (mode) {
+    params.set("mode", mode);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return request<AgentDetail>(`/api/agents/${encodeURIComponent(id)}${suffix}`);
 }
 
 export async function fetchServerMetrics(): Promise<MonitoringServerMetrics> {

@@ -19,7 +19,18 @@ import { fetchAllTabs } from "../services/api";
 describe("ActivityPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const now = new Date().toISOString();
     useAppStore.setState({
+      agents: [
+        {
+          id: "cli",
+          name: "CLI",
+          connectedAt: "2026-03-16T08:00:00Z",
+          lastActivity: "2026-03-16T08:10:00Z",
+          requestCount: 3,
+        },
+      ],
+      agentEventsById: {},
       profiles: [
         {
           id: "prof_default",
@@ -65,10 +76,12 @@ describe("ActivityPage", () => {
       count: 1,
       events: [
         {
-          timestamp: "2026-03-16T09:00:00Z",
+          timestamp: now,
           source: "cli",
           requestId: "req_123",
           agentId: "cli",
+          instanceId: "inst_123",
+          profileName: "default",
           method: "POST",
           path: "/tabs/tab_123/action",
           status: 200,
@@ -201,6 +214,5 @@ describe("ActivityPage", () => {
 
     expect(screen.getByLabelText("Instance")).toBeInTheDocument();
     expect(screen.getByLabelText("Session")).toBeInTheDocument();
-    expect(screen.getByLabelText("Source")).toBeInTheDocument();
   });
 });

@@ -10,13 +10,14 @@ interface AgentWorkspaceSidebarProps {
   visibleAgents: Agent[];
   activeAgentId: string;
   filters: ActivityFilters;
+  showAllAgentsOption?: boolean;
+  showAgentFilter?: boolean;
   profiles: Profile[];
   filteredInstances: Instance[];
   visibleTabs: InstanceTab[];
   loading: boolean;
   onSidebarTabChange: (tab: WorkspaceTab) => void;
   onSelectAgent: (agentId: string) => void;
-  onClearAgentSelection: () => void;
   onClearFilters: () => void;
   onRefresh: () => void;
   onFilterChange: (key: keyof ActivityFilters, value: string) => void;
@@ -29,13 +30,14 @@ export default function AgentWorkspaceSidebar({
   visibleAgents,
   activeAgentId,
   filters,
+  showAllAgentsOption = true,
+  showAgentFilter = true,
   profiles,
   filteredInstances,
   visibleTabs,
   loading,
   onSidebarTabChange,
   onSelectAgent,
-  onClearAgentSelection,
   onClearFilters,
   onRefresh,
   onFilterChange,
@@ -73,17 +75,19 @@ export default function AgentWorkspaceSidebar({
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                className={`rounded-sm px-3 py-2 text-left text-sm transition-all ${
-                  activeAgentId === ""
-                    ? "border border-primary/30 bg-primary/10 text-primary"
-                    : "border border-transparent text-text-muted hover:bg-bg-elevated"
-                }`}
-                onClick={onClearAgentSelection}
-              >
-                All Agents
-              </button>
+              {showAllAgentsOption && (
+                <button
+                  type="button"
+                  className={`rounded-sm px-3 py-2 text-left text-sm transition-all ${
+                    activeAgentId === ""
+                      ? "border border-primary/30 bg-primary/10 text-primary"
+                      : "border border-transparent text-text-muted hover:bg-bg-elevated"
+                  }`}
+                  onClick={() => onSelectAgent("")}
+                >
+                  All Agents
+                </button>
+              )}
               {visibleAgents.map((agent) => (
                 <AgentItem
                   key={agent.id}
@@ -102,6 +106,7 @@ export default function AgentWorkspaceSidebar({
           instanceOptions={filteredInstances}
           tabOptions={visibleTabs}
           loading={loading}
+          showAgentFilter={showAgentFilter}
           onClear={onClearFilters}
           onRefresh={onRefresh}
           onFilterChange={onFilterChange}

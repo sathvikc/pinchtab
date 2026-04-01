@@ -4,6 +4,27 @@ Base URL for all examples: `http://localhost:9867`
 
 > **CLI alternative:** All endpoints have CLI equivalents. Use `pinchtab help` for the full list. Examples are shown as `# CLI:` comments below.
 
+## Agent Attribution
+
+If an agent is calling the HTTP API directly, include `X-Agent-Id: <agent-id>` on the requests that should show up under that agent in dashboard and activity views.
+
+Example:
+
+```bash
+curl -X POST /navigate \
+  -H 'X-Agent-Id: agent-crawl-01' \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://pinchtab.com"}'
+
+curl '/api/activity?agentId=agent-crawl-01'
+```
+
+Notes:
+
+- CLI users should prefer `pinchtab --agent-id <agent-id> ...` instead of setting the header manually
+- scheduler-submitted tasks reuse their `agentId` as `X-Agent-Id` when the task is executed
+- bare `GET /api/activity` returns the primary activity feed; named internal sources such as `dashboard` or `orchestrator` are queried with `?source=<name>`
+
 ## Navigate
 
 ```bash

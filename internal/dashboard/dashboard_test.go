@@ -8,8 +8,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pinchtab/pinchtab/internal/activity"
 	apiTypes "github.com/pinchtab/pinchtab/internal/api/types"
 )
+
+type stubActivityRecorder struct {
+	events []activity.Event
+}
+
+func (s stubActivityRecorder) Enabled() bool { return true }
+
+func (s stubActivityRecorder) Record(activity.Event) error { return nil }
+
+func (s stubActivityRecorder) Query(activity.Filter) ([]activity.Event, error) {
+	return s.events, nil
+}
 
 func TestNewDashboard(t *testing.T) {
 	d := NewDashboard(nil)
@@ -211,6 +224,129 @@ func TestDashboardHandleAgentEventsByIDUsesRouteAgent(t *testing.T) {
 	events := d.RecentEvents()
 	if len(events) != 1 || events[0].AgentID != "agent-1" {
 		t.Fatalf("events = %#v, want route agent id", events)
+	}
+}
+
+func TestDashboardLoadPersistedAgentActivityRestoresAgentsAndEvents(t *testing.T) {
+	d := NewDashboard(nil)
+	now := time.Now().UTC()
+
+	err := d.LoadPersistedAgentActivity(stubActivityRecorder{
+		events: []activity.Event{
+			{
+				Timestamp:  now.Add(-2 * time.Minute),
+				Source:     "bridge",
+				RequestID:  "req-1",
+				AgentID:    "agent-1",
+				Method:     http.MethodPost,
+				Path:       "/tabs/tab_1/action",
+				Status:     http.StatusOK,
+				DurationMs: 11,
+				TabID:      "tab_1",
+				Action:     "click",
+			},
+			{
+				Timestamp:  now.Add(-1 * time.Minute),
+				Source:     "bridge",
+				RequestID:  "req-2",
+				Method:     http.MethodGet,
+				Path:       "/health",
+				Status:     http.StatusOK,
+				DurationMs: 4,
+			},
+			{
+				Timestamp:  now,
+				Source:     "server",
+				RequestID:  "req-3",
+				AgentID:    "agent-2",
+				Method:     http.MethodGet,
+				Path:       "/tabs/tab_2/text",
+				Status:     http.StatusOK,
+				DurationMs: 8,
+				TabID:      "tab_2",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("LoadPersistedAgentActivity() error = %v", err)
+	}
+
+	agents := d.Agents()
+	if len(agents) != 2 {
+		t.Fatalf("Agents() len = %d, want 2", len(agents))
+	}
+
+	events := d.RecentEvents()
+	if len(events) != 2 {
+		t.Fatalf("RecentEvents() len = %d, want 2", len(events))
+	}
+	if events[0].ID != "req-1" || events[1].ID != "req-3" {
+		t.Fatalf("RecentEvents() IDs = [%s, %s], want [req-1, req-3]", events[0].ID, events[1].ID)
+	}
+}
+
+func TestDashboardIngestPersistedAgentActivityAddsNewEventsWithoutDuplicatingLiveOnes(t *testing.T) {
+	d := NewDashboard(nil)
+	now := time.Now().UTC()
+
+	d.RecordActivityEvent(activity.Event{
+		Timestamp:  now.Add(-2 * time.Second),
+		Source:     "bridge",
+		RequestID:  "req-live",
+		AgentID:    "agent-1",
+		Method:     http.MethodPost,
+		Path:       "/tabs/tab_1/action",
+		Status:     http.StatusOK,
+		DurationMs: 12,
+		TabID:      "tab_1",
+		Action:     "click",
+	})
+
+	latest, err := d.IngestPersistedAgentActivity(stubActivityRecorder{
+		events: []activity.Event{
+			{
+				Timestamp:  now.Add(-2 * time.Second),
+				Source:     "bridge",
+				RequestID:  "req-live",
+				AgentID:    "agent-1",
+				Method:     http.MethodPost,
+				Path:       "/tabs/tab_1/action",
+				Status:     http.StatusOK,
+				DurationMs: 12,
+				TabID:      "tab_1",
+				Action:     "click",
+			},
+			{
+				Timestamp:  now,
+				Source:     "bridge",
+				RequestID:  "req-new",
+				AgentID:    "agent-2",
+				Method:     http.MethodGet,
+				Path:       "/tabs/tab_2/text",
+				Status:     http.StatusOK,
+				DurationMs: 7,
+				TabID:      "tab_2",
+			},
+		},
+	}, now.Add(-5*time.Second))
+	if err != nil {
+		t.Fatalf("IngestPersistedAgentActivity() error = %v", err)
+	}
+	if !latest.Equal(now) {
+		t.Fatalf("latest = %v, want %v", latest, now)
+	}
+
+	events := d.RecentEvents()
+	if len(events) != 2 {
+		t.Fatalf("RecentEvents() len = %d, want 2", len(events))
+	}
+	if events[0].ID != "req-live" || events[1].ID != "req-new" {
+		t.Fatalf("RecentEvents() IDs = [%s, %s], want [req-live, req-new]", events[0].ID, events[1].ID)
+	}
+
+	agents := d.Agents()
+	if len(agents) != 2 {
+		t.Fatalf("Agents() len = %d, want 2", len(agents))
 	}
 }
 

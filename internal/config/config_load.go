@@ -93,6 +93,7 @@ func Load() *RuntimeConfig {
 				Enabled:        true,
 				SessionIdleSec: 1800,
 				RetentionDays:  1,
+				StateDir:       "",
 			},
 		},
 

@@ -112,6 +112,7 @@ func DefaultFileConfig() FileConfig {
 				Enabled:        &activityEnabled,
 				SessionIdleSec: &activitySessionIdleSec,
 				RetentionDays:  &activityRetentionDays,
+				StateDir:       "",
 			},
 		},
 		Sessions: SessionsFileConfig{
@@ -255,9 +256,10 @@ type observabilityFileConfigJSON struct {
 }
 
 type activityConfigJSON struct {
-	Enabled        *bool `json:"enabled"`
-	SessionIdleSec *int  `json:"sessionIdleSec"`
-	RetentionDays  *int  `json:"retentionDays"`
+	Enabled        *bool  `json:"enabled"`
+	SessionIdleSec *int   `json:"sessionIdleSec"`
+	RetentionDays  *int   `json:"retentionDays"`
+	StateDir       string `json:"stateDir"`
 }
 
 type sessionsFileConfigJSON struct {

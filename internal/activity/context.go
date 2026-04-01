@@ -13,7 +13,6 @@ import (
 
 const (
 	HeaderAgentID     = "X-Agent-Id"
-	HeaderPTAgentID   = "X-PinchTab-Agent-Id"
 	HeaderPTActorID   = "X-PinchTab-Actor-Id"
 	HeaderPTSessionID = "X-PinchTab-Session-Id"
 	HeaderPTSource    = "X-PinchTab-Source"
@@ -176,7 +175,7 @@ func PropagateHeaders(ctx context.Context, req *http.Request) {
 		req.Header.Set(HeaderPTActorID, evt.ActorID)
 	}
 	if evt.AgentID != "" {
-		req.Header.Set(HeaderPTAgentID, evt.AgentID)
+		req.Header.Set(HeaderAgentID, evt.AgentID)
 	}
 	if evt.SessionID != "" {
 		req.Header.Set(HeaderPTSessionID, evt.SessionID)
@@ -215,10 +214,8 @@ func actorIDFor(r *http.Request) string {
 }
 
 func agentIDFor(r *http.Request) string {
-	for _, header := range []string{HeaderPTAgentID, HeaderAgentID, "X-Agent-ID"} {
-		if value := strings.TrimSpace(r.Header.Get(header)); value != "" {
-			return value
-		}
+	if value := strings.TrimSpace(r.Header.Get(HeaderAgentID)); value != "" {
+		return value
 	}
 	return ""
 }

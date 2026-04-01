@@ -31,6 +31,22 @@ Preferred tool surface:
 - Use `curl` for profile-management routes or non-shell/API fallback flows.
 - Use `jq` only when you need structured parsing from JSON responses.
 
+## Agent Identity And Attribution
+
+When multiple agents share one PinchTab server, always give each agent a stable ID.
+
+- CLI flows: prefer `pinchtab --agent-id <agent-id> ...`
+- long-running shells: set `PINCHTAB_AGENT_ID=<agent-id>`
+- raw HTTP flows: send `X-Agent-Id: <agent-id>` on requests that should be attributed to that agent
+
+That identity is recorded as `agentId` in activity events and powers:
+
+- the dashboard Agents view
+- `GET /api/activity?agentId=<agent-id>`
+- scheduler task attribution when work is dispatched on behalf of an agent
+
+If you are switching between unrelated browser tasks, do not reuse the same agent ID unless you intentionally want one combined activity trail.
+
 ## Safety Defaults
 
 - Default to `http://localhost` targets. Only use a remote PinchTab server when the user explicitly provides it and, if needed, a token.
@@ -98,15 +114,15 @@ Use `&&` only when you do not need to inspect intermediate output before decidin
 Good:
 
 ```bash
-pinchtab nav https://example.com && pinchtab snap -i -c
+pinchtab nav https://pinchtab.com && pinchtab snap -i -c
 pinchtab click --wait-nav e5 && pinchtab snap -i -c
-pinchtab nav https://example.com --block-images && pinchtab text
+pinchtab nav https://pinchtab.com --block-images && pinchtab text
 ```
 
 Run commands separately when you must read the snapshot output first:
 
 ```bash
-pinchtab nav https://example.com
+pinchtab nav https://pinchtab.com
 pinchtab snap -i -c
 # Read refs, choose the correct e#
 pinchtab click e7
@@ -172,7 +188,7 @@ Use a temporary instance for public pages, scraping, or tasks that do not need l
 pinchtab instance start
 pinchtab instances
 # Point CLI commands at the instance port you want to use.
-pinchtab --server http://localhost:9868 nav https://example.com
+pinchtab --server http://localhost:9868 nav https://pinchtab.com
 pinchtab --server http://localhost:9868 text
 ```
 
@@ -235,6 +251,7 @@ curl -X POST http://localhost:9867/instances/start \
   -H "Content-Type: application/json" \
   -d '{"profileId":"work","mode":"headless"}'
 curl -X POST http://localhost:9868/action \
+  -H "X-Agent-Id: agent-main" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"e5"}'
 ```

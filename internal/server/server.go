@@ -79,13 +79,18 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 		Enabled:       cfg.Observability.Activity.Enabled,
 		SessionIdle:   time.Duration(cfg.Observability.Activity.SessionIdleSec) * time.Second,
 		RetentionDays: cfg.Observability.Activity.RetentionDays,
-	}, cfg.StateDir)
+	}, cfg.ActivityStateDir())
 	if err != nil {
 		slog.Error("activity store", "err", err)
 		os.Exit(1)
 	}
+	profMgr.SetActivityRecorder(actStore)
 
 	mux := http.NewServeMux()
+
+	if err := dash.LoadPersistedAgentActivity(actStore); err != nil {
+		slog.Warn("restore dashboard agent activity", "err", err)
+	}
 
 	dash.RegisterHandlers(mux)
 	configAPI.RegisterHandlers(mux)
@@ -93,6 +98,29 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 	profMgr.RegisterHandlers(mux)
 	liveActivity := newDashboardActivityRecorder(actStore, dash)
 	activity.RegisterHandlers(mux, liveActivity)
+
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		lastSync := time.Now().UTC()
+		for {
+			select {
+			case <-syncCtx.Done():
+				return
+			case <-ticker.C:
+				nextSync, err := dash.IngestPersistedAgentActivity(actStore, lastSync)
+				if err != nil {
+					slog.Warn("sync dashboard agent activity", "err", err)
+					continue
+				}
+				if !nextSync.IsZero() {
+					lastSync = nextSync
+				}
+			}
+		}
+	}()
 
 	strategyName := cfg.Strategy
 	if strategyName == "" {
@@ -221,6 +249,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 			if sched != nil {
 				sched.Stop()
 			}
+			syncCancel()
 			dash.Shutdown()
 			orch.Shutdown()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -197,6 +197,45 @@ func TestConfigFileWithNestedValues(t *testing.T) {
 	}
 }
 
+func TestLoadConfigActivityStateDirIgnoresConfigOverride(t *testing.T) {
+	clearConfigEnvVars(t)
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	sharedActivityDir := filepath.Join(tmpDir, "shared-activity")
+	_ = os.Setenv("PINCHTAB_CONFIG", configPath)
+	defer func() { _ = os.Unsetenv("PINCHTAB_CONFIG") }()
+
+	if err := os.WriteFile(configPath, []byte(`{
+		"server": {
+			"stateDir": "/tmp/profile-state"
+		},
+		"observability": {
+			"activity": {
+				"stateDir": "`+sharedActivityDir+`"
+			}
+		}
+	}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := Load()
+	if cfg.Observability.Activity.StateDir != "" {
+		t.Fatalf("Observability.Activity.StateDir = %q, want empty", cfg.Observability.Activity.StateDir)
+	}
+	if cfg.ActivityStateDir() != "/tmp/profile-state" {
+		t.Fatalf("ActivityStateDir() = %q, want %q", cfg.ActivityStateDir(), "/tmp/profile-state")
+	}
+}
+
+func TestRuntimeConfigActivityStateDirFallsBackToStateDir(t *testing.T) {
+	cfg := &RuntimeConfig{StateDir: "/tmp/pinchtab-state"}
+
+	if got := cfg.ActivityStateDir(); got != "/tmp/pinchtab-state" {
+		t.Fatalf("ActivityStateDir() = %q, want %q", got, "/tmp/pinchtab-state")
+	}
+}
+
 func TestLoadConfigEngineFromFile(t *testing.T) {
 	clearConfigEnvVars(t)
 
