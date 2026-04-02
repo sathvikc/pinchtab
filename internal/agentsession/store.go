@@ -50,8 +50,8 @@ type Store struct {
 }
 
 const (
-	DefaultIdleTimeout = 12 * time.Hour
-	DefaultMaxLifetime = 24 * time.Hour
+	DefaultIdleTimeout = 7 * 24 * time.Hour
+	DefaultMaxLifetime = 30 * 24 * time.Hour
 
 	StatusActive  = "active"
 	StatusRevoked = "revoked"

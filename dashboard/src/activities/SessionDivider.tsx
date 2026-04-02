@@ -1,3 +1,4 @@
+import { IconBolt } from "../components/atoms/Icon";
 import type { Session } from "../services/api";
 
 interface SessionDividerProps {
@@ -27,7 +28,7 @@ export default function SessionDivider({
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="h-px flex-1 bg-border-subtle" />
       <div className="flex items-center gap-2 text-[0.72rem] text-text-muted">
-        <span className="text-sm">🔑</span>
+        <IconBolt size={14} />
         <span className="font-medium text-text-secondary">{label}</span>
         <span>·</span>
         <span className="dashboard-mono">{time}</span>

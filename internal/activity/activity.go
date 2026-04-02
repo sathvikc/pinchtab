@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	defaultQueryLimit = 200
-	maxQueryLimit             = 1000
-	defaultRetentionDays      = 1
+	defaultQueryLimit    = 200
+	maxQueryLimit        = 1000
+	defaultRetentionDays = 1
 )
 
 type Config struct {
@@ -264,8 +264,6 @@ func (f Filter) matches(evt Event) bool {
 	}
 	return true
 }
-
-
 
 func FingerprintToken(token string) string {
 	token = strings.TrimSpace(token)

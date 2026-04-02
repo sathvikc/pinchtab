@@ -1,3 +1,4 @@
+import { IconRobot, IconBolt } from "../atoms/Icon";
 import type { Agent } from "../../types";
 import type { Session } from "../../services/api";
 
@@ -57,8 +58,8 @@ export default function AgentItem({
         }`}
         onClick={handleAgentClick}
       >
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-base">
-          🤖
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-primary">
+          <IconRobot />
         </div>
         <div className="min-w-0 flex-1">
           <span className="truncate text-sm font-medium">
@@ -84,7 +85,7 @@ export default function AgentItem({
                 }`}
                 onClick={() => onSelectSession(session.id)}
               >
-                <span className="text-xs">🔑</span>
+                <IconBolt size={14} />
                 <span className="min-w-0 flex-1 truncate text-xs font-medium">
                   {sessionDisplayName(session)}
                 </span>
