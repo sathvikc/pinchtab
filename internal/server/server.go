@@ -103,13 +103,15 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 		slog.Warn("restore dashboard agent activity", "err", err)
 	}
 
-	dash.RegisterHandlers(mux)
-	configAPI.RegisterHandlers(mux)
-	authAPI.RegisterHandlers(mux)
-	agentSessionAPI.RegisterHandlers(mux)
-	profMgr.RegisterHandlers(mux)
 	liveActivity := newDashboardActivityRecorder(actStore, dash)
-	activity.RegisterHandlers(mux, liveActivity)
+	dash.RegisterAdminRoutes(mux, dashboard.AdminDeps{
+		ConfigAPI:       configAPI,
+		AuthAPI:         authAPI,
+		AgentSessionAPI: agentSessionAPI,
+		Activity:        liveActivity,
+		ServerMetrics:   handlers.SnapshotMetrics,
+	})
+	profMgr.RegisterHandlers(mux)
 
 	syncCtx, syncCancel := context.WithCancel(context.Background())
 	go func() {
@@ -218,9 +220,6 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 	}
 
 	mux.HandleFunc("GET /health", configAPI.HandleHealth)
-	mux.HandleFunc("GET /api/metrics", func(w http.ResponseWriter, r *http.Request) {
-		httpx.JSON(w, 200, map[string]any{"metrics": handlers.SnapshotMetrics()})
-	})
 
 	handler := handlers.RequestIDMiddleware(
 		activity.Middleware(
