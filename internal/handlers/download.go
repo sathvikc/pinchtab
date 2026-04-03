@@ -57,6 +57,22 @@ func (g *downloadURLGuard) Validate(rawURL string) error {
 		return fmt.Errorf("internal or blocked host")
 	}
 
+	// Check domain allowlist first. If a domain is explicitly allowed,
+	// skip the IP validation (allows internal/docker network hosts).
+	if len(g.allowedDomains) > 0 {
+		result := idpi.CheckDomain(rawURL, config.IDPIConfig{
+			Enabled:        true,
+			AllowedDomains: append([]string(nil), g.allowedDomains...),
+			StrictMode:     true,
+		})
+		if result.Blocked {
+			return fmt.Errorf("domain not allowed by security.downloadAllowedDomains")
+		}
+		// Domain is explicitly allowed, skip IP validation
+		return nil
+	}
+
+	// No allowlist configured — enforce public IP requirement
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
@@ -68,14 +84,6 @@ func (g *downloadURLGuard) Validate(rawURL string) error {
 			return fmt.Errorf("private/internal IP blocked")
 		}
 		return fmt.Errorf("could not resolve host")
-	}
-
-	if result := idpi.CheckDomain(rawURL, config.IDPIConfig{
-		Enabled:        len(g.allowedDomains) > 0,
-		AllowedDomains: append([]string(nil), g.allowedDomains...),
-		StrictMode:     true,
-	}); result.Blocked {
-		return fmt.Errorf("domain not allowed by security.downloadAllowedDomains")
 	}
 	return nil
 }
