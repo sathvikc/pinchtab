@@ -25,6 +25,11 @@ RUN apk add --no-cache \
     bash \
     curl \
     jq \
+    grep \
+    sed \
+    gawk \
+    findutils \
+    util-linux \
     coreutils \
     ca-certificates
 

@@ -7,6 +7,20 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SUITE="${1:-api}"
 shift || true
 
+require_commands() {
+  local missing=0
+  for cmd in "$@"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      echo "missing required command: $cmd" >&2
+      missing=1
+    fi
+  done
+  if [ "$missing" -ne 0 ]; then
+    echo "one or more required commands are unavailable in this test environment" >&2
+    exit 127
+  fi
+}
+
 case "$SUITE" in
   api|scenarios-api|scenarios)
     source "${ROOT_DIR}/helpers/api.sh"
@@ -21,6 +35,7 @@ case "$SUITE" in
     REPORT_FILE_ALL="report-api-full.md"
     PROGRESS_FILE_BASIC="progress-api-fast.log"
     PROGRESS_FILE_ALL="progress-api-full.log"
+    REQUIRED_COMMANDS=(curl jq grep sed awk seq)
     ;;
   cli|scenarios-cli)
     source "${ROOT_DIR}/helpers/cli.sh"
@@ -35,6 +50,7 @@ case "$SUITE" in
     REPORT_FILE_ALL="report-cli-full.md"
     PROGRESS_FILE_BASIC="progress-cli-fast.log"
     PROGRESS_FILE_ALL="progress-cli-full.log"
+    REQUIRED_COMMANDS=(pinchtab curl jq grep sed awk seq mktemp)
     ;;
   *)
     echo "unknown suite: $SUITE" >&2
@@ -42,6 +58,8 @@ case "$SUITE" in
     exit 1
     ;;
 esac
+
+require_commands "${REQUIRED_COMMANDS[@]}"
 
 SCENARIO_FILTER="${E2E_SCENARIO_FILTER:-}"
 
