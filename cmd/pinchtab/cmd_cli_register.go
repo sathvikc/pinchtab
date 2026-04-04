@@ -23,6 +23,7 @@ func registerBrowserCommands() {
 		pressCmd,
 		fillCmd,
 		hoverCmd,
+		mouseCmd,
 		focusCmd,
 		scrollCmd,
 		evalCmd,
@@ -53,6 +54,7 @@ func registerBrowserCommands() {
 	clipboardCmd.AddCommand(clipboardReadCmd, clipboardWriteCmd, clipboardCopyCmd, clipboardPasteCmd)
 	keyboardCmd.AddCommand(keyboardTypeCmd, keyboardInsertTextCmd)
 	dialogCmd.AddCommand(dialogAcceptCmd, dialogDismissCmd)
+	mouseCmd.AddCommand(mouseMoveCmd, mouseDownCmd, mouseUpCmd, mouseWheelCmd)
 
 	configureBrowserFlags()
 
@@ -71,6 +73,7 @@ func registerBrowserCommands() {
 		pressCmd,
 		fillCmd,
 		hoverCmd,
+		mouseCmd,
 		focusCmd,
 		scrollCmd,
 		evalCmd,
@@ -122,6 +125,22 @@ func configureBrowserFlags() {
 
 	hoverCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(hoverCmd, "hover")
+
+	mouseMoveCmd.Flags().String("css", "", "CSS selector instead of ref")
+	addPointFlags(mouseMoveCmd, "mousemove")
+
+	mouseDownCmd.Flags().String("css", "", "CSS selector instead of ref")
+	addPointFlags(mouseDownCmd, "mousedown")
+	mouseDownCmd.Flags().String("button", "left", "Mouse button: left, right, middle")
+
+	mouseUpCmd.Flags().String("css", "", "CSS selector instead of ref")
+	addPointFlags(mouseUpCmd, "mouseup")
+	mouseUpCmd.Flags().String("button", "left", "Mouse button: left, right, middle")
+
+	mouseWheelCmd.Flags().String("css", "", "CSS selector instead of ref")
+	addPointFlags(mouseWheelCmd, "mousewheel")
+	mouseWheelCmd.Flags().Int("wheel-delta-x", 0, "Wheel delta X")
+	mouseWheelCmd.Flags().Int("wheel-delta-y", 0, "Wheel delta Y")
 
 	focusCmd.Flags().String("css", "", "CSS selector instead of ref")
 
@@ -178,6 +197,10 @@ func configureBrowserFlags() {
 		clickCmd,
 		dblclickCmd,
 		hoverCmd,
+		mouseMoveCmd,
+		mouseDownCmd,
+		mouseUpCmd,
+		mouseWheelCmd,
 		focusCmd,
 		typeCmd,
 		pressCmd,
