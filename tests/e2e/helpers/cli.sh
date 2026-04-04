@@ -47,6 +47,22 @@ pt_cli() {
   pt "$@"
 }
 
+assert_cli_ok() {
+  local desc="${1:-CLI command succeeds}"
+  local code="${PT_CODE:-127}"
+
+  if [ "$code" -eq 0 ]; then
+    echo -e "  ${GREEN}✓${NC} $desc"
+    ((ASSERTIONS_PASSED++)) || true
+  else
+    echo -e "  ${RED}✗${NC} $desc (exit $code)"
+    if [ -n "${PT_ERR:-}" ]; then
+      echo -e "  ${RED}stderr: ${PT_ERR}${NC}"
+    fi
+    ((ASSERTIONS_FAILED++)) || true
+  fi
+}
+
 pt_ok() {
   pt "$@"
   if [ "$PT_CODE" -eq 0 ]; then
