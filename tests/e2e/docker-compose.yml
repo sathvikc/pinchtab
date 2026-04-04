@@ -23,6 +23,7 @@ services:
   fixtures:
     image: nginx:alpine
     volumes:
+      # Serves static test assets for deterministic, offline-safe E2E downloads.
       - ./fixtures:/usr/share/nginx/html:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:80/"]

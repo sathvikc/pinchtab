@@ -14,7 +14,7 @@ end_test
 
 start_test "security: download ALLOWED when enabled"
 
-pt_get "/download?url=https://httpbin.org/robots.txt"
+pt_get "/download?url=${FIXTURES_URL}/sample.txt"
 assert_ok "download allowed"
 
 end_test
