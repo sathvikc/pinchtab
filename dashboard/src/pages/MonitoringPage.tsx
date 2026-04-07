@@ -42,7 +42,7 @@ export default function MonitoringPage() {
       const firstRunning = instances.find((i) => i.status === "running");
       if (firstRunning) setSelectedId(firstRunning.id);
     }
-  }, [instances, selectedId]);
+  }, [instances, selectedId, setSelectedId]);
 
   const handleStop = async (id: string) => {
     try {
