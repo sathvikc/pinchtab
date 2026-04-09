@@ -47,7 +47,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "security: download BLOCKED when disabled"
 
-secure_get "/download?url=https://httpbin.org/robots.txt"
+secure_get "/download?url=${FIXTURES_URL}/sample.txt"
 assert_http_status 403 "download blocked"
 assert_contains "$RESULT" "download_disabled" "correct error code"
 

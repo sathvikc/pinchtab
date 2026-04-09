@@ -240,7 +240,7 @@ start_test "auth: cookie session cannot use download endpoint"
 auth_reset_session
 auth_post_json /api/auth/login "{\"token\":\"${E2E_SERVER_TOKEN}\"}"
 assert_http_status 200 "login succeeds"
-auth_get "/download?url=https://httpbin.org/robots.txt" -H "Origin: ${E2E_SERVER}"
+auth_get "/download?url=${FIXTURES_URL}/sample.txt" -H "Origin: ${E2E_SERVER}"
 assert_http_status 403 "cookie session blocked on download endpoint"
 assert_contains "$RESULT" "header_auth_required" "download requires authorization header"
 
@@ -256,7 +256,7 @@ assert_ok "navigate for tab download auth boundary"
 auth_reset_session
 auth_post_json /api/auth/login "{\"token\":\"${E2E_SERVER_TOKEN}\"}"
 assert_http_status 200 "login succeeds"
-auth_get "/tabs/${DOWNLOAD_TAB_ID}/download?url=https://httpbin.org/robots.txt" -H "Origin: ${E2E_SERVER}"
+auth_get "/tabs/${DOWNLOAD_TAB_ID}/download?url=${FIXTURES_URL}/sample.txt" -H "Origin: ${E2E_SERVER}"
 assert_http_status 403 "cookie session blocked on download endpoint"
 assert_contains "$RESULT" "header_auth_required" "download requires authorization header"
 

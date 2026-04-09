@@ -40,7 +40,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab download (public URL)"
 
-pt_ok download "https://httpbin.org/robots.txt"
+pt_ok download "${FIXTURES_URL}/sample.txt"
 assert_output_contains "data" "response contains download data"
 
 end_test
@@ -48,7 +48,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab download (save to file)"
 
-pt_ok download "https://httpbin.org/robots.txt" -o /tmp/e2e-download-test.txt
+pt_ok download "${FIXTURES_URL}/sample.txt" -o /tmp/e2e-download-test.txt
 if [ -f /tmp/e2e-download-test.txt ]; then
   echo -e "  ${GREEN}✓${NC} file saved"
   ((ASSERTIONS_PASSED++)) || true

@@ -113,8 +113,8 @@ build_download_redirect_url() {
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab download (public URL)"
 
-# Use a small public file for testing
-pt_get "/download?url=https://httpbin.org/robots.txt"
+# Use a small local fixture file so the test is self-contained.
+pt_get "/download?url=${FIXTURES_URL}/sample.txt"
 assert_ok "download public"
 
 end_test
@@ -145,7 +145,7 @@ start_test "pinchtab download --tab <id>"
 pt_get /tabs
 TAB_ID=$(get_first_tab)
 
-pt_get "/tabs/${TAB_ID}/download?url=https://httpbin.org/robots.txt"
+pt_get "/tabs/${TAB_ID}/download?url=${FIXTURES_URL}/sample.txt"
 assert_ok "tab download"
 
 end_test
