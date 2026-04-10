@@ -7,7 +7,7 @@ Natural language tasks to test how well an agent uses PinchTab from skill docs a
 1. Read `../../skills/pinchtab/SKILL.md` — this is your only guide
 2. For each task, figure out which commands to use
 3. **Log every command executed**
-4. Record: `./record-agent-step.sh <group> <step> <pass|fail> <in> <out> "commands" "notes"`
+4. Record: `./scripts/record-step.sh --type agent <group> <step> <pass|fail> --tokens <in> <out> "notes"`
 
 ## Environment
 
@@ -121,7 +121,7 @@ Add a task called "Automate deployment" with high priority.
 **Verify**: Task appeared in the list (`TASK_ADDED_AUTOMATE_DEPLOYMENT_PRIORITY_HIGH`).
 
 ### 4.3 Delete a task
-Delete the first existing task ("Write benchmark tests").
+Delete the task titled "Write benchmark tests".
 
 **Verify**: Task count changed (went from 4 to 3).
 

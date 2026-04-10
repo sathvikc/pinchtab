@@ -1,11 +1,12 @@
-# PinchTab Benchmark Tasks
+# PinchTab Benchmark Tasks (Baseline)
 
-Reproducible benchmark tasks using controlled fixture pages with verifiable content.
+Reproducible benchmark using explicit curl commands against controlled fixture pages.
+Each task maps 1:1 to an agent task in AGENT_TASKS.md for direct comparison.
 
 ## Environment
 
 - **PinchTab Server**: `http://localhost:9867`
-- **Fixtures Server**: `http://fixtures/`
+- **Fixtures Server**: `http://fixtures/` (inside Docker network)
 - **Token**: `benchmark-token`
 - **Auth Header**: `Authorization: Bearer benchmark-token`
 
@@ -20,7 +21,11 @@ docker compose up -d --build
 ## Recording
 
 ```bash
-./record-step.sh <group> <step> <pass|fail> <in_tokens> <out_tokens> "notes"
+# Baseline (no tokens, optional response bytes):
+./scripts/record-step.sh --type baseline <group> <step> <pass|fail> "notes"
+
+# Minimal (just pass/fail):
+./scripts/record-step.sh <group> <step> <pass|fail> "notes"
 ```
 
 **On failure, include in notes:**
@@ -28,675 +33,835 @@ docker compose up -d --build
 - What was actually returned
 - HTTP status code / error message
 
----
+## Tab Reuse
 
-## Group 0: Setup & Configuration Verification
+`POST /navigate` creates a new tab by default. To avoid multi-tab issues, the
+runner must:
 
-Verify the environment is correctly configured before running tests.
+1. Capture `tabId` from the first navigate response (step 0.2).
+2. Pass `"tabId":"TAB_ID"` in every subsequent navigate request body.
+3. Use tab-scoped endpoints for actions and snapshots:
+   - `POST /tabs/TAB_ID/action` instead of `POST /action`
+   - `GET /tabs/TAB_ID/snapshot?...` instead of `GET /snapshot?...`
+   - `GET /tabs/TAB_ID/text` instead of `GET /text`
+   - `POST /tabs/TAB_ID/back` instead of `POST /back`
+   - `GET /tabs/TAB_ID/screenshot` instead of `GET /screenshot`
+   - `GET /tabs/TAB_ID/pdf` instead of `GET /pdf`
 
-### 0.1 Load PinchTab skill
-Read `../../skills/pinchtab/SKILL.md`.
-```bash
-./record-step.sh 0 1 pass <in> <out> "Skill loaded"
-```
-**Pass if**: Skill loaded successfully.
-
-### 0.2 Verify PinchTab health
-```bash
-curl -sf http://localhost:9867/health \
-  -H "Authorization: Bearer benchmark-token" | jq .
-```
-**Pass if**: `status == "ok"`, `authRequired == true`, `instances >= 1`.
-
-### 0.3 Verify fixtures server
-```bash
-curl -sf http://localhost:9867/navigate \
-  -X POST -H "Authorization: Bearer benchmark-token" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/"}' | jq .
-```
-**Pass if**: Response contains `"url": "http://fixtures/"`.
-
-### 0.4 Verify Chrome instance running
-```bash
-curl -sf http://localhost:9867/health \
-  -H "Authorization: Bearer benchmark-token" | jq '.defaultInstance.status'
-```
-**Pass if**: Value is `"running"`.
+All curl examples below use `TAB_ID` as a placeholder. Replace with the actual
+tab ID captured in step 0.2.
 
 ---
 
-## Group 1: Navigation & Content Extraction
+## Group 0: Setup
 
-### 1.1 Navigate to fixtures home
+### 0.1 Health check
 ```bash
-curl -X POST http://localhost:9867/navigate \
+curl -sf http://localhost:9867/health \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: `status == "ok"`, `authRequired == true`, `instances >= 1`, `defaultInstance.status == "running"`.
+
+### 0.2 Fixtures reachable
+```bash
+curl -sf -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"url":"http://fixtures/"}'
 ```
-**Pass if**: HTTP 200.
-
-### 1.2 Verify home content via snapshot
+**Capture**: Save the `tabId` from the JSON response. All subsequent commands use this tab ID.
 ```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1000" \
+curl -sf "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `VERIFY_HOME_LOADED_12345`.
+**Pass if**: Navigate returns HTTP 200 AND snapshot contains `VERIFY_HOME_LOADED_12345`.
 
-### 1.3 Navigate to wiki index
+---
+
+## Group 1: Reading & Extracting
+
+### 1.1 Wiki categories
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/wiki.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki.html"}'
 
-### 1.4 Verify wiki content and count categories
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_WIKI_INDEX_55555` AND `COUNT_LANGUAGES_12` AND `COUNT_TOOLS_15`.
 
-### 1.5 Click through to Go article
+### 1.2 Click a link
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#link-go","waitNav":true}'
 ```
 **Pass if**: HTTP 200 with `{"success":true}`.
 
-**Note**: Use `waitNav: true` when clicking a link that causes page navigation. Without it, PinchTab returns a 409 "navigation_changed" error to protect against unexpected navigation during form interactions.
-
-### 1.6 Verify Go article loaded and extract key facts
+### 1.3 Table extraction
 ```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=2000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `VERIFY_WIKI_GO_LANG_88888` AND `Robert Griesemer` AND `2009` AND `FEATURE_COUNT_6`.
+**Pass if**: Contains `VERIFY_WIKI_GO_LANG_88888` AND `Robert Griesemer` AND `2009`.
 
-### 1.7 Extract specific table data (designer)
+### 1.4 Count list items
 ```bash
-curl http://localhost:9867/text \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Text contains `Google LLC` AND `Ken Thompson`.
+**Pass if**: Contains `FEATURE_COUNT_6`.
 
-### 1.8 Navigate to articles and extract all headlines
+### 1.5 Article headlines
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/articles.html"}'
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/articles.html"}'
 
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=2000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Snapshot contains all 3 article titles: `The Future of Artificial Intelligence`, `Climate Action in 2026`, `Mars Colony`.
+**Pass if**: Contains `The Future of Artificial Intelligence` AND `Climate Action in 2026` AND `Mars Colony`.
+
+### 1.6 Dashboard metrics
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/dashboard.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `24,582` AND `$1,284,930` AND `4.28%`.
 
 ---
 
-## Group 2: Search & Dynamic Content
+## Group 2: Search & Dynamic
 
-### 2.1 Navigate to wiki search
+### 2.1 Wiki search
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/wiki.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki.html"}'
 
-### 2.2 Get snapshot to find search input ref
-```bash
-curl "http://localhost:9867/snapshot?filter=interactive&format=compact" \
-  -H "Authorization: Bearer benchmark-token"
-```
-**Pass if**: Contains search input element. Note the ref.
-
-### 2.3 Fill search query
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#wiki-search-input","text":"golang"}'
-```
-**Pass if**: HTTP 200.
 
-### 2.4 Submit search
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"kind":"click","selector":"#wiki-search-btn"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"kind":"click","selector":"#wiki-search-btn","waitNav":true}'
 
-### 2.5 Verify navigation to Go article
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=2000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `VERIFY_WIKI_GO_LANG_88888` (search redirected to Go page).
+**Pass if**: Snapshot contains `VERIFY_WIKI_GO_LANG_88888` (search redirected to Go page).
 
-### 2.6 Search for something with no results
+### 2.2 No results search
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/search.html"}'
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/search.html"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#search-input","text":"xyznonexistent"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#search-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: HTTP 200 (graceful no-results state).
+**Pass if**: All curls return HTTP 200 AND snapshot shows no-results message.
 
----
-
-## Group 3: Complex Form Interaction
-
-### 3.1 Navigate to contact form
+### 2.3 AI content search
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/form.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/search.html"}'
 
-### 3.2 Get snapshot of interactive elements
-```bash
-curl "http://localhost:9867/snapshot?filter=interactive&format=compact" \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#search-input","text":"artificial intelligence"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#search-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains all expected fields: fullname, email, country, subject, message.
+**Pass if**: Snapshot contains `The Future of Artificial Intelligence`.
 
-### 3.3 Fill full name
+---
+
+## Group 3: Form
+
+### 3.1 Complete form
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/form.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#fullname","text":"John Benchmark"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.4 Fill email
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#email","text":"john@benchmark.test"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.5 Fill phone
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#phone","text":"+44 20 1234 5678"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.6 Select country
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"select","selector":"#country","value":"uk"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.7 Select subject
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"select","selector":"#subject","value":"support"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.8 Fill message textarea
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#message","text":"This is a benchmark test message for PinchTab automation."}'
-```
-**Pass if**: HTTP 200.
 
-### 3.9 Check newsletter checkbox
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#newsletter"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.10 Select high priority radio
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"input[name=priority][value=high]"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.11 Submit form
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#submit-btn"}'
-```
-**Pass if**: HTTP 200.
 
-### 3.12 Verify submission with data check
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_FORM_SUBMITTED_SUCCESS` AND `SUBMISSION_DATA_NAME_JOHN_BENCHMARK`.
 
+### 3.2 Reset/refill
+```bash
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?filter=interactive&format=compact" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains reset button or form element (after submission, page still has interactive elements).
+
 ---
 
-## Group 4: SPA & Dynamic State
+## Group 4: SPA
 
-### 4.1 Navigate to task manager SPA
+### 4.1 Read app state
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/spa.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/spa.html"}'
 
-### 4.2 Verify initial state
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_SPA_PAGE_99999` AND `TASK_STATS_TOTAL_3_ACTIVE_2_DONE_1`.
 
-### 4.3 Add a new task
+### 4.2 Add task
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#new-task-input","text":"Deploy to production"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"select","selector":"#priority-select","value":"high"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#add-task-btn"}'
-```
-**Pass if**: All HTTP 200.
 
-### 4.4 Verify task was added
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `TASK_ADDED_DEPLOY_TO_PRODUCTION_PRIORITY_HIGH`.
 
-### 4.5 Delete existing task
+### 4.3 Delete task
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"kind":"click","selector":".delete-task[data-id=\"1\"]"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"kind":"click","selector":"#task-1 .delete-task"}'
 
-### 4.6 Verify task count updated
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `3` in total count (started with 3, deleted 1, added 1 = 3).
+**Pass if**: Total count is `3` (started with 3, added 1, deleted 1 = 3).
 
 ---
 
-## Group 5: Login & Auth Flow
+## Group 5: Login
 
-### 5.1 Navigate to login page
+### 5.1 Invalid login
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/login.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/login.html"}'
 
-### 5.2 Verify login page
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
-  -H "Authorization: Bearer benchmark-token"
-```
-**Pass if**: Contains `VERIFY_LOGIN_PAGE_77777`.
-
-### 5.3 Try invalid credentials
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#username","text":"baduser"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#password","text":"wrongpassword"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#login-btn"}'
-```
-**Pass if**: All HTTP 200.
 
-### 5.4 Verify error shown
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `INVALID_CREDENTIALS_ERROR`.
 
-### 5.5 Login with valid credentials
+### 5.2 Valid login
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#username","text":"benchmark"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#password","text":"test456"}'
 
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#login-btn"}'
-```
-**Pass if**: All HTTP 200.
 
-### 5.6 Verify logged in
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_LOGIN_SUCCESS_DASHBOARD` AND `SESSION_TOKEN_ACTIVE_TRUE`.
 
 ---
 
-## Group 6: E-commerce Flow
+## Group 6: E-commerce
 
-### 6.1 Navigate to shop
+### 6.1 Research products
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/ecommerce.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/ecommerce.html"}'
 
-### 6.2 Verify shop page and read prices
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=2000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `VERIFY_SHOP_PAGE_44444` AND `$149.99` AND `$299.99` AND `Out of Stock`.
+**Pass if**: Contains `VERIFY_SHOP_PAGE_44444` AND `$149.99` AND `$299.99` AND `$49.99` AND `Out of Stock`.
 
-### 6.3 Verify out-of-stock button is disabled
+### 6.2 Add to cart
 ```bash
-curl "http://localhost:9867/snapshot?filter=interactive&format=compact" \
-  -H "Authorization: Bearer benchmark-token"
-```
-**Pass if**: Mechanical Keyboard add-to-cart button is shown as disabled.
-
-### 6.4 Add Wireless Headphones
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#product-1 .add-to-cart"}'
-```
-**Pass if**: HTTP 200.
 
-### 6.5 Add Smart Watch
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#product-2 .add-to-cart"}'
-```
-**Pass if**: HTTP 200.
 
-### 6.6 Verify cart total
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=1000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `CART_ITEM_WIRELESS_HEADPHONES` AND `CART_ITEM_SMART_WATCH_PRO` AND `449.98` (total).
+**Pass if**: Contains `CART_ITEM_WIRELESS_HEADPHONES` AND `CART_ITEM_SMART_WATCH_PRO` AND `449.98`.
 
-### 6.7 Checkout
+### 6.3 Checkout
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#checkout-btn"}'
-```
-**Pass if**: HTTP 200.
 
-### 6.8 Verify checkout complete
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_CHECKOUT_SUCCESS_ORDER` AND `ORDER_TOTAL_449_98`.
 
 ---
 
-## Group 7: Wiki Article + Comment Flow
+## Group 7: Content + Interaction
 
-### 7.1 Navigate to Go article
+### 7.1 Read & comment
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/wiki-go.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki-go.html"}'
 
-### 7.2 Read and verify article facts
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=2000" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
-```
-**Pass if**: Contains `VERIFY_WIKI_GO_LANG_88888` AND `BSD-style` AND `go.dev`.
 
-### 7.3 Fill comment
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"fill","selector":"#comment-text","text":"Great article on Go! Very comprehensive."}'
-```
-**Pass if**: HTTP 200.
 
-### 7.4 Rate the article
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"select","selector":"#comment-rating","value":"5"}'
-```
-**Pass if**: HTTP 200.
 
-### 7.5 Submit comment
-```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#submit-comment"}'
-```
-**Pass if**: HTTP 200.
 
-### 7.6 Verify comment posted
-```bash
-curl "http://localhost:9867/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Contains `COMMENT_POSTED_RATING_5_TEXT_RECEIVED`.
+**Pass if**: First snapshot contains `VERIFY_WIKI_GO_LANG_88888` AND final snapshot contains `COMMENT_POSTED_RATING_5_TEXT_RECEIVED`.
+
+### 7.2 Cross-page research
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#link-go","waitNav":true}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: First snapshot contains `COUNT_LANGUAGES_12` AND second snapshot contains `VERIFY_WIKI_GO_LANG_88888`.
 
 ---
 
 ## Group 8: Error Handling
 
-### 8.1 Navigate to non-existent page
+### 8.1 404 handling
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/nonexistent-page-xyz.html"}'
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/nonexistent-page-xyz.html"}'
 ```
-**Pass if**: Returns response without crash (404 or error).
+**Pass if**: Returns response without crash (HTTP 200 with error page, or structured error).
 
-### 8.2 Click non-existent element
+### 8.2 Missing element
 ```bash
-curl -X POST http://localhost:9867/action \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#element-that-does-not-exist"}'
 ```
-**Pass if**: Error response with message (not crash).
-
-### 8.3 Fill with invalid selector
-```bash
-curl -X POST http://localhost:9867/action \
-  -H "Authorization: Bearer benchmark-token" \
-  -H "Content-Type: application/json" \
-  -d '{"kind":"fill","selector":"#nonexistent-input","text":"test"}'
-```
-**Pass if**: Error response with message.
-
-### 8.4 Invalid action kind
-```bash
-curl -X POST http://localhost:9867/action \
-  -H "Authorization: Bearer benchmark-token" \
-  -H "Content-Type: application/json" \
-  -d '{"kind":"teleport","selector":"#btn"}'
-```
-**Pass if**: Returns 400/422 error with clear message.
+**Pass if**: Error response with clear message (not crash).
 
 ---
 
-## Group 9: Screenshot & Export
+## Group 9: Export
 
-### 9.1 Navigate to dashboard
+### 9.1 Screenshot
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/dashboard.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/dashboard.html"}'
 
-### 9.2 Take screenshot
-```bash
-curl http://localhost:9867/screenshot \
+curl http://localhost:9867/tabs/TAB_ID/screenshot \
   -H "Authorization: Bearer benchmark-token" \
   --output /tmp/benchmark-screenshot.png
-```
-**Pass if**: File created, size > 10KB.
 
-### 9.3 Verify screenshot has content
-```bash
 ls -la /tmp/benchmark-screenshot.png
 ```
 **Pass if**: File exists and size > 10240 bytes.
 
-### 9.4 Export PDF
+### 9.2 PDF export
 ```bash
-curl -X POST http://localhost:9867/pdf \
+curl http://localhost:9867/tabs/TAB_ID/pdf \
   -H "Authorization: Bearer benchmark-token" \
   --output /tmp/benchmark-dashboard.pdf
+
+ls -la /tmp/benchmark-dashboard.pdf
 ```
-**Pass if**: File created, size > 10KB.
+**Pass if**: File exists and size > 10240 bytes.
 
 ---
 
-## Group 10: Agent Identity
+## Group 10: Modals
 
-### 10.1 Navigate as agent alpha
+### 10.1 Open modal
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
-  -H "X-Agent-Id: bench-alpha" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/wiki.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/dashboard.html"}'
 
-### 10.2 Navigate as agent beta
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#settings-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Snapshot contains `Dashboard Settings`.
+
+### 10.2 Modal interaction
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"select","selector":"#theme-select","value":"dark"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#modal-save"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `THEME_DARK_APPLIED`.
+
+---
+
+## Group 11: Persistence
+
+### 11.1 State after reload
 ```bash
 curl -X POST http://localhost:9867/navigate \
   -H "Authorization: Bearer benchmark-token" \
-  -H "X-Agent-Id: bench-beta" \
   -H "Content-Type: application/json" \
-  -d '{"url":"http://fixtures/dashboard.html"}'
-```
-**Pass if**: HTTP 200.
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/spa.html"}'
 
-### 10.3 Check alpha activity
-```bash
-curl "http://localhost:9867/api/activity?agentId=bench-alpha" \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#new-task-input","text":"Persistent Task Test"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#add-task-btn"}'
+
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/spa.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Response contains activity for `bench-alpha`.
+**Pass if**: Contains `TASK_PERSISTENT_TEST_FOUND_AFTER_RELOAD`.
 
-### 10.4 Check beta activity
+### 11.2 Logout/re-login
 ```bash
-curl "http://localhost:9867/api/activity?agentId=bench-beta" \
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/login.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#username","text":"benchmark"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#password","text":"test456"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#login-btn"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#logout-btn"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#username","text":"benchmark"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#password","text":"test456"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#login-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
   -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Response contains activity for `bench-beta`.
+**Pass if**: Contains `VERIFY_LOGIN_SUCCESS_DASHBOARD` AND `SESSION_RENEWED`.
+
+---
+
+## Group 12: Multi-page Nav
+
+### 12.1 Navigate & return
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/"}'
+
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#link-go","waitNav":true}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/back \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/back \
+  -H "Authorization: Bearer benchmark-token"
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Final snapshot contains `VERIFY_HOME_LOADED_12345` (returned to home).
+
+### 12.2 Cross-page compare
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/articles.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Wiki snapshot contains `COUNT_LANGUAGES_12` AND articles snapshot contains article titles.
+
+---
+
+## Group 13: Form Validation
+
+### 13.1 Required field
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/form.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#fullname","text":"Validator Test"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#submit-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Snapshot does NOT contain `VERIFY_FORM_SUBMITTED_SUCCESS` (submission blocked by validation).
+
+### 13.2 Optional field
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/form.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#fullname","text":"No Phone User"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"fill","selector":"#email","text":"nophone@test.com"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"select","selector":"#country","value":"de"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"select","selector":"#subject","value":"feedback"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#submit-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `VERIFY_FORM_SUBMITTED_SUCCESS` AND `OPTIONAL_FIELD_SKIPPED_SUCCESS`.
+
+---
+
+## Group 14: Dynamic Content
+
+### 14.1 Load more
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/ecommerce.html"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#load-more-btn"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `ADDITIONAL_PRODUCTS_LOADED`.
+
+### 14.2 Lazy-loaded item
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"click","selector":"#product-5 .add-to-cart"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `CART_UPDATED_WITH_LAZY_PRODUCT`.
+
+---
+
+## Group 15: Data Aggregation
+
+### 15.1 Financial calc
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/dashboard.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Contains `$1,284,930` (revenue) AND `$384,930` (profit) AND `PROFIT_MARGIN_CALCULATED`.
+
+### 15.2 Multi-page comparison
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki-go.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki-python.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/wiki-rust.html"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1000" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Go snapshot contains `FEATURE_COUNT_6` AND Python snapshot contains `FEATURE_COUNT_7` AND `COMPARISON_TABLE_BUILT` AND Rust snapshot contains `FEATURE_COUNT_5`.
 
 ---
 
 ## Summary
 
-| Group | Steps | Description |
+| Group | Tasks | Description |
 |-------|-------|-------------|
-| 0 | 4 | Setup & Configuration |
-| 1 | 8 | Navigation & Content Extraction |
-| 2 | 6 | Search & Dynamic Content |
-| 3 | 12 | Complex Form Interaction |
-| 4 | 6 | SPA & Dynamic State |
-| 5 | 6 | Login & Auth Flow |
-| 6 | 8 | E-commerce Flow |
-| 7 | 6 | Wiki Article + Comment |
-| 8 | 4 | Error Handling |
-| 9 | 4 | Screenshot & Export |
-| 10 | 4 | Agent Identity |
+| 0 | 2 | Setup |
+| 1 | 6 | Reading & Extracting |
+| 2 | 3 | Search & Dynamic |
+| 3 | 2 | Form |
+| 4 | 3 | SPA |
+| 5 | 2 | Login |
+| 6 | 3 | E-commerce |
+| 7 | 2 | Content + Interaction |
+| 8 | 2 | Error Handling |
+| 9 | 2 | Export |
+| 10 | 2 | Modals |
+| 11 | 2 | Persistence |
+| 12 | 2 | Multi-page Nav |
+| 13 | 2 | Form Validation |
+| 14 | 2 | Dynamic Content |
+| 15 | 2 | Data Aggregation |
 
-**Total: 68 steps**
+**Total: 39 tasks**
 
 ## Verification Strings
 
@@ -712,3 +877,5 @@ curl "http://localhost:9867/api/activity?agentId=bench-beta" \
 | Login | `VERIFY_LOGIN_PAGE_77777` |
 | Go Article | `VERIFY_WIKI_GO_LANG_88888` |
 | SPA | `VERIFY_SPA_PAGE_99999` |
+| Python Article | `VERIFY_WIKI_PYTHON_LANG` |
+| Rust Article | `VERIFY_WIKI_RUST_LANG` |
