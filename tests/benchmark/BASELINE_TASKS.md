@@ -474,7 +474,7 @@ curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#checkout-btn"}'
 
-curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: Contains `VERIFY_CHECKOUT_SUCCESS_ORDER` AND `ORDER_TOTAL_449_98`.
@@ -508,7 +508,7 @@ curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Content-Type: application/json" \
   -d '{"kind":"click","selector":"#submit-comment"}'
 
-curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=2000" \
   -H "Authorization: Bearer benchmark-token"
 ```
 **Pass if**: First snapshot contains `VERIFY_WIKI_GO_LANG_88888` AND final snapshot contains `COMMENT_POSTED_RATING_5_TEXT_RECEIVED`.
@@ -944,21 +944,27 @@ curl -X POST http://localhost:9867/navigate \
   -H "Content-Type: application/json" \
   -d '{"tabId":"TAB_ID","url":"http://fixtures/scroll.html"}'
 
-curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"expression":"window.scrollTo(0, 1500); document.querySelector(\"#middle-block\").innerText;"}'
+  -d '{"kind":"scroll","scrollY":1500}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Response value contains `SCROLL_MIDDLE_MARKER`.
+**Pass if**: Snapshot contains `SCROLL_MIDDLE_MARKER`.
 
 ### 17.2 Scroll to footer
 ```bash
-curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer benchmark-token" \
   -H "Content-Type: application/json" \
-  -d '{"expression":"document.querySelector(\"#footer\").scrollIntoView(); document.querySelector(\"#footer\").innerText;"}'
+  -d '{"kind":"scroll","selector":"#footer"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=1500" \
+  -H "Authorization: Bearer benchmark-token"
 ```
-**Pass if**: Response value contains `SCROLL_REACHED_FOOTER`.
+**Pass if**: Snapshot contains `SCROLL_REACHED_FOOTER`.
 
 ---
 
@@ -966,17 +972,15 @@ curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
 
 ### 18.1 Download a file
 ```bash
-curl -X POST http://localhost:9867/navigate \
-  -H "Authorization: Bearer benchmark-token" \
-  -H "Content-Type: application/json" \
-  -d '{"tabId":"TAB_ID","url":"http://fixtures/download-sample.txt"}'
+curl "http://localhost:9867/tabs/TAB_ID/download?url=http://fixtures/download-sample.txt" \
+  -H "Authorization: Bearer benchmark-token" | \
+  jq -r .data | base64 -d > /tmp/benchmark-download.txt
 
-curl "http://localhost:9867/tabs/TAB_ID/text" \
-  -H "Authorization: Bearer benchmark-token"
+grep "DOWNLOAD_FILE_CONTENT_VERIFIED" /tmp/benchmark-download.txt
 ```
-**Pass if**: Response text contains `DOWNLOAD_FILE_CONTENT_VERIFIED`.
+**Pass if**: File exists and contains `DOWNLOAD_FILE_CONTENT_VERIFIED`.
 
-**Note**: PinchTab's `/download` endpoint blocks private/internal IPs as a safety measure. For local fixture downloads, navigate to the file URL and read body text instead.
+**Note**: The download endpoint returns JSON with `{contentType, data (base64), size, url}`, not the raw file. Decode `.data` to get the file contents. For PinchTab to download from internal hosts (like `fixtures`), the domain must be in `security.downloadAllowedDomains` config.
 
 ---
 
