@@ -125,13 +125,11 @@ For remote CLI targeting, use the root `--server` flag instead of config.
 
 Default location by OS:
 
-- macOS: `~/Library/Application Support/pinchtab/config.json`
-- Linux: `~/.config/pinchtab/config.json` or `$XDG_CONFIG_HOME/pinchtab/config.json`
+- macOS: `~/.pinchtab/config.json`
+- Linux: `~/.pinchtab/config.json`
 - Windows: `%APPDATA%\pinchtab\config.json`
 
-Legacy fallback:
-
-- if `~/.pinchtab/config.json` exists and the newer location does not, PinchTab still uses the legacy location
+On macOS and Linux, PinchTab defaults to `~/.pinchtab` so the CLI, npm-managed binary, and config file all use the same base directory.
 
 Override the config path with:
 
@@ -301,8 +299,8 @@ For Linux container compatibility, use the runtime-managed path instead of `brow
 
 By default, PinchTab looks for unpacked Chrome extensions in `<server.stateDir>/extensions`. On a normal local install that means the OS-specific PinchTab config directory plus `extensions/`, for example:
 
-- macOS: `~/Library/Application Support/pinchtab/extensions`
-- Linux: `~/.config/pinchtab/extensions`
+- macOS: `~/.pinchtab/extensions`
+- Linux: `~/.pinchtab/extensions`
 - Windows: `%APPDATA%\\pinchtab\\extensions`
 
 You can change or clear that default with `browser.extensionPaths`.

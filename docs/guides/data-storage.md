@@ -19,8 +19,8 @@ PinchTab uses the OS config directory:
 
 | OS | Default Base Directory |
 | --- | --- |
-| Linux | `~/.config/pinchtab/` or `$XDG_CONFIG_HOME/pinchtab/` |
-| macOS | `~/Library/Application Support/pinchtab/` |
+| Linux | `~/.pinchtab/` |
+| macOS | `~/.pinchtab/` |
 | Windows | `%APPDATA%\\pinchtab\\` |
 
 Typical layout:
@@ -35,14 +35,11 @@ pinchtab/
     └── default/
 ```
 
-## Legacy Fallback
+## Platform Defaults
 
-For backward compatibility, PinchTab still uses `~/.pinchtab/` if:
+On macOS and Linux, `~/.pinchtab/` is the default base directory.
 
-- that legacy directory already exists
-- and the newer OS-native location does not exist yet
-
-That fallback applies to both config lookup and the default base storage directory.
+On Windows, PinchTab uses the OS-native config directory under `%APPDATA%\\pinchtab\\`.
 
 ## Profiles
 

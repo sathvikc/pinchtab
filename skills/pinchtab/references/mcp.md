@@ -137,7 +137,7 @@ The MCP surface is intentionally scoped to browser automation. The following are
 | Modify stealth / fingerprint settings | ❌ Not available | Edit config file directly |
 | Start or stop the PinchTab server | ❌ Not available | Use `pinchtab start` / `pinchtab stop` CLI |
 | Manage fleet instances | ❌ Not available | Use `pinchtab instances` CLI |
-| Read/write PinchTab config | ❌ Not available | Edit `~/.pinchtab/config.yaml` directly |
+| Read/write PinchTab config | ❌ Not available | Edit `~/.pinchtab/config.json` directly |
 
 If you need these capabilities in an agent workflow, use the CLI commands alongside the MCP tools, or call the PinchTab HTTP API directly.
 

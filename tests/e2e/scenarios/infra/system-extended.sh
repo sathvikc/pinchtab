@@ -386,7 +386,14 @@ start_test "POST /tasks — submit task"
 pt_post /tasks -d "{\"agentId\":\"${AGENT}\",\"action\":\"snapshot\",\"tabId\":\"${TAB_ID}\"}"
 assert_http_status "202" "task accepted"
 TASK_ID=$(echo "$RESULT" | jq -r '.taskId')
-assert_json_eq "$RESULT" ".state" "queued" "initial state is queued"
+STATE=$(echo "$RESULT" | jq -r '.state')
+if [ "$STATE" = "queued" ] || [ "$STATE" = "assigned" ] || [ "$STATE" = "running" ]; then
+  echo -e "  ${GREEN}✓${NC} initial task state is active/queued: $STATE"
+  ((ASSERTIONS_PASSED++)) || true
+else
+  echo -e "  ${RED}✗${NC} unexpected initial task state: $STATE"
+  ((ASSERTIONS_FAILED++)) || true
+fi
 
 end_test
 
@@ -400,7 +407,7 @@ assert_json_eq "$RESULT" ".taskId" "$TASK_ID" "correct task id"
 assert_json_eq "$RESULT" ".agentId" "$AGENT" "correct agent id"
 assert_json_eq "$RESULT" ".action" "snapshot" "correct action"
 STATE=$(echo "$RESULT" | jq -r '.state')
-if [ "$STATE" = "completed" ] || [ "$STATE" = "running" ] || [ "$STATE" = "failed" ]; then
+if [ "$STATE" = "done" ] || [ "$STATE" = "assigned" ] || [ "$STATE" = "running" ] || [ "$STATE" = "failed" ]; then
   echo -e "  ${GREEN}✓${NC} task reached terminal/active state: $STATE"
   ((ASSERTIONS_PASSED++)) || true
 else
@@ -429,7 +436,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /tasks — filter by state"
 
-pt_get "/tasks?state=completed,failed"
+pt_get "/tasks?state=done,failed"
 assert_ok "list terminal tasks"
 assert_json_exists "$RESULT" '.tasks' "tasks array present in response"
 

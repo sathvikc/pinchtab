@@ -161,3 +161,10 @@ jobs:
       summary_title: E2E Infra Extended Tests
       timeout_minutes: 25
       compose_file: tests/e2e/docker-compose-multi.yml
+
+  npm-cli-macos:
+    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'all'
+    uses: ./.github/workflows/reusable-npm-e2e.yml
+    with:
+      ref: ${{ github.sha }}
+      summary_title: E2E npm CLI Tests (macOS)
