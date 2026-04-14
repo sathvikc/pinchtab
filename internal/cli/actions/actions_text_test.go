@@ -10,6 +10,7 @@ import (
 func newTextCmd() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Flags().Bool("raw", false, "")
+	cmd.Flags().Bool("full", false, "")
 	cmd.Flags().String("tab", "", "")
 	return cmd
 }
@@ -40,6 +41,22 @@ func TestTextRaw(t *testing.T) {
 	}
 	if !strings.Contains(m.lastQuery, "format=text") {
 		t.Errorf("expected format=text, got %s", m.lastQuery)
+	}
+}
+
+func TestTextFull(t *testing.T) {
+	m := newMockServer()
+	defer m.close()
+	client := m.server.Client()
+
+	cmd := newTextCmd()
+	_ = cmd.Flags().Set("full", "true")
+	Text(client, m.base(), "", cmd)
+	if !strings.Contains(m.lastQuery, "mode=raw") {
+		t.Errorf("expected --full to set mode=raw, got %s", m.lastQuery)
+	}
+	if !strings.Contains(m.lastQuery, "format=text") {
+		t.Errorf("expected --full to set format=text, got %s", m.lastQuery)
 	}
 }
 

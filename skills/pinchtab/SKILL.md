@@ -166,6 +166,7 @@ pinchtab nav <url> --new-tab
 pinchtab nav <url> --tab <tab-id>
 pinchtab nav <url> --block-images
 pinchtab nav <url> --block-ads
+pinchtab nav <url> --print-tab-id                   # Print only the new tabId on stdout
 pinchtab back                                       # Navigate back in history
 pinchtab forward                                    # Navigate forward
 pinchtab reload                                     # Reload current page
@@ -174,6 +175,23 @@ pinchtab tab new <url>
 pinchtab tab close <tab-id>
 pinchtab instance navigate <instance-id> <url>
 ```
+
+When stdout is a pipe (e.g. inside `$(...)`), `nav` automatically switches to
+`--print-tab-id` mode so agents can capture the tab ID with a single line,
+then export it once via `PINCHTAB_TAB` so every subsequent tab-scoped command
+picks it up without threading `--tab "$TAB"` through each call:
+
+```bash
+# Capture once, reuse across every following command.
+export PINCHTAB_TAB=$(pinchtab nav http://example.com)
+pinchtab snap -i -c
+pinchtab eval "document.title"
+pinchtab click '#submit'
+pinchtab drag '#piece' '#zone-a'
+```
+
+An explicit `--tab <id>` on any command still overrides `PINCHTAB_TAB`.
+See `references/env.md` for the full list of supported env vars.
 
 ### Observation
 
@@ -185,8 +203,9 @@ pinchtab snap -d                                    # Diff from previous snapsho
 pinchtab snap --selector <css>                      # Scope to CSS selector
 pinchtab snap --max-tokens <n>                      # Token budget limit
 pinchtab snap --text                                # Text output format
-pinchtab text                                       # Page text content
-pinchtab text --raw                                 # Raw text extraction
+pinchtab text                                       # Page text content (Readability-filtered; drops nav/repeated headlines)
+pinchtab text --full                                # Full page text (document.body.innerText) — use when Readability is dropping content you need
+pinchtab text --raw                                 # Alias of --full
 pinchtab find <query>                               # Semantic element search
 pinchtab find --ref-only <query>                    # Return refs only
 ```
@@ -207,6 +226,10 @@ All interaction commands accept unified selectors (refs, CSS, XPath, text, seman
 pinchtab click <selector>                           # Click element
 pinchtab click --wait-nav <selector>                # Click and wait for navigation
 pinchtab click --x 100 --y 200                      # Click by coordinates
+pinchtab click <selector> --dialog-action accept    # Click + auto-accept any alert/confirm the click opens
+pinchtab click <selector> --dialog-action dismiss   # Click + auto-dismiss
+pinchtab click <selector> --dialog-action accept \
+    --dialog-text "hello"                           # Click + accept a prompt() with a response
 pinchtab dblclick <selector>                        # Double-click element
 pinchtab mouse move <selector>                      # Move pointer to element center
 pinchtab mouse move <x> <y>                         # Move pointer to coordinates
@@ -215,13 +238,14 @@ pinchtab mouse down --button left                   # Press a mouse button at cu
 pinchtab mouse up <selector> --button left          # Release a mouse button at an explicit target
 pinchtab mouse up --button left                     # Release a mouse button at current pointer
 pinchtab mouse wheel 240 --dx 40                    # Dispatch wheel deltas at current pointer
-pinchtab drag <from> <to>                           # Drag between selector/ref or x,y points
+pinchtab drag <from> <to>                           # Drag between selector/ref or x,y points (synthesized mouse sequence)
+pinchtab drag <selector> --drag-x <n> --drag-y <n>  # Single-step drag by pixel offset (mirrors HTTP /action dragX/dragY)
 pinchtab type <selector> <text>                     # Type with keystrokes
 pinchtab fill <selector> <text>                     # Set value directly
 pinchtab press <key>                                # Press key (Enter, Tab, Escape...)
 pinchtab hover <selector>                           # Hover element
-pinchtab select <selector> <value>                  # Select dropdown option
-pinchtab scroll <selector|pixels>                   # Scroll element or page
+pinchtab select <selector> <value|text>             # Select dropdown option by value attr, or fall back to visible text
+pinchtab scroll <pixels|direction|selector>         # Scroll page (e.g. 800), by direction (up/down/left/right), or to an element (ref, #id, .class, //xpath, text:...)
 ```
 
 Rules:
@@ -231,8 +255,8 @@ Rules:
 - Prefer `click --wait-nav` when a click is expected to navigate.
 - Prefer low-level `mouse` commands only when normal `click` / `hover` abstractions are insufficient, such as drag handles, canvas widgets, or sites that depend on exact pointer sequences.
 - Re-snapshot immediately after `click`, `press Enter`, `select`, or `scroll` if the UI can change.
-- To discover valid dropdown values, snapshot with `filter=interactive` first — the output shows `<option>` elements with their `value` attributes. Then use `select` with the exact value.
-- If a click opens a JS dialog (`alert`, `confirm`, `prompt`), pass `"dialogAction": "accept"` or `"dialogAction": "dismiss"` on the click action body. The dialog is auto-handled in a single call. Without this, the click hangs until `/tabs/TAB_ID/dialog` is called from a parallel request, and a pending dialog wedges subsequent `/snapshot` and `/text` calls.
+- `select` takes whatever you have: it tries the `<option value="...">` attribute first, then falls back to exact (trimmed) visible text, then case-insensitive trimmed text. So `pinchtab select '#country' uk` and `pinchtab select '#country' 'United Kingdom'` both work; the form receives the real `value="uk"` in either case. If nothing matches, the server returns a clear error listing available options.
+- If a click opens a JS dialog (`alert`, `confirm`, `prompt`), pass `"dialogAction": "accept"` or `"dialogAction": "dismiss"` on the click action body — or `pinchtab click <selector> --dialog-action accept` from the CLI (use `--dialog-text <str>` to supply a prompt response). The dialog is auto-handled in a single call. Without this, the click hangs until `/tabs/TAB_ID/dialog` is called from a parallel request, and a pending dialog wedges subsequent `/snapshot` and `/text` calls.
 - For the `scroll` action via HTTP, use `"scrollX"` / `"scrollY"` for pixel deltas, or `"selector"` to scroll an element into view. Example: `{"kind":"scroll","scrollY":1500}` or `{"kind":"scroll","selector":"#footer"}`. The `x`/`y` fields are target viewport coordinates, not scroll deltas.
 - The download HTTP endpoint (`GET /download?url=...` or `GET /tabs/TAB_ID/download?url=...`) returns JSON `{contentType, data (base64), size, url}`, not raw bytes. Decode `data` with base64 to get the file. Only `http`/`https` URLs are allowed. Private/internal hosts are blocked unless listed in `security.downloadAllowedDomains`.
 
@@ -253,6 +277,7 @@ Use these only when the task explicitly requires them and safer commands are ins
 
 ```bash
 pinchtab eval "document.title"
+pinchtab eval --await-promise "fetch('/api/me').then(r => r.json())"
 pinchtab download <url> -o /tmp/pinchtab-download.bin
 pinchtab upload /absolute/path/provided-by-user.ext -s <css>
 ```
@@ -328,6 +353,13 @@ curl -X POST http://localhost:9867/tabs/TAB_ID/action \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"kind":"mouse-wheel","x":400,"y":320,"deltaY":240}'
+
+# Drag action: selector + pixel OFFSETS (dragX, dragY), not absolute endpoints.
+# For low-level absolute coords, sequence mouse-down / mouse-move / mouse-up.
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"drag","selector":"#piece","dragX":12,"dragY":-158}'
 
 # Navigate back/forward in a specific tab
 curl -X POST http://localhost:9867/tabs/TAB_ID/back \
@@ -451,9 +483,13 @@ pinchtab click "xpath://button[@type='submit']"
 ## Diffing and Verification
 
 - Use `pinchtab snap -d` after each state-changing action in long workflows.
-- Use `pinchtab text` to confirm success messages, table updates, or navigation outcomes.
+- Use `pinchtab text` to confirm success messages, table updates, or navigation outcomes. The default mode extracts Readability-filtered content (reader view), which may drop navigation, repeated headlines, or short-text nodes. If the content you need is missing, retry with `pinchtab text --full` to get the full `document.body.innerText`.
 - Use `pinchtab screenshot` only when visual regressions, CAPTCHA, or layout-specific confirmation matters.
 - If a ref disappears after a change, treat that as expected and fetch fresh refs instead of retrying the stale one.
+- Action responses like `{"clicked":true,"submitted":true}` mean the event fired on the target element — **not** that the form was accepted by the server or passed native HTML validation. Always verify the expected success marker or state change via `snap`/`text` before treating a submission as complete.
+- `/action` selectors do not cross iframe boundaries. To interact with elements inside an `<iframe>`, use `eval` / `/evaluate` against `iframe.contentDocument` (e.g. `document.getElementById('my-frame').contentDocument.getElementById('inner-btn').click()`).
+- The compact snapshot shows `<option>` elements by their visible text, not their `value` attribute. You don't normally need to look up the `value`: the `select` action accepts either — it matches on `value` first and falls back to visible text (case-insensitive). Only reach for `eval` + `Array.from(select.options)` when debugging an unexpected no-match error.
+- `text:<value>` selectors are resolved by a JS-level search over visible text and can intermittently fail with `DOM Error` or `context deadline exceeded` on large/dynamic pages. If you have a fresh `snap -i -c` in hand, prefer the ref (`e12`) — refs resolve by stable backend node IDs and don't depend on page-side JS.
 
 
 ## References

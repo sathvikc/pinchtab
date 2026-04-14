@@ -17,6 +17,8 @@ func newActionCmd() *cobra.Command {
 	cmd.Flags().String("button", "", "")
 	cmd.Flags().Int("dx", 0, "")
 	cmd.Flags().Int("dy", 0, "")
+	cmd.Flags().String("dialog-action", "", "")
+	cmd.Flags().String("dialog-text", "", "")
 	return cmd
 }
 
@@ -58,6 +60,42 @@ func TestClickWaitNav(t *testing.T) {
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["waitNav"] != true {
 		t.Error("expected waitNav=true")
+	}
+}
+
+func TestClickDialogAction(t *testing.T) {
+	m := newMockServer()
+	defer m.close()
+	client := m.server.Client()
+
+	cmd := newActionCmd()
+	_ = cmd.Flags().Set("dialog-action", "accept")
+	_ = cmd.Flags().Set("dialog-text", "hello")
+	Action(client, m.base(), "", "click", "#alert-btn", cmd)
+	var body map[string]any
+	_ = json.Unmarshal([]byte(m.lastBody), &body)
+	if body["dialogAction"] != "accept" {
+		t.Errorf("expected dialogAction=accept, got %v", body["dialogAction"])
+	}
+	if body["dialogText"] != "hello" {
+		t.Errorf("expected dialogText=hello, got %v", body["dialogText"])
+	}
+}
+
+func TestClickDialogActionOmittedByDefault(t *testing.T) {
+	m := newMockServer()
+	defer m.close()
+	client := m.server.Client()
+
+	cmd := newActionCmd()
+	Action(client, m.base(), "", "click", "#button", cmd)
+	var body map[string]any
+	_ = json.Unmarshal([]byte(m.lastBody), &body)
+	if _, present := body["dialogAction"]; present {
+		t.Errorf("expected dialogAction to be omitted, got %v", body["dialogAction"])
+	}
+	if _, present := body["dialogText"]; present {
+		t.Errorf("expected dialogText to be omitted, got %v", body["dialogText"])
 	}
 }
 
@@ -378,6 +416,26 @@ func TestScroll(t *testing.T) {
 	_ = json.Unmarshal([]byte(m.lastBody), &body)
 	if body["scrollY"] != float64(800) {
 		t.Errorf("expected scrollY=800 for direction=down, got %v", body["scrollY"])
+	}
+
+	// CSS selector auto-detection: `scroll #footer` should forward as
+	// selector, matching how click/fill/hover behave for bare selectors.
+	ActionSimple(client, m.base(), "", "scroll", []string{"#footer"}, cmd)
+	body = nil
+	_ = json.Unmarshal([]byte(m.lastBody), &body)
+	if body["selector"] != "#footer" {
+		t.Errorf("expected selector=#footer, got %v", body["selector"])
+	}
+	if _, hasScrollY := body["scrollY"]; hasScrollY {
+		t.Errorf("should not set scrollY for CSS selector form, got %v", body["scrollY"])
+	}
+
+	// XPath also flows through.
+	ActionSimple(client, m.base(), "", "scroll", []string{"//footer"}, cmd)
+	body = nil
+	_ = json.Unmarshal([]byte(m.lastBody), &body)
+	if body["selector"] != "//footer" {
+		t.Errorf("expected selector=//footer, got %v", body["selector"])
 	}
 }
 

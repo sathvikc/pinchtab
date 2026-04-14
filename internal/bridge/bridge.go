@@ -625,8 +625,16 @@ type ActionRequest struct {
 	Value    string `json:"value"`
 	NodeID   int64  `json:"nodeId"`
 
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
+	// X/Y use omitempty so that re-marshaling an ActionRequest without
+	// explicit coordinates (e.g. when the tab-scoped handler forwards to
+	// the generic one) doesn't spuriously re-introduce "x":0, "y":0. The
+	// ActionRequest.UnmarshalJSON code infers HasXY from the presence of
+	// these keys, so preserving omission is what makes "use current
+	// pointer" work for mouse-down/up after a prior mouse-move. HasXY is
+	// still marshaled (with omitempty) when it was explicitly set, which
+	// preserves the explicit-click-at-(0,0) case through the round-trip.
+	X      float64 `json:"x,omitempty"`
+	Y      float64 `json:"y,omitempty"`
 	HasXY  bool    `json:"hasXY,omitempty"`
 	Button string  `json:"button,omitempty"`
 

@@ -44,6 +44,16 @@ func Action(client *http.Client, base, token, kind, selectorArg string, cmd *cob
 		if v, _ := cmd.Flags().GetBool("wait-nav"); v {
 			body["waitNav"] = true
 		}
+		// --dialog-action arms a one-shot JS dialog handler before the click.
+		// Mirrors the HTTP action body field {"dialogAction":"accept"|"dismiss"}.
+		// Without this, a click that opens an alert/confirm hangs until
+		// /dialog is called from a separate request.
+		if v, _ := cmd.Flags().GetString("dialog-action"); v != "" {
+			body["dialogAction"] = v
+		}
+		if v, _ := cmd.Flags().GetString("dialog-text"); v != "" {
+			body["dialogText"] = v
+		}
 	}
 
 	postAction(client, base, token, cmd, body)
@@ -224,6 +234,36 @@ func actionBodyForTarget(kind string, target dragTarget) map[string]any {
 }
 
 func Drag(client *http.Client, base, token string, args []string, cmd *cobra.Command) {
+	// Two modes:
+	//   1. pinchtab drag <selector> --drag-x N --drag-y N
+	//        → single HTTP "drag" action with pixel offsets (dragX/dragY).
+	//   2. pinchtab drag <from> <to>
+	//        → synthesized mouse-move → mouse-down → mouse-move → mouse-up
+	//          sequence. Each target may be "selector" or "x,y" coords.
+	hasDragX := cmd.Flags().Changed("drag-x")
+	hasDragY := cmd.Flags().Changed("drag-y")
+
+	if hasDragX || hasDragY {
+		if len(args) != 1 {
+			cli.Fatal("Usage: pinchtab drag <selector> --drag-x <n> --drag-y <n>")
+		}
+		body := map[string]any{"kind": bridge.ActionDrag}
+		setSelectorBody(body, args[0])
+		dx, _ := cmd.Flags().GetInt("drag-x")
+		dy, _ := cmd.Flags().GetInt("drag-y")
+		body["dragX"] = dx
+		body["dragY"] = dy
+		if button, _ := cmd.Flags().GetString("button"); button != "" {
+			body["button"] = button
+		}
+		postAction(client, base, token, cmd, body)
+		return
+	}
+
+	if len(args) != 2 {
+		cli.Fatal("Usage: pinchtab drag <from> <to>  or  pinchtab drag <selector> --drag-x <n> --drag-y <n>")
+	}
+
 	from := parseDragTarget(args[0])
 	to := parseDragTarget(args[1])
 
@@ -255,24 +295,29 @@ func ActionSimple(client *http.Client, base, token, kind string, args []string, 
 	case "press":
 		body["key"] = args[0]
 	case "scroll":
-		sel := selector.Parse(args[0])
-		if sel.Kind == selector.KindRef {
-			body["ref"] = sel.Value
-		} else if px, err := strconv.Atoi(args[0]); err == nil {
+		// Precedence: integer pixels > direction keyword > unified selector.
+		// Pixels and directions are short, low-cardinality inputs that would
+		// otherwise also parse as CSS tag selectors (e.g. "up" / "down"), so
+		// we intercept them before handing off to setSelectorBody.
+		if px, err := strconv.Atoi(args[0]); err == nil {
 			body["scrollY"] = px
-		} else {
-			switch strings.ToLower(args[0]) {
-			case "down":
-				body["scrollY"] = 800
-			case "up":
-				body["scrollY"] = -800
-			case "right":
-				body["scrollX"] = 800
-			case "left":
-				body["scrollX"] = -800
-			default:
-				cli.Fatal("Usage: pinchtab scroll <selector|pixels|direction>  (e.g. e5, 800, or down)")
-			}
+			break
+		}
+		switch strings.ToLower(args[0]) {
+		case "down":
+			body["scrollY"] = 800
+		case "up":
+			body["scrollY"] = -800
+		case "right":
+			body["scrollX"] = 800
+		case "left":
+			body["scrollX"] = -800
+		default:
+			// Fall back to the unified selector parser so refs ("e5"),
+			// CSS ("#footer", ".class"), XPath ("//..."), text: and
+			// semantic selectors all work — same contract as `click`,
+			// `fill`, `hover`, etc. Server supports these via req.Selector.
+			setSelectorBody(body, args[0])
 		}
 	case "select":
 		setSelectorBody(body, args[0])

@@ -3,6 +3,7 @@ package cdpops
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/chromedp/chromedp"
 )
@@ -51,6 +52,21 @@ func FillByNodeID(ctx context.Context, nodeID int64, value string) error {
 	)
 }
 
+// SelectByNodeID sets the value of a <select> element, with a forgiving
+// lookup: if the raw input doesn't match any option's `value` attribute, the
+// function falls back to an exact (trimmed) match against each option's
+// visible text, and then to a case-insensitive trimmed text match. This lets
+// callers pass whatever they see in a snapshot (`"United Kingdom"`) instead
+// of having to look up the underlying `value` attr (`"uk"`).
+//
+// When the element isn't a <select> (no `.options` collection), behavior
+// degrades to the original "set .value directly" path — preserves backward
+// compatibility for anyone using this helper on a plain input or custom
+// element.
+//
+// Returns an error when none of the three match strategies find an option on
+// a <select> element; the error enumerates available values + texts to make
+// the failure actionable.
 func SelectByNodeID(ctx context.Context, nodeID int64, value string) error {
 	return chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
@@ -71,12 +87,85 @@ func SelectByNodeID(ctx context.Context, nodeID int64, value string) error {
 			if err := json.Unmarshal(result, &resolved); err != nil {
 				return err
 			}
-			js := `function(v) { this.value = v; this.dispatchEvent(new Event('input', {bubbles: true})); this.dispatchEvent(new Event('change', {bubbles: true})); }`
-			return chromedp.FromContext(ctx).Target.Execute(ctx, "Runtime.callFunctionOn", map[string]any{
+			// Return a structured object so the caller can inspect (a) the match
+			// strategy used and (b) the effective option value that was applied.
+			js := `function(v) {
+				var opts = this.options ? Array.from(this.options) : null;
+				if (!opts) {
+					// Not a <select>; preserve legacy behavior.
+					this.value = v;
+					this.dispatchEvent(new Event('input', {bubbles: true}));
+					this.dispatchEvent(new Event('change', {bubbles: true}));
+					return { ok: true, matchedBy: "legacy", value: v };
+				}
+				var target = String(v);
+				var trimmed = target.trim();
+				var lower = trimmed.toLowerCase();
+				var match = null, matchedBy = "";
+				// 1. Exact value attribute (the canonical form).
+				for (var i = 0; i < opts.length; i++) {
+					if (opts[i].value === target) { match = opts[i]; matchedBy = "value"; break; }
+				}
+				// 2. Exact (trimmed) visible text.
+				if (!match) {
+					for (var i = 0; i < opts.length; i++) {
+						if ((opts[i].text || "").trim() === trimmed) { match = opts[i]; matchedBy = "text"; break; }
+					}
+				}
+				// 3. Case-insensitive (trimmed) visible text.
+				if (!match) {
+					for (var i = 0; i < opts.length; i++) {
+						if ((opts[i].text || "").trim().toLowerCase() === lower) { match = opts[i]; matchedBy = "text-ci"; break; }
+					}
+				}
+				if (!match) {
+					return {
+						ok: false,
+						error: "no option matched " + JSON.stringify(v) + " by value or visible text",
+						available: opts.map(function (o) { return { value: o.value, text: (o.text || "").trim() }; })
+					};
+				}
+				this.value = match.value;
+				this.dispatchEvent(new Event('input', {bubbles: true}));
+				this.dispatchEvent(new Event('change', {bubbles: true}));
+				return { ok: true, matchedBy: matchedBy, value: match.value, text: (match.text || "").trim() };
+			}`
+			var callResult json.RawMessage
+			if err := chromedp.FromContext(ctx).Target.Execute(ctx, "Runtime.callFunctionOn", map[string]any{
 				"functionDeclaration": js,
 				"objectId":            resolved.Object.ObjectID,
 				"arguments":           []map[string]any{{"value": value}},
-			}, nil)
+				"returnByValue":       true,
+			}, &callResult); err != nil {
+				return err
+			}
+			var cr struct {
+				Result struct {
+					Value json.RawMessage `json:"value"`
+				} `json:"result"`
+			}
+			if err := json.Unmarshal(callResult, &cr); err != nil {
+				return err
+			}
+			var outcome struct {
+				OK        bool   `json:"ok"`
+				Error     string `json:"error"`
+				MatchedBy string `json:"matchedBy"`
+				Available []struct {
+					Value string `json:"value"`
+					Text  string `json:"text"`
+				} `json:"available"`
+			}
+			if err := json.Unmarshal(cr.Result.Value, &outcome); err != nil {
+				// Callers that use this helper on non-JSON-serializable
+				// outcomes (shouldn't happen given the JS above) get the raw
+				// error surfaced instead of a silent success.
+				return fmt.Errorf("parse select result: %w", err)
+			}
+			if !outcome.OK {
+				return fmt.Errorf("%s", outcome.Error)
+			}
+			return nil
 		}),
 	)
 }

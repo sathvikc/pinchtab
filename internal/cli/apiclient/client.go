@@ -32,20 +32,7 @@ func DoGet(client *http.Client, base, token, path string, params url.Values) map
 		os.Exit(1)
 	}
 
-	// Pretty-print JSON if possible
-	var buf bytes.Buffer
-	if json.Indent(&buf, body, "", "  ") == nil {
-		fmt.Println(buf.String())
-	} else {
-		fmt.Println(string(body))
-	}
-
-	// Parse and return result
-	var result map[string]any
-	if err := json.Unmarshal(body, &result); err != nil {
-		log.Printf("warning: error unmarshaling response: %v", err)
-	}
-	return result
+	return printAndDecode(body)
 }
 
 func DoGetRaw(client *http.Client, base, token, path string, params url.Values) []byte {
@@ -73,6 +60,33 @@ func DoPost(client *http.Client, base, token, path string, body map[string]any) 
 	return DoPostWithHeaders(client, base, token, path, body, nil)
 }
 
+// DoPostQuiet is like DoPost but does not print the response body. Callers are
+// responsible for rendering whatever output is appropriate (e.g. a single
+// field for machine-friendly piping).
+func DoPostQuiet(client *http.Client, base, token, path string, body map[string]any) map[string]any {
+	data, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", base+path, bytes.NewReader(data))
+	req.Header.Set("Content-Type", "application/json")
+	setClientHeaders(req, token)
+	resp, err := client.Do(req)
+	if err != nil {
+		fatal("Request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode >= 400 {
+		handleAPIError(resp.StatusCode, respBody)
+		os.Exit(1)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		log.Printf("warning: error unmarshaling response: %v", err)
+	}
+	return result
+}
+
 func DoPostWithHeaders(client *http.Client, base, token, path string, body map[string]any, headers map[string]string) map[string]any {
 	data, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", base+path, bytes.NewReader(data))
@@ -93,19 +107,7 @@ func DoPostWithHeaders(client *http.Client, base, token, path string, body map[s
 		os.Exit(1)
 	}
 
-	var buf bytes.Buffer
-	if json.Indent(&buf, respBody, "", "  ") == nil {
-		fmt.Println(buf.String())
-	} else {
-		fmt.Println(string(respBody))
-	}
-
-	// Parse and return result for suggestions
-	var result map[string]any
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		log.Printf("warning: error unmarshaling response: %v", err)
-	}
-	return result
+	return printAndDecode(respBody)
 }
 
 // DoDelete sends a DELETE request with an optional JSON body (e.g. for ?name= query params, pass nil body and handle params in path).
@@ -128,18 +130,7 @@ func DoDelete(client *http.Client, base, token, path string, params url.Values) 
 		os.Exit(1)
 	}
 
-	var buf bytes.Buffer
-	if json.Indent(&buf, respBody, "", "  ") == nil {
-		fmt.Println(buf.String())
-	} else {
-		fmt.Println(string(respBody))
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		log.Printf("warning: error unmarshaling response: %v", err)
-	}
-	return result
+	return printAndDecode(respBody)
 }
 
 // DoDeleteJSON sends a DELETE request with a JSON body.
@@ -160,16 +151,26 @@ func DoDeleteJSON(client *http.Client, base, token, path string, body map[string
 		os.Exit(1)
 	}
 
+	return printAndDecode(respBody)
+}
+
+// printAndDecode pretty-prints the body when it is JSON, falls back to
+// raw output otherwise, and returns the parsed map (if any) for the
+// suggestion logic. It only warns on genuine JSON decode errors — inherently
+// non-JSON responses like /snapshot's compact text format pass silently.
+func printAndDecode(body []byte) map[string]any {
 	var buf bytes.Buffer
-	if json.Indent(&buf, respBody, "", "  ") == nil {
+	isJSON := json.Indent(&buf, body, "", "  ") == nil
+	if isJSON {
 		fmt.Println(buf.String())
 	} else {
-		fmt.Println(string(respBody))
+		fmt.Println(string(body))
 	}
-
 	var result map[string]any
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		log.Printf("warning: error unmarshaling response: %v", err)
+	if isJSON {
+		if err := json.Unmarshal(body, &result); err != nil {
+			log.Printf("warning: error unmarshaling response: %v", err)
+		}
 	}
 	return result
 }

@@ -84,9 +84,20 @@ var mouseUpCmd = newMouseActionCmd("up [ref|selector]", "Release mouse button", 
 var mouseWheelCmd = newMouseActionCmd("wheel [dy|ref|selector]", "Dispatch mouse wheel deltas", bridge.ActionMouseWheel, cobra.MaximumNArgs(1))
 
 var dragCmd = &cobra.Command{
-	Use:   "drag <from> <to>",
-	Short: "Drag from one target to another",
-	Args:  cobra.ExactArgs(2),
+	Use:   "drag <from> <to> | <selector> --drag-x <n> --drag-y <n>",
+	Short: "Drag from one target to another (or by pixel offset)",
+	Long: `Drag a DOM element.
+
+Two forms:
+  pinchtab drag <from> <to>
+      Synthesizes mouse-move → mouse-down → mouse-move → mouse-up.
+      Each target is a selector (CSS, ref, text:) or an "x,y" coord pair.
+
+  pinchtab drag <selector> --drag-x <n> --drag-y <n>
+      Single-step HTTP "drag" action with pixel offsets from the element's
+      current position. Symmetric with the HTTP /action body
+      {"kind":"drag","selector":"...","dragX":N,"dragY":N}.`,
+	Args: cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		runCLI(func(rt cliRuntime) {
 			browseractions.Drag(rt.client, rt.base, rt.token, args, cmd)
@@ -96,7 +107,35 @@ var dragCmd = &cobra.Command{
 
 var focusCmd = newOptionalRefActionCmd("focus <ref>", "Focus element", "focus")
 
-var scrollCmd = newSimpleActionCmd("scroll <ref|pixels>", "Scroll to element or by pixels", "scroll", cobra.MinimumNArgs(1))
+var scrollCmd = &cobra.Command{
+	Use:   "scroll <pixels|direction|selector>",
+	Short: "Scroll the page by pixels, in a direction, or to an element",
+	Long: `Scroll the page. The single positional argument is interpreted by precedence:
+
+  1. Integer → scrollY in pixels (positive down, negative up).
+     pinchtab scroll 800
+     pinchtab scroll -300
+
+  2. Direction keyword: up | down | left | right (defaults to 800px per step).
+     pinchtab scroll down
+     pinchtab scroll right
+
+  3. Otherwise, a unified selector — ref, CSS, XPath, text:, or semantic:.
+     The element is scrolled into view.
+     pinchtab scroll e12
+     pinchtab scroll '#footer'
+     pinchtab scroll '//footer'
+     pinchtab scroll 'text:Load more'
+
+Precedence: integer and direction keywords win over selector parsing so that
+'up'/'down' are treated as directions, not as CSS tag selectors.`,
+	Args: cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.ActionSimple(rt.client, rt.base, rt.token, "scroll", args, cmd)
+		})
+	},
+}
 
 var selectCmd = newSimpleActionCmd("select <ref> <value>", "Select option in dropdown", "select", cobra.MinimumNArgs(2))
 
