@@ -1,6 +1,6 @@
 # PinchTab Benchmark Test Cases
 
-54 test cases covering realistic browser automation scenarios against local fixture pages.
+58 test cases covering realistic browser automation scenarios against local fixture pages.
 
 | # | Task | Description |
 |---|------|-------------|
@@ -79,3 +79,9 @@
 | **Group 20: Dialogs** | | |
 | 20.1 | Accept alert | Trigger alert, accept, verify result marker |
 | 20.2 | Cancel confirm | Trigger confirm dialog, cancel, verify cancelled marker |
+| **Group 21: Async / awaitPromise** | | |
+| 21.1 | Await promise (string) | `eval` with `awaitPromise:true` returns resolved string payload |
+| 21.2 | Await promise (object) | `eval` with `awaitPromise:true` returns resolved object fields |
+| **Group 22: Mouse Drag & Drop** | | |
+| 22.1 | Drag into Zone A | Use high-level `drag` action to move piece into Zone A |
+| 22.2 | Low-level drag sequence | Use `mouse-down`/`mouse-move`/`mouse-up` to visit Zone B then C; verify ordered drop sequence |

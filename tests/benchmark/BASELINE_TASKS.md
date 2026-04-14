@@ -1046,6 +1046,113 @@ curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
 
 ---
 
+## Group 21: Async / awaitPromise
+
+### 21.1 Await a promise-returning function
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/async.html"}'
+
+# Without awaitPromise: returns {} (unresolved Promise representation)
+curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"window.fetchPayload()","awaitPromise":true}'
+```
+**Pass if**: Response `.result` equals `"ASYNC_PAYLOAD_READY_42"`. Also verify that repeating the same call with `awaitPromise` omitted returns `{}` (proves `awaitPromise` is actually doing work).
+
+### 21.2 Await a promise resolving to an object
+```bash
+curl -X POST http://localhost:9867/tabs/TAB_ID/evaluate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"expression":"window.fetchUser()","awaitPromise":true}'
+```
+**Pass if**: Response `.result.name` equals `"ASYNC_USER_NAME_ADA"` (structured value survives the round-trip).
+
+**Note**: See SKILL.md and `references/api.md` — `awaitPromise:true` on `/evaluate` makes the server wait for the returned Promise to settle before responding. Omit the flag when you want the raw Promise reference.
+
+---
+
+## Group 22: Mouse Drag & Drop
+
+### 22.1 Drag piece into Zone A (high-level `drag` action)
+```bash
+curl -X POST http://localhost:9867/navigate \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"tabId":"TAB_ID","url":"http://fixtures/drag.html"}'
+
+# Piece center starts at (92, 358); Zone A center is at (104, 200).
+# Drag offset: (+12, -158).
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"drag","selector":"#piece","dragX":12,"dragY":-158}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Page text contains `LAST_DROP=DROP_ZONE_A_OK`.
+
+### 22.2 Low-level sequence: drag into Zone B, then Zone C
+```bash
+# Zone centers in viewport coords (for the default window size):
+#   piece starts: (92, 358)
+#   Zone A:       (104, 200)
+#   Zone B:       (344, 200)
+#   Zone C:       (584, 400)
+# If the viewport differs, query these with /evaluate +
+#   Array.from(['piece','zone-a','zone-b','zone-c']).map(id => ...getBoundingClientRect()).
+
+# Drag piece (now at Zone A) to Zone B via explicit mouse-down → mouse-move → mouse-up.
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-move","x":104,"y":200}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-down","x":104,"y":200,"button":"left"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-move","x":344,"y":200}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-up","x":344,"y":200,"button":"left"}'
+
+# Now drag Zone B → Zone C
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-down","x":344,"y":200,"button":"left"}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-move","x":584,"y":400}'
+
+curl -X POST http://localhost:9867/tabs/TAB_ID/action \
+  -H "Authorization: Bearer benchmark-token" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":"mouse-up","x":584,"y":400,"button":"left"}'
+
+curl "http://localhost:9867/tabs/TAB_ID/text" \
+  -H "Authorization: Bearer benchmark-token"
+```
+**Pass if**: Page text contains `DROP_SEQUENCE=DROP_ZONE_A_OK,DROP_ZONE_B_OK,DROP_ZONE_C_OK`.
+
+**Note**: Either path (the high-level `drag` action with `dragX`/`dragY` offsets, or the explicit `mouse-down → mouse-move → mouse-up` sequence at absolute viewport coordinates) works. Use `drag` for simple point-to-point drags, and the low-level trio when the target site depends on intermediate `mousemove` events or when you need precise pacing.
+
+---
+
 ## Summary
 
 | Group | Tasks | Description |
@@ -1071,8 +1178,10 @@ curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
 | 18 | 1 | File Download |
 | 19 | 2 | iFrame |
 | 20 | 2 | Dialogs |
+| 21 | 2 | Async / awaitPromise |
+| 22 | 2 | Mouse Drag & Drop |
 
-**Total: 54 tasks**
+**Total: 58 tasks**
 
 ## Verification Strings
 
@@ -1090,3 +1199,5 @@ curl "http://localhost:9867/tabs/TAB_ID/snapshot?format=compact&maxTokens=500" \
 | SPA | `VERIFY_SPA_PAGE_99999` |
 | Python Article | `VERIFY_WIKI_PYTHON_LANG` |
 | Rust Article | `VERIFY_WIKI_RUST_LANG` |
+| Async | `VERIFY_ASYNC_PAGE_77777` |
+| Drag | `VERIFY_DRAG_PAGE_33333` |

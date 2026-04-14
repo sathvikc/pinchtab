@@ -146,7 +146,12 @@ Each run appends to `results/optimization_log.md`:
 
 ## Files
 
-- `run-optimization.sh` — Main loop script
-- `results/optimization_log.md` — Run history
+- `scripts/run-optimization.sh` — Main loop script (initializes reports)
+- `scripts/record-step.sh` — Appends a step result to the current report
+- `results/optimization_log.md` — Run history (includes per-run metrics table)
 - `results/best_score.txt` — High-water mark for regression detection
 - Changes left uncommitted for manual review and commit
+
+Agent runs use the PinchTab CLI directly via the standard env vars
+(`PINCHTAB_TOKEN`, `PINCHTAB_SERVER`, `PINCHTAB_TAB`) — no helper file to
+source. See `AGENT_TASKS.md` "Recommended setup" for the pattern.

@@ -9,6 +9,47 @@ Natural language tasks to test how well an agent uses PinchTab from skill docs a
 3. **Log every command executed**
 4. Record: `./scripts/record-step.sh --type agent <group> <step> <pass|fail> --tokens <in> <out> "notes"`
 
+### Recommended setup: env vars + `./scripts/pt` wrapper
+
+In normal PinchTab deployments the binary is installed on the host and
+invoked directly:
+
+```bash
+export PINCHTAB_TOKEN=<token>
+export PINCHTAB_TAB=$(pinchtab nav http://example.com)
+pinchtab snap -i -c
+pinchtab click '#submit'
+```
+
+The benchmark harness runs PinchTab **inside a Docker container**, so every
+invocation normally has to be prefixed with
+`docker exec -e PINCHTAB_TOKEN=... -e PINCHTAB_SERVER=... -e PINCHTAB_TAB=... benchmark-pinchtab-1 pinchtab ...`
+— ~140 characters of boilerplate per command. The repo ships a tiny wrapper
+at `tests/benchmark/scripts/pt` that handles the Docker preamble so you can
+use the same terse CLI as a host install:
+
+```bash
+# Capture the shared tab ID. pinchtab prints only the tab ID when stdout
+# is a pipe, so $(...) capture works directly.
+export PINCHTAB_TAB=$(./scripts/pt nav http://fixtures/)
+
+# Every subsequent tab-scoped command auto-targets $PINCHTAB_TAB:
+./scripts/pt snap -i -c
+./scripts/pt eval "document.title"
+./scripts/pt eval --await-promise "window.fetchPayload()"
+./scripts/pt click '#submit'
+./scripts/pt drag '#piece' --drag-x 12 --drag-y -158
+
+# Record step results:
+./scripts/record-step.sh --type agent 1 2 pass "worked"
+```
+
+The wrapper is a ~60-line shell script; read `scripts/pt` for the exact
+forwarding rules. Flags after `pt` are forwarded verbatim to `pinchtab`, so
+anything that works with `pinchtab ...` works with `./scripts/pt ...`.
+
+Explicit `--tab <id>` on any command still wins over `PINCHTAB_TAB`.
+
 ## Environment
 
 - PinchTab: `http://localhost:9867`, token: `benchmark-token`
@@ -386,6 +427,34 @@ Click the "Click for Confirm" button and cancel the confirm dialog.
 
 ---
 
+## Group 21: Async / awaitPromise
+
+### 21.1 Await a promise-returning function
+Navigate to `http://fixtures/async.html`. The page exposes `window.fetchPayload()`, which returns a `Promise` that resolves after a short delay. Use `eval` to call it and retrieve the **resolved** value, not a Promise wrapper.
+
+**Verify**: The resolved value contains `ASYNC_PAYLOAD_READY_42`.
+
+### 21.2 Await a promise resolving to an object
+On the same page, call `window.fetchUser()` and retrieve the resolved object so you can read a field from it.
+
+**Verify**: The resolved object's `name` field equals `ASYNC_USER_NAME_ADA`.
+
+---
+
+## Group 22: Mouse Drag & Drop
+
+### 22.1 Drag a piece into Zone A
+Navigate to `http://fixtures/drag.html`. The page contains a draggable square (`#piece`) and three target zones (`#zone-a`, `#zone-b`, `#zone-c`). Drag the piece so its center ends up over **Zone A**.
+
+**Verify**: The page shows `LAST_DROP=DROP_ZONE_A_OK`.
+
+### 22.2 Drag to Zone B, then Zone C
+Without reloading the page, drag the piece next into **Zone B**, and then into **Zone C**. The page records an ordered drop sequence.
+
+**Verify**: The page shows `DROP_SEQUENCE=DROP_ZONE_A_OK,DROP_ZONE_B_OK,DROP_ZONE_C_OK` (all three drops in order).
+
+---
+
 ## Summary
 
 | Group | Tasks | Description |
@@ -411,8 +480,10 @@ Click the "Click for Confirm" button and cancel the confirm dialog.
 | 18 | 1 | File Download |
 | 19 | 2 | iFrame |
 | 20 | 2 | Dialogs |
+| 21 | 2 | Async / awaitPromise |
+| 22 | 2 | Mouse Drag & Drop |
 
-**Total: 54 tasks**
+**Total: 58 tasks**
 
 ## Key Differences from Baseline
 

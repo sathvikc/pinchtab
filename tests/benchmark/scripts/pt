@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Thin wrapper around `pinchtab` for the benchmark harness.
+#
+# Why this exists
+# ---------------
+# In normal use, agents run the `pinchtab` binary directly:
+#
+#     export PINCHTAB_TOKEN=<token>
+#     export PINCHTAB_TAB=$(pinchtab nav http://example.com)
+#     pinchtab snap -i -c
+#     pinchtab click '#submit'
+#
+# The benchmark runs PinchTab inside a Docker container
+# (tests/benchmark/docker-compose.yml) rather than installed on the host, so
+# every CLI invocation has to be prefixed with:
+#
+#     docker exec -e PINCHTAB_TOKEN=... -e PINCHTAB_SERVER=... \
+#       -e PINCHTAB_TAB=... benchmark-pinchtab-1 pinchtab <args...>
+#
+# That ~140-character preamble on every command bloats the agent's context
+# and makes copy-pasted examples unreadable. This script handles the
+# preamble so benchmark callers can just write:
+#
+#     source tests/benchmark/scripts/env   # (if present, or export manually)
+#     export PINCHTAB_TAB=$(./scripts/pt nav http://fixtures/)
+#     ./scripts/pt snap -i -c
+#     ./scripts/pt click '#submit'
+#     ./scripts/pt eval --await-promise 'window.fetchPayload()'
+#
+# The CLI semantics are identical to running `pinchtab` directly; this
+# wrapper just supplies the Docker plumbing and the benchmark token/server
+# defaults.
+#
+# Env vars (override at call time if needed)
+# ------------------------------------------
+#   PINCHTAB_CONTAINER  — name of the container running pinchtab
+#                         (default: benchmark-pinchtab-1)
+#   PINCHTAB_TOKEN      — auth token
+#                         (default: benchmark-token)
+#   PINCHTAB_SERVER     — server URL the CLI talks to
+#                         (default: http://localhost:9867)
+#   PINCHTAB_TAB        — default tab ID for tab-scoped commands
+#                         (forwarded if set; otherwise omitted)
+
+set -euo pipefail
+
+: "${PINCHTAB_CONTAINER:=benchmark-pinchtab-1}"
+: "${PINCHTAB_TOKEN:=benchmark-token}"
+: "${PINCHTAB_SERVER:=http://localhost:9867}"
+
+args=(docker exec
+  -e "PINCHTAB_TOKEN=${PINCHTAB_TOKEN}"
+  -e "PINCHTAB_SERVER=${PINCHTAB_SERVER}")
+
+if [[ -n "${PINCHTAB_TAB:-}" ]]; then
+  args+=(-e "PINCHTAB_TAB=${PINCHTAB_TAB}")
+fi
+
+args+=("${PINCHTAB_CONTAINER}" pinchtab "$@")
+
+exec "${args[@]}"
