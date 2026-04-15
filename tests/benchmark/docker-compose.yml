@@ -40,6 +40,20 @@ services:
     networks:
       - benchmark-net
 
+  agent-browser:
+    build:
+      context: ./agent-browser
+    command: ["/bin/bash", "-lc", "sleep infinity"]
+    working_dir: /workspace/tests/benchmark
+    volumes:
+      - ../..:/workspace
+    shm_size: '2gb'
+    networks:
+      - benchmark-net
+    depends_on:
+      fixtures:
+        condition: service_healthy
+
 networks:
   benchmark-net:
     driver: bridge
