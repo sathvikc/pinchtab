@@ -2,11 +2,11 @@
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: $0 <npm-tarball>" >&2
+  echo "usage: $0 <npm-install-target>" >&2
   exit 1
 fi
 
-TARBALL="$1"
+INSTALL_TARGET="$1"
 TMP_ROOT="$(mktemp -d)"
 HOME_DIR="$TMP_ROOT/home"
 PREFIX_DIR="$TMP_ROOT/prefix"
@@ -29,8 +29,8 @@ mkdir -p "$HOME_DIR" "$PREFIX_DIR"
 export HOME="$HOME_DIR"
 export PATH="$BIN_DIR:$PATH"
 
-echo "Installing npm package from $TARBALL"
-npm install -g --prefix "$PREFIX_DIR" "$TARBALL"
+echo "Installing npm package from $INSTALL_TARGET"
+npm install -g --prefix "$PREFIX_DIR" "$INSTALL_TARGET"
 
 echo "Initializing CLI config"
 pinchtab config init
