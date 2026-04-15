@@ -23,6 +23,9 @@ Notes:
 - refs returned for iframe descendants can be filled directly; no manual frame switch is required
 - selector lookup is limited to the current frame scope; the default scope is `main`
 - use [`/frame`](./frame.md) or `pinchtab frame` before selector-based iframe fills
+- missing selectors now fail immediately with `element not found: ...`; use
+  [`pinchtab wait`](./wait.md) or `/wait` first when the field is expected to
+  appear asynchronously
 - for the raw HTTP action endpoint, use `selector` for CSS, XPath, text, or semantic selectors
 
 ## Related Pages

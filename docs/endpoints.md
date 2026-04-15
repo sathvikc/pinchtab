@@ -201,8 +201,16 @@ Text query parameters:
 
 - `mode=raw`
 - `format`
+- `maxChars`
+- `frameId`
 
-`/text` default mode picks the first **visible** `<article>` / `[role="main"]` / `<main>` (skips `display:none`) and strips nav/footer/ads. Use `mode=raw` for full `innerText`, or `/snapshot` for structured UI text like prices and button labels.
+`/text` default mode picks the first **visible** `<article>` / `[role="main"]` /
+`<main>` (skips `display:none`) and strips nav/footer/ads. Use `mode=raw` for
+full `innerText`, or `/snapshot` for structured UI text like prices and button
+labels.
+
+`/text` is also frame-aware. `frameId` targets a specific iframe for a one-shot
+read; otherwise the endpoint inherits the tab's current `/frame` scope.
 
 Find body fields:
 

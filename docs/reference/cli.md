@@ -100,7 +100,7 @@ Common commands:
 | `pinchtab drag <from> <to>` | Drag from one target to another |
 | `pinchtab type <selector> <text>` | Type via key events |
 | `pinchtab fill <selector> <text>` | Fill directly |
-| `pinchtab text` | Extract page text |
+| `pinchtab text` | Extract page text (`--full`, `--raw`, `--frame <frameId>`) |
 | `pinchtab find <query>` | Semantic element search |
 | `pinchtab screenshot` | Save a screenshot |
 | `pinchtab pdf` | Export the page as PDF |
@@ -113,7 +113,13 @@ Many browser commands accept `--tab <id>` to target an existing tab instead of t
 
 Selector lookup is explicit by frame. Unscoped selectors stay in the main document unless you set a frame first with `pinchtab frame`. Same-origin iframe scopes are supported; cross-origin iframe descendants are not currently exposed.
 
+`pinchtab text` follows that frame model too: it uses the active frame scope
+unless you override it with `--frame`.
+
 `pinchtab eval` is separate from that model and does not inherit current frame scope.
+
+Selector-based actions fail fast when a selector does not match. If you expect
+dynamic content to appear shortly, use `pinchtab wait` first.
 
 Manual handoff is currently API-only:
 

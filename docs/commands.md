@@ -114,7 +114,9 @@ pinchtab snap --max-tokens <n>          # Limit token budget
 pinchtab snap --depth <n>               # Limit tree depth
 pinchtab snap --text                    # Text output
 pinchtab text                           # Extract readable text
+pinchtab text --full                    # Full page innerText
 pinchtab text --raw                     # Raw extraction
+pinchtab text --frame <frameId>         # Read text from one iframe
 pinchtab find <query>                   # Semantic element search
 pinchtab find --threshold <0-1>         # Minimum similarity score
 pinchtab find --explain                 # Include score breakdown
@@ -122,7 +124,13 @@ pinchtab find --ref-only                # Print only the best ref
 pinchtab eval <expression>              # Evaluate JavaScript
 ```
 
-`pinchtab eval` is intentionally not frame-scoped. Current `pinchtab frame` state affects selector-based commands such as `snap`, `click`, `fill`, and `type`, but not arbitrary JavaScript evaluation.
+`pinchtab eval` is intentionally not frame-scoped. Current `pinchtab frame`
+state affects selector-based commands such as `snap`, `click`, `fill`, and
+`type`, and it also affects `text` when `--frame` is not provided explicitly.
+
+Selector-based actions now fail fast when a selector does not match. If the UI
+is still loading, use `pinchtab wait` first instead of relying on action
+timeouts.
 
 ## Keyboard, Wait, And Diagnostics
 

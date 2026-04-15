@@ -46,7 +46,7 @@ Notes:
 - selector scope is explicit; unscoped selectors do not automatically pierce into iframes
 - same-origin iframe content is supported; cross-origin iframe descendants are not currently exposed as frame scopes
 - nested iframes usually require multiple `frame` hops
-- the same frame scope applies to selector-based `/snapshot` and `/action` calls
+- the same frame scope applies to selector-based `/snapshot` and `/action` calls, and also to `/text` when `frameId` is not provided explicitly
 - `/evaluate` is separate and does not inherit frame scope
 
 ## Related Pages

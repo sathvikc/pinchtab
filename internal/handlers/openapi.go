@@ -48,7 +48,7 @@ func (h *Handlers) HandleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 			"/tabs/{id}/resume":  map[string]any{"post": map[string]any{"summary": "Resume tab automation after handoff"}},
 			"/metrics":           map[string]any{"get": map[string]any{"summary": "Runtime metrics"}},
 			"/help":              map[string]any{"get": map[string]any{"summary": "Alias for /openapi.json"}},
-			"/text":              map[string]any{"get": map[string]any{"summary": "Extract text", "parameters": []map[string]any{{"name": "maxChars", "in": "query", "schema": map[string]string{"type": "integer"}}, {"name": "format", "in": "query", "schema": map[string]string{"type": "string"}}}}},
+			"/text":              map[string]any{"get": map[string]any{"summary": "Extract text", "parameters": []map[string]any{{"name": "maxChars", "in": "query", "schema": map[string]string{"type": "integer"}}, {"name": "format", "in": "query", "schema": map[string]string{"type": "string"}}, {"name": "mode", "in": "query", "schema": map[string]string{"type": "string"}}, {"name": "frameId", "in": "query", "schema": map[string]string{"type": "string"}}}}},
 			"/navigate":          map[string]any{"post": map[string]any{"summary": "Navigate"}, "get": map[string]any{"summary": "Navigate (query params)"}},
 			"/nav":               map[string]any{"get": map[string]any{"summary": "Navigate alias"}},
 			"/action":            map[string]any{"post": map[string]any{"summary": "Single action"}, "get": map[string]any{"summary": "Single action (query params)"}},

@@ -21,7 +21,7 @@ Selector forms include:
 | `pinchtab_navigate` | `url` required, `tabId` optional | Uses `/navigate`; omitting `tabId` opens a new tab |
 | `pinchtab_snapshot` | `tabId`, `interactive`, `compact`, `format`, `diff`, `selector`, `maxTokens`, `depth`, `noAnimations` | `selector` scopes the snapshot; `format` is limited to `compact` or `text` |
 | `pinchtab_screenshot` | `tabId`, `format`, `quality` | `format` is `jpeg` or `png` |
-| `pinchtab_get_text` | `tabId`, `raw`, `format`, `maxChars` | `raw=true` maps to `/text?mode=raw`; `format=text/plain` returns plain text |
+| `pinchtab_get_text` | `tabId`, `raw`, `format`, `maxChars` | `raw=true` maps to `/text?mode=raw`; `format=text/plain` returns plain text; inherits the current `pinchtab_frame` scope for that tab |
 
 ## Interaction
 
@@ -32,7 +32,7 @@ Selector forms include:
 | `pinchtab_press` | `key` required, `tabId` | Press a key such as `Enter` |
 | `pinchtab_hover` | `selector` required, `tabId`, `ref` | Hover element |
 | `pinchtab_focus` | `selector` required, `tabId`, `ref` | Focus element |
-| `pinchtab_select` | `selector` required, `value` required, `tabId`, `ref` | Select `<option>` by value |
+| `pinchtab_select` | `selector` required, `value` required, `tabId`, `ref` | Select `<option>` by value or visible text |
 | `pinchtab_scroll` | `selector`, `pixels`, `tabId`, `ref` | Omit `selector` to scroll the page |
 | `pinchtab_fill` | `selector` required, `value` required, `tabId`, `ref` | Direct fill instead of keystrokes |
 
