@@ -29,10 +29,7 @@ export default function InstanceLogsPanel({
     api
       .fetchInstanceLogs(instanceId)
       .then((nextLogs) => {
-        if (
-          !cancelled &&
-          streamVersionRef.current === fetchStartedAtVersion
-        ) {
+        if (!cancelled && streamVersionRef.current === fetchStartedAtVersion) {
           setLogs(nextLogs);
         }
       })
