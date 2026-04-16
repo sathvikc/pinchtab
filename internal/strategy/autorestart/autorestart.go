@@ -73,6 +73,7 @@ type Strategy struct {
 
 	mu           sync.Mutex
 	instanceID   string    // Currently managed instance ID
+	headless     bool      // Headless mode of the managed instance
 	restartCount int       // Consecutive restart count
 	lastCrash    time.Time // Last crash timestamp
 	lastStart    time.Time // Last successful start timestamp
@@ -110,7 +111,8 @@ func New(cfg AutorestartConfig) *Strategy {
 	}
 
 	return &Strategy{
-		config: cfg,
+		config:   cfg,
+		headless: cfg.Headless,
 	}
 }
 
@@ -135,6 +137,7 @@ func (s *Strategy) SetRuntimeConfig(cfg *config.RuntimeConfig) {
 	if cfg.HeadlessSet {
 		s.config.Headless = cfg.Headless
 		s.config.HeadlessSet = true
+		s.headless = cfg.Headless
 	}
 }
 
@@ -227,6 +230,7 @@ func (s *Strategy) launchInitial() {
 
 	s.mu.Lock()
 	s.instanceID = inst.ID
+	s.headless = inst.Headless
 	s.lastStart = time.Now()
 	s.mu.Unlock()
 
@@ -339,6 +343,7 @@ func (s *Strategy) restartInstance() {
 	s.mu.Lock()
 	ctx := s.ctx
 	oldID := s.instanceID
+	headless := s.headless
 	s.mu.Unlock()
 
 	if ctx == nil || ctx.Err() != nil {
@@ -356,7 +361,7 @@ func (s *Strategy) restartInstance() {
 		}
 	}
 
-	inst, err := s.orch.Launch(s.config.ProfileName, "", s.config.Headless, nil)
+	inst, err := s.orch.Launch(s.config.ProfileName, "", headless, nil)
 	if err != nil {
 		slog.Error(s.logPrefix("restart failed"),
 			"oldId", oldID,
@@ -370,6 +375,7 @@ func (s *Strategy) restartInstance() {
 
 	s.mu.Lock()
 	s.instanceID = inst.ID
+	s.headless = inst.Headless
 	s.lastStart = time.Now()
 	count := s.restartCount
 	s.restarting = false
