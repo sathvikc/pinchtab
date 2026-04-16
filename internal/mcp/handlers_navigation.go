@@ -121,6 +121,12 @@ func handleScreenshot(c *Client) func(context.Context, mcp.CallToolRequest) (*mc
 		if format := optString(r, "format"); format != "" {
 			q.Set("format", format)
 		}
+		if selector := optString(r, "selector"); selector != "" {
+			q.Set("selector", selector)
+		}
+		if v, ok := optBool(r, "css1x"); ok && v {
+			q.Set("css1x", "true")
+		}
 		if quality, ok := optFloat(r, "quality"); ok {
 			q.Set("quality", fmt.Sprintf("%d", int(quality)))
 		}

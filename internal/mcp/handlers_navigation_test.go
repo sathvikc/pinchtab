@@ -186,12 +186,20 @@ func TestHandleScreenshot(t *testing.T) {
 	defer srv.Close()
 
 	r := callTool(t, "pinchtab_screenshot", map[string]any{
-		"quality": float64(90),
+		"quality":  float64(90),
+		"selector": "#hero",
+		"css1x":    true,
 	}, srv)
 
 	text := resultText(t, r)
 	if !strings.Contains(text, "/screenshot") {
 		t.Errorf("expected /screenshot, got %s", text)
+	}
+	if !strings.Contains(text, `"selector"`) {
+		t.Errorf("expected selector query param, got %s", text)
+	}
+	if !strings.Contains(text, `"css1x"`) {
+		t.Errorf("expected css1x query param, got %s", text)
 	}
 }
 

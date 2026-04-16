@@ -20,7 +20,7 @@ Selector forms include:
 | --- | --- | --- |
 | `pinchtab_navigate` | `url` required, `tabId` optional | Uses `/navigate`; omitting `tabId` opens a new tab |
 | `pinchtab_snapshot` | `tabId`, `interactive`, `compact`, `format`, `diff`, `selector`, `maxTokens`, `depth`, `noAnimations` | `selector` scopes the snapshot; `format` is limited to `compact` or `text` |
-| `pinchtab_screenshot` | `tabId`, `format`, `quality` | `format` is `jpeg` or `png` |
+| `pinchtab_screenshot` | `tabId`, `selector`, `css1x`, `format`, `quality` | `selector` captures a specific element in current frame scope; `css1x=true` exports selector shots at CSS pixel size; `format` is `jpeg` or `png` |
 | `pinchtab_get_text` | `tabId`, `raw`, `format`, `maxChars` | `raw=true` maps to `/text?mode=raw`; `format=text/plain` returns plain text; inherits the current `pinchtab_frame` scope for that tab |
 
 ## Interaction

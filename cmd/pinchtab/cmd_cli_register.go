@@ -169,6 +169,8 @@ func configureBrowserFlags() {
 
 	screenshotCmd.Flags().StringP("output", "o", "", "Save screenshot to file path")
 	screenshotCmd.Flags().StringP("quality", "q", "", "JPEG quality (0-100)")
+	screenshotCmd.Flags().StringP("selector", "s", "", "Element selector to capture (ref/CSS/XPath/text)")
+	screenshotCmd.Flags().Bool("css-1x", false, "When used with --selector, output image at CSS pixel size instead of device pixels")
 
 	pdfCmd.Flags().StringP("output", "o", "", "Save PDF to file path")
 	pdfCmd.Flags().Bool("landscape", false, "Landscape orientation")
