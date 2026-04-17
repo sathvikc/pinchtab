@@ -364,6 +364,27 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 			httpx.ErrorCode(w, http.StatusForbidden, "idpi_blocked", actionErr.Error(), false, nil)
 			return
 		}
+		var dialogErr *bridge.ErrDialogBlocking
+		if errors.As(actionErr, &dialogErr) {
+			httpx.ErrorCode(w, 500, "dialog_blocking", actionErr.Error(), false, map[string]any{
+				"suggestion":     "use --dialog-action accept or --dialog-action dismiss",
+				"dialog_type":    dialogErr.DialogType,
+				"dialog_message": dialogErr.DialogMessage,
+			})
+			return
+		}
+		if isClickTimeoutWithPendingDialog(actionErr, req.Kind, resolvedTabID, h.Bridge) {
+			dm := h.Bridge.GetDialogManager()
+			dialogState := dm.GetPending(resolvedTabID)
+			msg := fmt.Sprintf("action %s timed out; a JavaScript dialog is blocking (%s: %q)",
+				req.Kind, dialogState.Type, dialogState.Message)
+			httpx.ErrorCode(w, 500, "dialog_blocking", msg, false, map[string]any{
+				"suggestion":     "use --dialog-action accept or --dialog-action dismiss",
+				"dialog_type":    dialogState.Type,
+				"dialog_message": dialogState.Message,
+			})
+			return
+		}
 		httpx.ErrorCode(w, 500, "action_failed", fmt.Sprintf("action %s: %v", req.Kind, actionErr), true, nil)
 		return
 	}
@@ -745,9 +766,20 @@ func (h *Handlers) handleActionsBatch(w http.ResponseWriter, r *http.Request, re
 		tCancel()
 
 		if err != nil {
+			errMsg := fmt.Sprintf("action %s: %v", action.Kind, err)
+			var dialogErr *bridge.ErrDialogBlocking
+			if errors.As(err, &dialogErr) {
+				errMsg = err.Error()
+			} else if isClickTimeoutWithPendingDialog(err, action.Kind, resolvedTabID, h.Bridge) {
+				dm := h.Bridge.GetDialogManager()
+				if ds := dm.GetPending(resolvedTabID); ds != nil {
+					errMsg = fmt.Sprintf("action %s timed out; a JavaScript dialog is blocking (%s: %q) — use --dialog-action accept|dismiss",
+						action.Kind, ds.Type, ds.Message)
+				}
+			}
 			results = append(results, actionResult{
 				Index: i, Success: false,
-				Error: fmt.Sprintf("action %s: %v", action.Kind, err),
+				Error: errMsg,
 			})
 			if req.StopOnError {
 				break
@@ -1025,7 +1057,18 @@ func (h *Handlers) HandleMacro(w http.ResponseWriter, r *http.Request) {
 		}
 		cancel()
 		if err != nil {
-			results = append(results, actionResult{Index: i, Success: false, Error: err.Error()})
+			errMsg := err.Error()
+			var dialogErr *bridge.ErrDialogBlocking
+			if errors.As(err, &dialogErr) {
+				// Error message is already formatted by ErrDialogBlocking.Error()
+			} else if isClickTimeoutWithPendingDialog(err, step.Kind, resolvedTabID, h.Bridge) {
+				dm := h.Bridge.GetDialogManager()
+				if ds := dm.GetPending(resolvedTabID); ds != nil {
+					errMsg = fmt.Sprintf("action %s timed out; a JavaScript dialog is blocking (%s: %q) — use --dialog-action accept|dismiss",
+						step.Kind, ds.Type, ds.Message)
+				}
+			}
+			results = append(results, actionResult{Index: i, Success: false, Error: errMsg})
 			if req.StopOnError {
 				break
 			}
@@ -1209,4 +1252,22 @@ func (h *Handlers) refreshRefCache(ctx context.Context, tabID string) {
 		Targets: bridge.RefTargetsFromNodes(flat),
 		Nodes:   flat,
 	})
+}
+
+func isClickTimeoutWithPendingDialog(err error, kind, tabID string, b bridge.BridgeAPI) bool {
+	if err == nil || tabID == "" {
+		return false
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	kind = bridge.CanonicalActionKind(kind)
+	if kind != bridge.ActionClick && kind != bridge.ActionDoubleClick {
+		return false
+	}
+	dm := b.GetDialogManager()
+	if dm == nil {
+		return false
+	}
+	return dm.GetPending(tabID) != nil
 }

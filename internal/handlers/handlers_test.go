@@ -27,6 +27,7 @@ type mockBridge struct {
 	frameScopes      map[string]bridge.FrameScope
 	ensureChromeErr  error
 	ensureChromeCall int
+	dialogManager    *bridge.DialogManager
 }
 
 func (m *mockBridge) TabContext(tabID string) (context.Context, string, error) {
@@ -105,7 +106,10 @@ func (m *mockBridge) NetworkMonitor() *bridge.NetworkMonitor {
 }
 
 func (m *mockBridge) GetDialogManager() *bridge.DialogManager {
-	return bridge.NewDialogManager()
+	if m.dialogManager == nil {
+		m.dialogManager = bridge.NewDialogManager()
+	}
+	return m.dialogManager
 }
 
 func (m *mockBridge) GetConsoleLogs(tabID string, limit int) []bridge.LogEntry {

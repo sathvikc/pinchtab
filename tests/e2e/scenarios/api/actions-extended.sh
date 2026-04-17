@@ -584,3 +584,137 @@ pt_post /dialog "{\"action\":\"accept\",\"tabId\":\"${TAB_ID}\",\"text\":\"my re
 assert_http_status "400" "accept with text format valid (no pending dialog)"
 
 end_test
+
+# ─────────────────────────────────────────────────────────────────
+# JavaScript dialog handling via click --dialog-action
+# ─────────────────────────────────────────────────────────────────
+
+start_test "click alert without dialogAction: fast-fail with dialog_blocking error"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+ALERT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Alert")][0].ref // empty')
+
+# Click without dialogAction should fail fast with dialog_blocking error
+START_TIME=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${ALERT_REF}\"}"
+END_TIME=$(date +%s%3N 2>/dev/null || python3 -c 'import time; print(int(time.time()*1000))')
+
+assert_not_ok "click without dialogAction fails"
+assert_json_eq "$RESULT" '.code' 'dialog_blocking' "error code is dialog_blocking"
+
+# Verify fast-fail: should complete in under 2 seconds (not 30s timeout)
+ELAPSED=$((END_TIME - START_TIME))
+if [ "$ELAPSED" -gt 2000 ]; then
+  echo "FAIL: click took ${ELAPSED}ms, expected fast-fail under 2000ms"
+  exit 1
+fi
+echo "PASS: fast-fail in ${ELAPSED}ms"
+
+# Clean up: dismiss the pending dialog
+pt_post /dialog '{"action":"dismiss"}'
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click alert with dialogAction accept: dialog dismissed"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+ALERT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Alert")][0].ref // empty')
+
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${ALERT_REF}\",\"dialogAction\":\"accept\"}"
+assert_ok "click with dialogAction accept"
+
+# Verify the click handler completed (alert was dismissed)
+pt_post /evaluate -d '{"expression":"document.getElementById(\"dialog-result\").textContent"}'
+assert_ok "evaluate dialog result"
+assert_json_eq "$RESULT" '.result' 'ALERT_DISMISSED' "alert was dismissed and handler completed"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click confirm with dialogAction dismiss: confirm cancelled"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+CONFIRM_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Confirm")][0].ref // empty')
+
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${CONFIRM_REF}\",\"dialogAction\":\"dismiss\"}"
+assert_ok "click with dialogAction dismiss"
+
+# Verify confirm returned false (dismissed)
+pt_post /evaluate -d '{"expression":"document.getElementById(\"dialog-result\").textContent"}'
+assert_ok "evaluate dialog result"
+assert_json_eq "$RESULT" '.result' 'CONFIRM_DISMISSED' "confirm was dismissed"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click confirm with dialogAction accept: confirm accepted"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+CONFIRM_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Confirm")][0].ref // empty')
+
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${CONFIRM_REF}\",\"dialogAction\":\"accept\"}"
+assert_ok "click with dialogAction accept"
+
+# Verify confirm returned true (accepted)
+pt_post /evaluate -d '{"expression":"document.getElementById(\"dialog-result\").textContent"}'
+assert_ok "evaluate dialog result"
+assert_json_eq "$RESULT" '.result' 'CONFIRM_ACCEPTED' "confirm was accepted"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click prompt with dialogAction accept and text: prompt value returned"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+PROMPT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Prompt")][0].ref // empty')
+
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${PROMPT_REF}\",\"dialogAction\":\"accept\",\"dialogText\":\"e2e_input\"}"
+assert_ok "click with dialogAction accept and dialogText"
+
+# Verify prompt returned the provided text
+pt_post /evaluate -d '{"expression":"document.getElementById(\"dialog-result\").textContent"}'
+assert_ok "evaluate dialog result"
+assert_json_eq "$RESULT" '.result' 'PROMPT_VALUE_e2e_input' "prompt returned provided text"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click prompt with dialogAction dismiss: prompt cancelled"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate to buttons"
+sleep 0.5
+
+pt_get /snapshot
+PROMPT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Prompt")][0].ref // empty')
+
+pt_post /action "{\"kind\":\"click\",\"ref\":\"${PROMPT_REF}\",\"dialogAction\":\"dismiss\"}"
+assert_ok "click with dialogAction dismiss"
+
+# Verify prompt returned null (cancelled)
+pt_post /evaluate -d '{"expression":"document.getElementById(\"dialog-result\").textContent"}'
+assert_ok "evaluate dialog result"
+assert_json_eq "$RESULT" '.result' 'PROMPT_CANCELLED' "prompt was cancelled"
+
+end_test

@@ -95,34 +95,86 @@ func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string
 		armedDialog = true
 	}
 
-	var err error
-	if req.Selector != "" {
-		// For submit buttons, use requestSubmit() to fire constraint validation,
-		// JS submit handlers, and actual submission in one shot (issue #411).
-		submitted, subErr := submitFormIfButton(ctx, req.Selector)
-		if subErr != nil {
-			slog.Debug("submitFormIfButton failed, falling back to CDP click",
-				"selector", req.Selector, "error", subErr)
-		} else if submitted {
-			if req.WaitNav {
-				_ = chromedp.Run(ctx, chromedp.Sleep(b.Config.WaitNavDelay))
-			}
-			return map[string]any{"clicked": true, "submitted": true}, nil
-		}
-		node, nodeErr := firstNodeBySelector(ctx, req.Selector)
-		if nodeErr != nil {
-			return nil, nodeErr
-		}
-		err = ClickByNodeID(ctx, int64(node.BackendNodeID))
-	} else if req.NodeID > 0 {
-		err = ClickByNodeID(ctx, req.NodeID)
-	} else if req.HasXY {
-		err = ClickByCoordinate(ctx, req.X, req.Y)
+	// If no dialog-action was provided, detect blocking dialogs early and fail fast.
+	detectDialog := !armedDialog && req.TabID != "" && dm != nil
+	var clickCtx context.Context
+	var clickCancel context.CancelFunc
+	if detectDialog {
+		clickCtx, clickCancel = context.WithCancel(ctx)
+		defer clickCancel()
 	} else {
-		return nil, fmt.Errorf("need selector, ref, nodeId, or x/y coordinates")
+		clickCtx = ctx
 	}
-	if err != nil {
-		return nil, err
+
+	// Channel to receive click result
+	type clickResult struct {
+		err error
+	}
+	resultCh := make(chan clickResult, 1)
+
+	// Run click in goroutine so we can poll for dialogs
+	go func() {
+		var err error
+		if req.Selector != "" {
+			// For submit buttons, use requestSubmit() to fire constraint validation,
+			// JS submit handlers, and actual submission in one shot (issue #411).
+			submitted, subErr := submitFormIfButton(clickCtx, req.Selector)
+			if subErr != nil {
+				slog.Debug("submitFormIfButton failed, falling back to CDP click",
+					"selector", req.Selector, "error", subErr)
+			} else if submitted {
+				resultCh <- clickResult{err: nil}
+				return
+			}
+			node, nodeErr := firstNodeBySelector(clickCtx, req.Selector)
+			if nodeErr != nil {
+				resultCh <- clickResult{err: nodeErr}
+				return
+			}
+			err = ClickByNodeID(clickCtx, int64(node.BackendNodeID))
+		} else if req.NodeID > 0 {
+			err = ClickByNodeID(clickCtx, req.NodeID)
+		} else if req.HasXY {
+			err = ClickByCoordinate(clickCtx, req.X, req.Y)
+		} else {
+			resultCh <- clickResult{err: fmt.Errorf("need selector, ref, nodeId, or x/y coordinates")}
+			return
+		}
+		resultCh <- clickResult{err: err}
+	}()
+
+	// Poll for blocking dialogs while click is running
+	if detectDialog {
+		ticker := time.NewTicker(dialogAutoHandlePollInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case result := <-resultCh:
+				if result.err != nil {
+					return nil, result.err
+				}
+				if req.WaitNav {
+					_ = chromedp.Run(ctx, chromedp.Sleep(b.Config.WaitNavDelay))
+				}
+				return map[string]any{"clicked": true}, nil
+			case <-ticker.C:
+				if pending := dm.GetPending(req.TabID); pending != nil {
+					clickCancel()
+					return nil, &ErrDialogBlocking{
+						DialogType:    pending.Type,
+						DialogMessage: pending.Message,
+					}
+				}
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+
+	// Wait for click result (dialog-action was provided or no tab ID)
+	result := <-resultCh
+	if result.err != nil {
+		return nil, result.err
 	}
 	if armedDialog {
 		waitForArmedDialogSettle(dm, req.TabID, dialogAutoHandleTimeout)

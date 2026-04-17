@@ -36,6 +36,14 @@
     </div>
   </section>
 
+  <section id="dialog-section">
+    <h2>JavaScript Dialogs</h2>
+    <button id="trigger-alert">Trigger Alert</button>
+    <button id="trigger-confirm">Trigger Confirm</button>
+    <button id="trigger-prompt">Trigger Prompt</button>
+    <div id="dialog-result" style="padding: 10px; margin-top: 10px;"></div>
+  </section>
+
   <script>
     let count = 0;
     const countEl = document.getElementById('count');
@@ -62,6 +70,21 @@
 
     document.getElementById('show-message').addEventListener('click', () => {
       document.getElementById('message').style.display = 'block';
+    });
+
+    document.getElementById('trigger-alert').addEventListener('click', () => {
+      alert('E2E_ALERT_MESSAGE');
+      document.getElementById('dialog-result').textContent = 'ALERT_DISMISSED';
+    });
+
+    document.getElementById('trigger-confirm').addEventListener('click', () => {
+      const result = confirm('E2E_CONFIRM_MESSAGE');
+      document.getElementById('dialog-result').textContent = result ? 'CONFIRM_ACCEPTED' : 'CONFIRM_DISMISSED';
+    });
+
+    document.getElementById('trigger-prompt').addEventListener('click', () => {
+      const result = prompt('E2E_PROMPT_MESSAGE', 'default');
+      document.getElementById('dialog-result').textContent = result !== null ? 'PROMPT_VALUE_' + result : 'PROMPT_CANCELLED';
     });
   </script>
 </body>
