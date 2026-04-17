@@ -198,12 +198,13 @@ func screenshotClipForNode(ctx context.Context, nodeID int64, css1x bool) (*page
 		return nil, fmt.Errorf("element not found in DOM (backendNodeId=%d)", nodeID)
 	}
 
-	// Translate the element box into top-level viewport coordinates by walking
-	// up frameElement bounds when inside same-origin iframes.
+	// Translate the element box into top-level page coordinates. captureScreenshot
+	// clip coordinates are page-relative, so viewport-relative rects need scroll
+	// offsets from the current document and each ancestor frame.
 	const boxFn = `function() {
 		const rect = this.getBoundingClientRect();
-		let x = rect.left;
-		let y = rect.top;
+		let x = rect.left + (window.scrollX || window.pageXOffset || 0);
+		let y = rect.top + (window.scrollY || window.pageYOffset || 0);
 		try {
 			let current = window;
 			while (current && current.parent && current !== current.parent) {
@@ -211,14 +212,15 @@ func screenshotClipForNode(ctx context.Context, nodeID int64, css1x bool) (*page
 				if (!frameEl) {
 					break;
 				}
+				const parent = current.parent;
 				const frameRect = frameEl.getBoundingClientRect();
-				x += frameRect.left;
-				y += frameRect.top;
-				current = current.parent;
+				x += frameRect.left + (parent.scrollX || parent.pageXOffset || 0);
+				y += frameRect.top + (parent.scrollY || parent.pageYOffset || 0);
+				current = parent;
 			}
 		} catch (e) {
-			// Cross-origin ancestors can block frame traversal. Keep local-frame
-			// coordinates in that case; callers can still use frame scoping.
+			// Cross-origin ancestors can block frame traversal. Keep the deepest
+			// reachable page coordinates in that case.
 		}
 		return {
 			x,
