@@ -6,7 +6,8 @@
     "core-concepts.md",
     "headless-vs-headed.md",
     "dashboard.md",
-    "mcp.md"
+    "mcp.md",
+    "benchmark.md"
   ],
   "guides": [
     "guides/contributing.md",
@@ -26,9 +27,6 @@
     "*"
   ],
   "reference": [
-    "*"
-  ],
-  "implementations": [
     "*"
   ]
 }

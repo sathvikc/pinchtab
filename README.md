@@ -329,8 +329,9 @@ read as "PinchTab is N% cheaper than agent-browser on this metric":
 The cost gap widens with workload length (click→snapshot round trips
 compound) and is roughly model-invariant at extended scope.
 
-See the full methodology, per-run tables, and raw logs in the
-[benchmark deep dive](./docs/deep-dive/benchmark.md).
+See the [benchmark summary](./docs/benchmark.md) for an overview, or the
+[benchmark deep dive](./docs/deep-dive/benchmark.md) for full
+methodology, per-run tables, and raw logs.
 
 ---
 
