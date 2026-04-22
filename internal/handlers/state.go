@@ -495,6 +495,10 @@ func (h *Handlers) HandleStateClean(w http.ResponseWriter, r *http.Request) {
 	if req.OlderThanHours <= 0 {
 		req.OlderThanHours = 24
 	}
+	if req.OlderThanHours > 8760 {
+		httpx.Error(w, 400, fmt.Errorf("olderThanHours must be at most 8760 (1 year)"))
+		return
+	}
 
 	duration := time.Duration(req.OlderThanHours) * time.Hour
 	removed, err := state.Clean(h.Config.StateDir, duration)

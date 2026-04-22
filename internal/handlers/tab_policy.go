@@ -75,3 +75,22 @@ func (h *Handlers) applyTabPolicyState(w http.ResponseWriter, state bridge.TabPo
 	}
 	return state.CurrentURL, true
 }
+
+func (h *Handlers) enforceURLDomainPolicy(w http.ResponseWriter, url string) bool {
+	if !h.currentTabDomainPolicyEnabled() {
+		return true
+	}
+	if url == "" {
+		return true
+	}
+
+	state := bridge.EvaluateTabPolicy(url, h.Config.IDPI, h.Config.AllowedDomains)
+	if state.Blocked {
+		httpx.ErrorCode(w, http.StatusForbidden, "idpi_domain_blocked",
+			fmt.Sprintf("url blocked by IDPI: %s", state.Reason), false, map[string]any{
+				"url": url,
+			})
+		return false
+	}
+	return true
+}

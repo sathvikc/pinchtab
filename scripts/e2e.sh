@@ -267,15 +267,10 @@ show_failure_summary() {
     fi
   fi
 
-  if [ -f "${output_file}" ]; then
+  if [ -f "${output_file}" ] && [ ! -f "${report_file}" ]; then
     echo ""
-    if [ -f "${report_file}" ]; then
-      echo "  ${ERROR}${BOLD}Full Captured Suite Log${NC}"
-      cat "${output_file}"
-    else
-      echo "  ${ERROR}${BOLD}Suite failed before report generation; recent output:${NC}"
-      tail -n 40 "${output_file}"
-    fi
+    echo "  ${ERROR}${BOLD}Suite failed before report generation; recent output:${NC}"
+    tail -n 40 "${output_file}"
     echo ""
   fi
 }
