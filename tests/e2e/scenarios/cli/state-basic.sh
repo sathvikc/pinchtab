@@ -58,7 +58,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab state clean runs without error"
 
-pt_cli state clean --older-than 9999
+pt_cli state clean --older-than 8760
 assert_cli_ok "clean old states"
 
 end_test

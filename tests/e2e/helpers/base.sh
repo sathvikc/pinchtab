@@ -249,6 +249,18 @@ print_summary() {
   echo ""
   echo -e "  ${GREEN}Passed:${NC} ${TESTS_PASSED}/${total}"
   echo -e "  ${RED}Failed:${NC} ${TESTS_FAILED}/${total}"
+
+  if [ "$TESTS_FAILED" -gt 0 ]; then
+    echo ""
+    echo -e "  ${RED}Failed tests:${NC}"
+    for result in "${TEST_RESULTS[@]}"; do
+      IFS='|' read -r name duration status <<< "$result"
+      if [ "$status" = "failed" ]; then
+        echo -e "    ${RED}✗${NC} $name"
+      fi
+    done
+  fi
+
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

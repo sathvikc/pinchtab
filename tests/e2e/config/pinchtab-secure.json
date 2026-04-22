@@ -31,6 +31,7 @@
       "enabled": true,
       "scanContent": true,
       "strictMode": true,
+      "wrapContent": true,
       "shieldThreshold": 30
     }
   }

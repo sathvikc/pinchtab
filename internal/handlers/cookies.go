@@ -32,6 +32,10 @@ func (h *Handlers) HandleGetCookies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if url != "" && !h.enforceURLDomainPolicy(w, url) {
+		return
+	}
+
 	tCtx, tCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer tCancel()
 
@@ -147,6 +151,10 @@ func (h *Handlers) HandleSetCookies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := h.enforceCurrentTabDomainPolicy(w, r, ctx, resolvedTabID); !ok {
+		return
+	}
+
+	if !h.enforceURLDomainPolicy(w, req.URL) {
 		return
 	}
 

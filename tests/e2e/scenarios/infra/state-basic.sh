@@ -95,8 +95,8 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "POST /state/clean removes old files (olderThanHours=0 for test)"
 
-# Use 9999 hours so nothing real gets removed in test environment.
-pt_post "/state/clean" -d '{"olderThanHours":9999}'
+# Use 8760 hours (1 year max) so nothing real gets removed in test environment.
+pt_post "/state/clean" -d '{"olderThanHours":8760}'
 assert_ok "clean states"
 assert_json_exists "$RESULT" '.removed' "has removed count"
 
