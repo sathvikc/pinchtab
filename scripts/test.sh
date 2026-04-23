@@ -341,6 +341,15 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "dashboard" ]; then
   ./scripts/test-dashboard.sh
 fi
 
+# ── Plugin ───────────────────────────────────────────────────────────
+
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "plugin" ]; then
+  section "test:🔬:plugin"
+  cd plugin && npx tsx --test *.test.ts
+  cd ..
+  ok "test:🔬:plugin"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────
 
 section "Summary"
