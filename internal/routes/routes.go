@@ -71,6 +71,11 @@ var coreEndpoints = []Endpoint{
 	{"POST", "/lock", "Lock tab", CapNone, true},
 	{"POST", "/unlock", "Unlock tab", CapNone, true},
 
+	// Human handoff
+	{"POST", "/handoff", "Pause tab for human handoff", CapNone, true},
+	{"POST", "/resume", "Resume paused tab", CapNone, true},
+	{"GET", "/handoff", "Get handoff status", CapNone, true},
+
 	// Cookies
 	{"GET", "/cookies", "Get cookies", CapNone, true},
 	{"POST", "/cookies", "Set cookies", CapNone, true},
