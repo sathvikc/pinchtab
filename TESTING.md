@@ -8,22 +8,18 @@ The `dev` developer toolkit is the easiest way to run checks and tests:
 ./dev                    # Interactive picker
 ./dev test               # All tests (unit + E2E)
 ./dev test unit          # Unit tests only
-./dev e2e                # Release suite (all extended tests)
-./dev e2e pr             # PR suite (api + cli + infra basic)
+./dev e2e                # Extended suite (all extended tests)
+./dev e2e basic          # Basic suite (api + cli + infra)
+./dev e2e extended       # Extended suite
+./dev e2e smoke          # Smoke suite (smoke scenarios + Docker smoke)
+./dev e2e smoke-docker   # Host Docker smoke only
 ./dev e2e api            # API basic tests
 ./dev e2e cli            # CLI basic tests
 ./dev e2e infra          # Infra basic tests
 ./dev e2e api-extended   # API extended, multi-instance
 ./dev e2e cli-extended   # CLI extended tests
 ./dev e2e infra-extended # Infra extended, multi-instance
-./dev e2e api-extended auth  # Extended API suite filtered to "auth"
-
-/bin/bash tests/e2e/run.sh api
-/bin/bash tests/e2e/run.sh api extended=true
-/bin/bash tests/e2e/run.sh api extended=true filter=auth
-/bin/bash tests/e2e/run.sh cli
-/bin/bash tests/e2e/run.sh cli extended=true
-/bin/bash tests/e2e/run.sh infra
+./dev e2e infra-extended --filter auth  # Extended infra suite filtered to "auth"
 ./dev check              # All checks (format, vet, build, lint)
 ./dev check go           # Go checks only
 ./dev check security     # Gosec security scan
@@ -51,10 +47,10 @@ End-to-end tests launch a real pinchtab server with Chrome and run e2e-level tes
 - **cli** — CLI command tests
 - **infra** — System, network, security, stealth, orchestration
 
-### PR Suites
+### Basic Suites
 
 ```bash
-./dev e2e pr
+./dev e2e basic
 ./dev e2e api
 ./dev e2e cli
 ./dev e2e infra
@@ -62,7 +58,7 @@ End-to-end tests launch a real pinchtab server with Chrome and run e2e-level tes
 
 Use these on pull requests and during normal development:
 
-- `pr` runs all three basic suites (same as CI PR workflow)
+- `basic` runs all three basic suites (same as CI PR workflow)
 - `api` runs the API `*-basic.sh` groups on the single-instance stack
 - `cli` runs the CLI `*-basic.sh` groups on the single-instance stack
 - `infra` runs the Infra `*-basic.sh` groups on the single-instance stack
@@ -77,14 +73,25 @@ Use these on pull requests and during normal development:
 
 Extended suites run both `*-basic.sh` and `*-extended.sh` scenarios plus standalone scripts. `api-extended` and `infra-extended` use the multi-instance stack for orchestration coverage.
 
-### Release Meta-Suite
+### Extended Meta-Suite
 
 ```bash
 ./dev e2e
-./dev e2e release
+./dev e2e extended
 ```
 
-Runs `api-extended`, `cli-extended`, and `infra-extended` in sequence.
+Runs `api-extended`, `cli-extended`, `infra-extended`, and `plugin` in sequence. Extended suites include both `*-basic.sh` and `*-extended.sh` scenarios.
+
+### Smoke Suite
+
+```bash
+./dev e2e smoke
+./dev e2e smoke-orchestrator
+./dev e2e smoke-security
+./dev e2e smoke-docker
+```
+
+Smoke is its own tier: it runs `*-smoke.sh` scenarios plus host-level Docker smoke checks, and it does not include basic or extended scenarios. Use the filtered smoke suites when you only need one smoke lane.
 
 ## Environment Variables
 
@@ -130,6 +137,7 @@ tests/e2e/scenarios/
 
 - `*-basic.sh` is the PR happy-path layer
 - `*-extended.sh` adds extra and edge-case coverage
+- `*-smoke.sh` covers slow or high-setup production smoke checks
 - Standalone scripts (no suffix) run only in extended mode
 
 Docker Compose files:
@@ -138,7 +146,7 @@ Docker Compose files:
 
 ## E2E Results
 
-Each suite writes its own summary and markdown report under `tests/e2e/results/`:
+The Go e2e runner captures suite output, prints the final suite summary, and writes each suite's summary and markdown report under `tests/e2e/results/`:
 
 - `summary-api.txt` / `report-api.md`
 - `summary-api-extended.txt` / `report-api-extended.md`
@@ -146,8 +154,13 @@ Each suite writes its own summary and markdown report under `tests/e2e/results/`
 - `summary-cli-extended.txt` / `report-cli-extended.md`
 - `summary-infra.txt` / `report-infra.md`
 - `summary-infra-extended.txt` / `report-infra-extended.md`
+- `summary-api-smoke.txt` / `report-api-smoke.md`
+- `summary-cli-smoke.txt` / `report-cli-smoke.md`
+- `summary-infra-smoke.txt` / `report-infra-smoke.md`
+- `summary-plugin-smoke.txt` / `report-plugin-smoke.md`
+- `summary-docker-smoke.txt` / `report-docker-smoke.md`
 
-The runner clears the target suite files before each run so stale results do not survive into the next suite.
+The runner clears the target suite files before each run so stale results do not survive into the next suite. It also saves the captured suite output as `output-*.log`, captures compose service logs on failure, and writes GitHub Actions outputs and step summaries when running in CI.
 
 ## Writing New E2E Tests
 

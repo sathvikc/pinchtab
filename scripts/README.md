@@ -45,5 +45,6 @@ Development and CI scripts for PinchTab.
 
 ## `./dev` shortcuts
 
-- `./dev e2e docker` builds `pinchtab-local:test` from the current checkout with `buildx --load` for the local Docker platform, then runs the Docker smoke test.
-- `./dev e2e docker <image>` skips the build and smoke-tests the specified image tag.
+- `./dev e2e smoke` runs the smoke tier through the Go e2e runner, including host Docker smoke checks.
+- `./dev e2e docker` runs only the host Docker smoke suite through the Go e2e runner.
+- `./dev e2e docker <image>` skips the release-image build and runs the release-image Docker smoke checks against the specified image tag.

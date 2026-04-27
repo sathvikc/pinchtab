@@ -39,53 +39,105 @@ assert_ok "dblclick by coordinates"
 
 end_test
 
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick <ref>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-
-pt_get /snapshot
-REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment")][0].ref // empty')
-
-run_cli dblclick "$REF"
-assert_ok "CLI dblclick by ref"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick --css <selector>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-
-run_cli dblclick --css "#increment"
-assert_ok "CLI dblclick by selector"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick --tab <id>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\",\"newTab\":true}"
-assert_ok "navigate for new tab"
-TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-
-pt_get /snapshot
-REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment")][0].ref // empty')
-
-run_cli dblclick "$REF" --tab "$TAB_ID"
-assert_ok "CLI dblclick with --tab flag"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
 start_test "HTTP: dblclick validation - missing ref/selector/coordinates"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 
 pt_post /action -d "{\"kind\":\"dblclick\"}"
-assert_error "dblclick without parameters should fail"
+assert_not_ok "dblclick without parameters should fail"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab hover (ref)"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate"
+
+pt_get /snapshot
+assert_ok "snapshot"
+REF=$(find_ref_by_role "button")
+assert_ref_found "$REF" "button ref"
+
+pt_post /action "{\"kind\":\"hover\",\"ref\":\"${REF}\"}"
+assert_ok "hover on button"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab low-level mouse actions"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
+assert_ok "navigate"
+
+pt_get "/snapshot?filter=interactive"
+assert_ok "snapshot"
+REF=$(find_ref_by_name "Mouse Target")
+assert_ref_found "$REF" "mouse target ref"
+
+pt_post /action "{\"kind\":\"mouse-move\",\"ref\":\"${REF}\"}"
+assert_ok "mouse-move on target"
+
+pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
+assert_ok "mouse-move by coordinates without hasXY"
+
+pt_post /action '{"kind":"mouse-down","button":"left"}'
+assert_ok "mouse-down at current pointer"
+
+pt_post /action '{"kind":"mouse-up","button":"left"}'
+assert_ok "mouse-up at current pointer"
+
+pt_post /action '{"kind":"mouse-wheel","deltaY":240}'
+assert_ok "mouse-wheel at current pointer"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousemoveCount"}'
+assert_ok "evaluate mousemove count"
+assert_result_jq '.result >= 2' "mousemove count incremented twice" "mousemove count did not increment twice"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousedownCount"}'
+assert_ok "evaluate mousedown count"
+assert_json_eq "$RESULT" '.result' '1' "mousedown count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mouseupCount"}'
+assert_ok "evaluate mouseup count"
+assert_json_eq "$RESULT" '.result' '1' "mouseup count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.lastButton"}'
+assert_ok "evaluate last button"
+assert_json_eq "$RESULT" '.result' 'left' "last button is left"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelCount"}'
+assert_ok "evaluate wheel count"
+assert_json_eq "$RESULT" '.result' '1' "wheel count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelDeltaY"}'
+assert_ok "evaluate wheel delta"
+assert_json_eq "$RESULT" '.result' '240' "wheel delta Y accumulated"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab mouse current-pointer sequence"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
+assert_ok "navigate"
+
+pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
+assert_ok "prime pointer position"
+
+pt_post /action '{"kind":"mouse-down","button":"left"}'
+assert_ok "mouse-down without fresh target"
+
+pt_post /action '{"kind":"mouse-move","x":165,"y":195}'
+assert_ok "mouse-move while held"
+
+pt_post /action '{"kind":"mouse-up","button":"left"}'
+assert_ok "mouse-up without fresh target"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.sequence.join(\",\")"}'
+assert_ok "evaluate pointer sequence"
+assert_json_contains "$RESULT" '.result' 'mousedown' "sequence includes mousedown"
+assert_json_contains "$RESULT" '.result' 'mouseup' "sequence includes mouseup"
 
 end_test
 

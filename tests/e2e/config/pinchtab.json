@@ -23,6 +23,9 @@
       "stableAfterSec": 300
     }
   },
+  "timeouts": {
+    "waitNavMs": 100
+  },
   "scheduler": {
     "enabled": true,
     "strategy": "fair-fifo",

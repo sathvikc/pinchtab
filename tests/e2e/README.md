@@ -7,8 +7,11 @@ End-to-end tests for PinchTab that exercise the full stack including browser aut
 ### With Docker (recommended)
 
 ```bash
-./dev e2e          # Run the release suite quietly by default
-./dev e2e pr       # Run the PR suite (api + cli + infra basic tests)
+./dev e2e          # Run the extended suite quietly by default
+./dev e2e basic    # Run the basic suite (api + cli + infra basic tests)
+./dev e2e extended # Run the extended suite
+./dev e2e smoke    # Run smoke scenarios plus host Docker smoke checks
+./dev e2e smoke-docker # Run host Docker smoke checks only
 ./dev e2e api      # Run API basic tests
 ./dev e2e cli      # Run CLI basic tests
 ./dev e2e infra    # Run infra basic tests
@@ -16,21 +19,15 @@ End-to-end tests for PinchTab that exercise the full stack including browser aut
 ./dev e2e cli-extended   # Run CLI extended tests
 ./dev e2e infra-extended # Run infra extended tests
 ./dev e2e api logs=show  # Opt back into full streaming logs
-
-# Manual grouped runners
-/bin/bash tests/e2e/run.sh api
-/bin/bash tests/e2e/run.sh api extended=true
-/bin/bash tests/e2e/run.sh cli
-/bin/bash tests/e2e/run.sh cli extended=true
-/bin/bash tests/e2e/run.sh infra
-/bin/bash tests/e2e/run.sh infra extended=true
 ```
 
-Or directly:
+Or directly through the Go runner:
 ```bash
-docker compose -f tests/e2e/docker-compose.yml up --build runner-api
-docker compose -f tests/e2e/docker-compose.yml up --build runner-cli
-docker compose -f tests/e2e/docker-compose-multi.yml up --build runner-api
+go run ./tests/tools/runner e2e --suite basic
+go run ./tests/tools/runner e2e --suite extended
+go run ./tests/tools/runner e2e --suite smoke
+go run ./tests/tools/runner e2e --suite smoke-docker
+go run ./tests/tools/runner e2e --suite infra-extended --filter orchestrator
 ```
 
 ## Architecture
@@ -127,12 +124,13 @@ System, networking, security, and stealth tests:
 - `stealth-basic` / `stealth-extended`
 - `orchestrator-extended`
 - `auth-extended`
-- `autosolver-extended`
+- `autosolver-smoke`
+- `dashboard-smoke`
 - manual autosolver check lives at `tests/manual/autosolver-check.sh`
 - real-world autosolver smoke lives at `scripts/autosolver-realworld-smoke.sh`
 - `idpi-extended`
 
-The `basic` entrypoints are the PR happy path. The `extended` entrypoints add extra and edge-case coverage. The top-level runner defaults to the basic layer; pass `extended=true` to run both.
+The `basic` entrypoints are the PR happy path. The `extended` entrypoints add extra and edge-case coverage; extended suites include their matching basic scenarios. The `smoke` tier is separate and runs only `*-smoke.sh` scenarios plus host-level Docker smoke checks, not basic or extended scenarios. The Go runner selects the exact scenario files before entering the container; `run.sh` is only the in-container executor and requires explicit `scenario=<file>` arguments from the host runner.
 
 Compose usage:
 - `docker-compose.yml` powers `api`, `cli`, `infra`, and `cli-extended`
@@ -187,11 +185,12 @@ Add HTML files to `fixtures/` for testing specific scenarios:
 The E2E tests run automatically:
 - On PRs: `api`, `cli`, and `infra` basic tests always run
 - On PRs: touching any non-basic scenario also triggers the matching extended suite on its native compose stack
+- On PRs: touching smoke scenarios or Docker smoke inputs triggers the smoke workflow
 - Manually via workflow dispatch: Extended tests for all groups
 
 ## Result Files
 
-Each suite writes its own result files in `tests/e2e/results/`:
+The Go e2e runner captures runner output and writes each suite's result files in `tests/e2e/results/`. The container executor emits structured `E2E_RESULT` lines as tests finish, and the Go layer turns those into the final console summary, GitHub Actions summaries, durable summaries, and reports:
 
 - `summary-api.txt` / `report-api.md`
 - `summary-api-extended.txt` / `report-api-extended.md`
@@ -199,11 +198,16 @@ Each suite writes its own result files in `tests/e2e/results/`:
 - `summary-cli-extended.txt` / `report-cli-extended.md`
 - `summary-infra.txt` / `report-infra.md`
 - `summary-infra-extended.txt` / `report-infra-extended.md`
+- `summary-api-smoke.txt` / `report-api-smoke.md`
+- `summary-cli-smoke.txt` / `report-cli-smoke.md`
+- `summary-infra-smoke.txt` / `report-infra-smoke.md`
+- `summary-plugin-smoke.txt` / `report-plugin-smoke.md`
+- `summary-docker-smoke.txt` / `report-docker-smoke.md`
 
-The launcher deletes the target suite files before each run to avoid stale output.
-Saved summaries include total test time and suite wall time.
+The runner deletes the target suite files before each run to avoid stale output.
+Saved and printed summaries include total test time and suite wall time.
 
-When `logs=hide` is used and a suite fails, the runner prints the full captured suite log and also saves it under `output-*.log`.
+The runner also saves the captured suite log under `output-*.log` and captures compose service logs on failure. When `logs=hide` is used and a suite fails, it prints the relevant failure summary and artifact paths.
 
 ## Debugging
 

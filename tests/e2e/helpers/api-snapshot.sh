@@ -9,21 +9,7 @@
 find_ref() {
   local role="$1"
   local name="$2"
-  echo "$RESULT" | jq -r "[.nodes[] | select(.role==\"$role\" and .name==\"$name\")][0].ref // empty"
-}
-
-# Find a ref by name only (any role).
-# Usage: ref=$(find_ref_by_name "Submit")
-find_ref_by_name() {
-  local name="$1"
-  echo "$RESULT" | jq -r "[.nodes[] | select(.name==\"$name\")][0].ref // empty"
-}
-
-# Find a ref by role only (first match).
-# Usage: ref=$(find_ref_by_role "textbox")
-find_ref_by_role() {
-  local role="$1"
-  echo "$RESULT" | jq -r "[.nodes[] | select(.role==\"$role\")][0].ref // empty"
+  find_ref_by_role_and_name "$role" "$name" "$RESULT"
 }
 
 # Get the value of a node by role and name.
@@ -45,15 +31,13 @@ require_ref() {
   ref=$(find_ref "$role" "$name")
 
   if [ -z "$ref" ]; then
-    echo -e "  ${RED}✗${NC} could not find $role '$name'"
-    ((ASSERTIONS_FAILED++)) || true
-    eval "$varname=''"
+    fail_assert "could not find $role '$name'"
+    printf -v "$varname" '%s' ''
     return 1
   fi
 
-  echo -e "  ${GREEN}✓${NC} found $role '$name' → $ref"
-  ((ASSERTIONS_PASSED++)) || true
-  eval "$varname='$ref'"
+  pass_assert "found $role '$name' → $ref"
+  printf -v "$varname" '%s' "$ref"
   return 0
 }
 
@@ -67,10 +51,8 @@ assert_value() {
   actual=$(get_value "$role" "$name")
 
   if echo "$actual" | grep -qF "$expected"; then
-    echo -e "  ${GREEN}✓${NC} $name = '$actual'"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$name = '$actual'"
   else
-    echo -e "  ${RED}✗${NC} $name: expected '$expected', got '$actual'"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$name: expected '$expected', got '$actual'"
   fi
 }

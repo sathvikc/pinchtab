@@ -7,9 +7,8 @@
 #   scripts/dev-e2e.sh "scroll (down)"
 #
 # Locates the matching scenario file, infers the suite (api/cli/infra/plugin)
-# and whether it's an -extended scenario, then dispatches scripts/e2e.sh with
-# the right filter+test arguments. Each compose run of e2e.sh already builds
-# fresh images (--build flag), so there's no need for an explicit prune here.
+# and whether it's an -extended scenario, then dispatches the Go e2e runner
+# with the right filter+test arguments.
 
 set -euo pipefail
 
@@ -49,8 +48,7 @@ scenario_file=$(basename "${scenario_path}")
 scenario_dir=$(basename "$(dirname "${scenario_path}")")
 scenario_stem="${scenario_file%.sh}"
 
-# Map scenario dir → suite. The scripts/e2e.sh dispatcher accepts api, cli,
-# infra, plugin (and their -extended variants); see that file's case statement.
+# Map scenario dir to the Go runner suite.
 case "${scenario_dir}" in
   api|cli|infra|plugin) suite="${scenario_dir}" ;;
   *)
@@ -72,4 +70,7 @@ echo "  scenario: ${scenario_path}"
 echo "  suite:    ${dispatch}"
 echo ""
 
-exec bash scripts/e2e.sh "${dispatch}" "filter=${scenario_stem}" "test=${TEST_NAME}"
+exec env E2E_LOGS="${E2E_LOGS:-show}" go run ./tests/tools/runner e2e \
+  --suite "${dispatch}" \
+  --filter "${scenario_stem}" \
+  --test "${TEST_NAME}"

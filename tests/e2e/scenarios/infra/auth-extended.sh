@@ -109,23 +109,42 @@ auth_ws_get() {
     cookie_args=(-H "Cookie: $(cat "$AUTH_COOKIE_FILE")")
   fi
 
-  e2e_curl --token "" -s --http1.1 \
-    -X GET \
-    "${E2E_SERVER}$path" \
-    "${cookie_args[@]}" \
-    -D "$AUTH_HEADERS_FILE" \
-    -o "$AUTH_BODY_FILE" \
-    -H "Connection: Upgrade" \
-    -H "Upgrade: websocket" \
-    -H "Sec-WebSocket-Version: 13" \
-    -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
-    --max-time 2 \
-    "$@" >/dev/null 2>&1 || true
+  (
+    e2e_curl --token "" -s --http1.1 \
+      -X GET \
+      "${E2E_SERVER}$path" \
+      "${cookie_args[@]}" \
+      -D "$AUTH_HEADERS_FILE" \
+      -o "$AUTH_BODY_FILE" \
+      -H "Connection: Upgrade" \
+      -H "Upgrade: websocket" \
+      -H "Sec-WebSocket-Version: 13" \
+      -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+      --max-time 2 \
+      "$@" >/dev/null 2>&1 || true
+  ) &
+  local curl_pid=$!
+
+  HTTP_STATUS=""
+  for _ in $(seq 1 40); do
+    HTTP_STATUS=$(grep '^HTTP/' "$AUTH_HEADERS_FILE" | tail -n 1 | awk '{print $2}')
+    if [ -n "$HTTP_STATUS" ]; then
+      break
+    fi
+    sleep 0.05
+  done
+
+  if [ "$HTTP_STATUS" = "101" ]; then
+    kill "$curl_pid" 2>/dev/null || true
+    wait "$curl_pid" 2>/dev/null || true
+  else
+    wait "$curl_pid" 2>/dev/null || true
+  fi
 
   capture_session_cookie
 
   RESULT=$(cat "$AUTH_BODY_FILE" 2>/dev/null || true)
-  HTTP_STATUS=$(grep '^HTTP/' "$AUTH_HEADERS_FILE" | tail -n 1 | awk '{print $2}')
+  [ -n "$HTTP_STATUS" ] || HTTP_STATUS=$(grep '^HTTP/' "$AUTH_HEADERS_FILE" | tail -n 1 | awk '{print $2}')
 
   if [[ "$HTTP_STATUS" != "101" && ! "$HTTP_STATUS" =~ ^2 && -n "$RESULT" ]]; then
     echo -e "${ERROR}  HTTP $HTTP_STATUS: $RESULT${NC}" >&2

@@ -186,9 +186,11 @@ idpi_setup() {
   local old_url="$E2E_SERVER"
   E2E_SERVER="$base_url"
   pt_post /navigate "{\"url\":\"$page_url\"}" >/dev/null
+  local tab_id
+  tab_id=$(echo "$RESULT" | jq -r '.tabId')
+  pt_post "/tabs/${tab_id}/wait" '{"selector":"body","timeout":1000}' >/dev/null
   E2E_SERVER="$old_url"
-  sleep 1
-  echo "$RESULT" | jq -r '.tabId'
+  echo "$tab_id"
 }
 
 idpi_cleanup() {
@@ -213,6 +215,22 @@ idpi_request() {
   HTTP_STATUS=$(echo "$response" | tail -n 1)
   HDR_VALUE=$(grep -i "^${header_name}:" "$tmpheaders" | sed 's/^[^:]*: *//' | tr -d '\r' | head -1)
   rm -f "$tmpheaders"
+}
+
+wait_for_tab_url_contains() {
+  local base_url="$1" tab_id="$2" needle="$3" timeout_ms="${4:-1500}"
+  local attempts=$((timeout_ms / 50))
+  [ "$attempts" -lt 1 ] && attempts=1
+  for _ in $(seq 1 "$attempts"); do
+    local tabs_json url
+    tabs_json=$(e2e_curl -sf "${base_url}/tabs" 2>/dev/null || true)
+    url=$(echo "$tabs_json" | jq -r --arg id "$tab_id" '.tabs[]? | select(.id == $id) | .url // empty' 2>/dev/null || true)
+    if [[ "$url" == *"$needle"* ]]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  return 1
 }
 
 assert_header_present() {
@@ -289,10 +307,12 @@ end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "idpi: same-tab domain pivot warns in warn mode"
-# idpi_setup already does navigate + sleep 1, which covers the fixture's
-# 250ms setTimeout pivot and the follow-up navigation settle. The extra
-# sleep 2 here was redundant.
 TAB_ID=$(idpi_setup "$E2E_SERVER" "${FIXTURES_URL}/idpi-domain-pivot.html")
+if wait_for_tab_url_contains "$E2E_SERVER" "$TAB_ID" "pivot-target" 1500; then
+  pass_assert "tab pivoted to pivot-target"
+else
+  fail_assert "tab did not pivot to pivot-target"
+fi
 idpi_request GET "$E2E_SERVER" "/tabs/${TAB_ID}/text" "" "X-IDPI-Warning"
 assert_ok "text allowed after domain pivot in warn mode"
 assert_header_present "X-IDPI-Warning present after domain pivot"
@@ -302,9 +322,12 @@ end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "idpi: same-tab domain pivot blocks in strict mode"
-# See note on the warn-mode pivot test above — idpi_setup's internal
-# sleep 1 already covers the pivot timer.
 TAB_ID=$(idpi_setup "$E2E_SECURE_SERVER" "${FIXTURES_URL}/idpi-domain-pivot.html")
+if wait_for_tab_url_contains "$E2E_SECURE_SERVER" "$TAB_ID" "pivot-target" 1500; then
+  pass_assert "tab pivoted to pivot-target"
+else
+  fail_assert "tab did not pivot to pivot-target"
+fi
 idpi_request GET "$E2E_SECURE_SERVER" "/tabs/${TAB_ID}/text" "" "X-IDPI-Warning"
 assert_http_status 403 "text blocked after domain pivot in strict mode"
 assert_header_present "X-IDPI-Warning present on strict block"
@@ -383,6 +406,28 @@ AGENT="test-agent-$$"
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
 
+wait_for_task_not_queued() {
+  local task_id="$1"
+  local timeout_ms="${2:-1000}"
+  local attempts=$((timeout_ms / 50))
+  [ "$attempts" -lt 1 ] && attempts=1
+
+  for _ in $(seq 1 "$attempts"); do
+    local response state
+    response=$(e2e_curl -s -w "\n%{http_code}" -X GET "${E2E_SERVER}/tasks/${task_id}")
+    split_pinchtab_response "$response"
+    if [[ "$HTTP_STATUS" =~ ^2 ]]; then
+      state=$(echo "$RESULT" | jq -r '.state // empty' 2>/dev/null || true)
+      if [ -n "$state" ] && [ "$state" != "queued" ]; then
+        return 0
+      fi
+    fi
+    sleep 0.05
+  done
+
+  return 1
+}
+
 # ─────────────────────────────────────────────────────────────────
 start_test "POST /tasks — submit task"
 
@@ -403,7 +448,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /tasks/{id} — get task"
 
-sleep 2
+wait_for_task_not_queued "$TASK_ID" 1000 || true
 pt_get "/tasks/${TASK_ID}"
 assert_ok "get task by id"
 assert_json_eq "$RESULT" ".taskId" "$TASK_ID" "correct task id"

@@ -63,14 +63,10 @@ services:
       - E2E_SERVER=http://pinchtab:9999
       - E2E_SERVER_TOKEN=e2e-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
       - STEALTH_MATRIX
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-api}; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE; fi"]
 
   runner-cli:
     build:
@@ -85,11 +81,6 @@ services:
       - E2E_SERVER=http://pinchtab:9999
       - E2E_SERVER_TOKEN=e2e-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
-      - E2E_EXTENDED
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-cli}; EXTENDED=$${E2E_EXTENDED:-false}; ARGS=\"\"; [ \"$$EXTENDED\" = \"true\" ] && ARGS=\"extended=true\"; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE $$ARGS \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE $$ARGS; fi"]

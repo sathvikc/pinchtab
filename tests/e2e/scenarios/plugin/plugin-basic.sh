@@ -105,8 +105,13 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "plugin: wait for text"
 
-pt_post /wait -d "{\"tabId\":\"${TAB_ID}\",\"text\":\"Click me\"}"
+if [ -z "${TAB_ID:-}" ]; then
+  pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+  TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
+fi
+pt_post /wait -d "{\"tabId\":\"${TAB_ID}\",\"text\":\"Increment\",\"timeout\":1000}"
 assert_ok "wait for text"
+assert_json_eq "$RESULT" '.waited' 'true' "text was found before timeout"
 
 end_test
 

@@ -1,0 +1,609 @@
+package e2e
+
+import (
+	"bytes"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestDryRunBasicSuitePlan(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	code := Run([]string{"--suite", "basic", "--dry-run"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"runner e2e (Go) - resolved plan",
+		"docker compose -f tests/e2e/docker-compose.yml build",
+		"docker compose -f tests/e2e/docker-compose.yml up -d pinchtab fixtures",
+		"E2E_HELPER=api",
+		"E2E_SCENARIO_DIR=scenarios/api",
+		"E2E_SUMMARY_TITLE=PinchTab E2E API Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=actions-basic.sh",
+		"E2E_HELPER=cli",
+		"E2E_SCENARIO_DIR=scenarios/cli",
+		"E2E_SUMMARY_TITLE=PinchTab E2E CLI Suite",
+		"runner-cli /bin/bash /e2e/run.sh scenario=actions-basic.sh",
+		"E2E_SCENARIO_DIR=scenarios/infra",
+		"E2E_SUMMARY_TITLE=PinchTab E2E Infra Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=network-basic.sh",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	assertNoLegacyReportEnv(t, out)
+}
+
+func TestDryRunExtendedPlan(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	code := Run([]string{"--suite", "extended", "--dry-run"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"suite:  extended",
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-autoclose pinchtab-medium pinchtab-full pinchtab-lite pinchtab-bridge fixtures",
+		"run --rm --no-deps",
+		"E2E_READY_TARGETS=E2E_SERVER E2E_SECURE_SERVER E2E_AUTOCLOSE_SERVER",
+		"E2E_SUMMARY_TITLE=PinchTab E2E API Extended Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=actions-basic.sh",
+		"scenario=actions-extended.sh",
+		"E2E_SUMMARY_TITLE=PinchTab E2E CLI Extended Suite",
+		"runner-cli /bin/bash /e2e/run.sh scenario=actions-basic.sh",
+		"scenario=actions-extended.sh",
+		"E2E_SUMMARY_TITLE=PinchTab E2E Infra Extended Suite",
+		"E2E_READY_TARGETS=E2E_SERVER E2E_SECURE_SERVER E2E_MEDIUM_SERVER E2E_FULL_SERVER E2E_LITE_SERVER E2E_BRIDGE_URL|60|E2E_BRIDGE_TOKEN",
+		"runner-api /bin/bash /e2e/run.sh scenario=network-basic.sh",
+		"scenario=orchestrator-extended.sh",
+		"E2E_SUMMARY_TITLE=PinchTab E2E Plugin Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=plugin-basic.sh",
+		"docker compose -f tests/e2e/docker-compose-multi.yml restart pinchtab",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	assertNoLegacyReportEnv(t, out)
+}
+
+func TestDryRunSingleSuiteWithFilterAndLogs(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	code := Run([]string{"--suite", "infra-extended", "--filter", "orchestrator", "--logs", "hide", "--dry-run"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"suite:  infra-extended",
+		"logs:   hide",
+		"filter: orchestrator",
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-bridge fixtures",
+		"run --rm --no-deps",
+		"E2E_SCENARIO_DIR=scenarios/infra",
+		"E2E_READY_TARGETS=E2E_SERVER E2E_BRIDGE_URL|60|E2E_BRIDGE_TOKEN",
+		"E2E_SUMMARY_TITLE=PinchTab E2E Infra Extended Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=orchestrator-extended.sh",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "pinchtab-secure pinchtab-autoclose") {
+		t.Fatalf("filtered single-suite run should not start the full multi-instance stack:\n%s", out)
+	}
+	assertNoLegacyReportEnv(t, out)
+}
+
+func TestDryRunExtendedFilterSkipsUnmatchedSuites(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	code := Run([]string{"--suite", "extended", "--filter", "orchestrator", "--dry-run"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		`Skipping api-extended: filter "orchestrator" has no matching scenarios`,
+		`Skipping cli-extended: filter "orchestrator" has no matching scenarios`,
+		`Skipping plugin: filter "orchestrator" has no matching scenarios`,
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-bridge fixtures",
+		"run --rm --no-deps",
+		"E2E_READY_TARGETS=E2E_SERVER E2E_BRIDGE_URL|60|E2E_BRIDGE_TOKEN",
+		"runner-api /bin/bash /e2e/run.sh scenario=orchestrator-extended.sh",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "E2E_SCENARIO_DIR=scenarios/plugin") {
+		t.Fatalf("filtered extended run should not run plugin:\n%s", out)
+	}
+	if strings.Contains(out, "pinchtab-secure pinchtab-autoclose") {
+		t.Fatalf("filtered extended run should not start the full multi-instance stack:\n%s", out)
+	}
+	assertNoLegacyReportEnv(t, out)
+}
+
+func TestScenarioMetadataDefaultsAndManifestOverrides(t *testing.T) {
+	r := &Runner{repoRoot: resolveRepoRoot()}
+	catalog, err := r.loadScenarioCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	actions, ok := catalog.find("api", "actions-basic.sh")
+	if !ok {
+		t.Fatal("api/actions-basic.sh missing from scenario catalog")
+	}
+	if actions.Tier != tierBasic || actions.Helper != "api" {
+		t.Fatalf("unexpected actions metadata: tier=%s helper=%s", actions.Tier, actions.Helper)
+	}
+	if got := strings.Join(actions.Services, " "); got != "pinchtab fixtures" {
+		t.Fatalf("unexpected default services: %s", got)
+	}
+	if !hasString(actions.Tags, "actions") || !hasString(actions.Tags, "pr") {
+		t.Fatalf("expected default/manifest tags on actions-basic: %#v", actions.Tags)
+	}
+
+	orchestrator, ok := catalog.find("infra", "orchestrator-extended.sh")
+	if !ok {
+		t.Fatal("infra/orchestrator-extended.sh missing from scenario catalog")
+	}
+	if got := strings.Join(orchestrator.Services, " "); got != "pinchtab pinchtab-bridge fixtures" {
+		t.Fatalf("unexpected orchestrator services: %s", got)
+	}
+	if got := strings.Join(orchestrator.Ready, " "); got != "E2E_SERVER E2E_BRIDGE_URL|60|E2E_BRIDGE_TOKEN" {
+		t.Fatalf("unexpected orchestrator ready targets: %s", got)
+	}
+	if !hasString(orchestrator.Tags, "multiinstance") || !hasString(orchestrator.Tags, "bridge") {
+		t.Fatalf("expected orchestrator tags, got: %#v", orchestrator.Tags)
+	}
+}
+
+func hasString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func assertNoLegacyReportEnv(t *testing.T, out string) {
+	t.Helper()
+	for _, forbidden := range []string{
+		"E2E_SUMMARY_FILE",
+		"E2E_REPORT_FILE",
+		"E2E_PROGRESS_FILE",
+		"E2E_GENERATE_MARKDOWN_REPORT",
+	} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("dry-run output should not pass legacy report env %q:\n%s", forbidden, out)
+		}
+	}
+}
+
+func TestRejectsUnknownSuite(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "nightly", "--dry-run"}, &stdout, &stderr); code == 0 {
+		t.Fatalf("Run should reject unknown suite, stdout: %s", stdout.String())
+	}
+}
+
+func TestWriteSuiteReportsFromShellResultLines(t *testing.T) {
+	tmp := t.TempDir()
+	resultsDir := filepath.Join(tmp, "tests/e2e/results")
+	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(resultsDir, "output-api.log")
+	if err := os.WriteFile(output, []byte(strings.Join([]string{
+		"normal log line",
+		"E2E_RESULT\tpassed\t12\t✅ [browser-basic] browser: health",
+		"E2E_RESULT\tfailed\t34\t❌ [browser-basic] browser: bad",
+		"",
+	}, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stderr bytes.Buffer
+	r := &Runner{repoRoot: tmp, stderr: &stderr}
+	def := suiteDef{
+		Name:     "api",
+		RunSuite: "api",
+		Output:   "tests/e2e/results/output-api.log",
+		Summary:  "tests/e2e/results/summary-api.txt",
+		Report:   "tests/e2e/results/report-api.md",
+	}
+	r.writeSuiteReports(def, 1500*time.Millisecond, 1)
+
+	summary, err := os.ReadFile(filepath.Join(resultsDir, "summary-api.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"passed=1", "failed=1", "total_time=46ms", "suite_wall_time=1500ms"} {
+		if !strings.Contains(string(summary), want) {
+			t.Fatalf("summary missing %q:\n%s", want, summary)
+		}
+	}
+
+	report, err := os.ReadFile(filepath.Join(resultsDir, "report-api.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"[browser-basic] browser: health", "| [browser-basic] browser: bad | 34ms | ❌ |", "**Suite Wall Time:** 1.500s"} {
+		if !strings.Contains(string(report), want) {
+			t.Fatalf("report missing %q:\n%s", want, report)
+		}
+	}
+}
+
+func TestReportDataAddsFailureWhenSuiteExitsAfterPassedResults(t *testing.T) {
+	tmp := t.TempDir()
+	resultsDir := filepath.Join(tmp, "tests/e2e/results")
+	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resultsDir, "output-api.log"), []byte("E2E_RESULT\tpassed\t12\t[browser-basic] browser: health\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := &Runner{repoRoot: tmp}
+	data := r.buildSuiteReportData(suiteDef{Output: "tests/e2e/results/output-api.log"}, 1500*time.Millisecond, 1)
+	if data.Passed != 1 || data.Failed != 1 || len(data.Results) != 2 {
+		t.Fatalf("unexpected summary: passed=%d failed=%d results=%d", data.Passed, data.Failed, len(data.Results))
+	}
+	if got := data.Results[1].Name; got != "Suite exited with an error after the last emitted test result" {
+		t.Fatalf("unexpected synthetic failure name: %q", got)
+	}
+}
+
+func TestParseSuiteResultsHandlesLargeLogLines(t *testing.T) {
+	tmp := t.TempDir()
+	resultsDir := filepath.Join(tmp, "tests/e2e/results")
+	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	output := strings.Join([]string{
+		"E2E_RESULT\tpassed\t12\t[browser-basic] browser: health",
+		strings.Repeat("x", 128*1024),
+		"E2E_RESULT\tfailed\t34\t[actions-extended] iframe: hover",
+		"",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(resultsDir, "output-api.log"), []byte(output), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := &Runner{repoRoot: tmp}
+	results := r.parseSuiteResults(suiteDef{Output: "tests/e2e/results/output-api.log"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 parsed results, got %d", len(results))
+	}
+	if results[1].Status != "failed" || results[1].Name != "[actions-extended] iframe: hover" {
+		t.Fatalf("unexpected second result: %+v", results[1])
+	}
+}
+
+func TestPrintSuiteSummaryFromGoReportData(t *testing.T) {
+	var stdout bytes.Buffer
+	r := &Runner{stdout: &stdout}
+	data := suiteReportData{
+		Results: []suiteTestResult{
+			{Name: "[browser-basic] browser: health", Status: "passed", DurationMs: 12},
+			{Name: "[browser-basic] browser: bad", Status: "failed", DurationMs: 34},
+		},
+		Passed:  1,
+		Failed:  1,
+		TotalMs: 46,
+	}
+
+	r.printSuiteSummary(suiteDef{Name: "api", RunSuite: "api"}, data, 1500*time.Millisecond)
+
+	out := stdout.String()
+	for _, want := range []string{
+		"== PinchTab E2E API Suite summary ==",
+		"[browser-basic] browser: health",
+		"Passed: 1/2",
+		"Failed: 1/2",
+		"Test time: 46ms",
+		"Suite wall time: 1.500s",
+		"Failed tests:",
+		"- [browser-basic] browser: bad",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("summary output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestPrintOverallSummaryFromRecordedSuites(t *testing.T) {
+	var stdout bytes.Buffer
+	r := &Runner{stdout: &stdout}
+	r.recordOverallSummary(suiteReportData{Passed: 3, Failed: 1, TotalMs: 1234})
+	r.recordOverallSummary(suiteReportData{Passed: 2, Failed: 0, TotalMs: 200})
+
+	r.printOverallSummary(2500 * time.Millisecond)
+
+	out := stdout.String()
+	for _, want := range []string{
+		"== PinchTab E2E overall summary ==",
+		"Suites: 2",
+		"Tests: 6",
+		"Passed: 5/6",
+		"Failed: 1/6",
+		"Test time: 1434ms",
+		"Overall wall time: 2.500s",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("overall summary output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestWriteGitHubActionsMetadata(t *testing.T) {
+	tmp := t.TempDir()
+	outputPath := filepath.Join(tmp, "github-output")
+	summaryPath := filepath.Join(tmp, "github-summary")
+	t.Setenv("GITHUB_OUTPUT", outputPath)
+	t.Setenv("GITHUB_STEP_SUMMARY", summaryPath)
+
+	var stderr bytes.Buffer
+	r := &Runner{
+		suite:  "api",
+		stderr: &stderr,
+		overall: overallReportData{
+			Suites:   1,
+			Passed:   2,
+			Failed:   1,
+			TotalMs:  123,
+			Failures: []string{"[actions-basic] click failed"},
+		},
+	}
+	r.writeGitHubActionsMetadata(1500*time.Millisecond, 1)
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+
+	output, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"status=failed",
+		"passed=2",
+		"failed=1",
+		"tests=3",
+		"suites=1",
+		"test_time=123ms",
+		"test_time_ms=123",
+		"overall_wall_time=1.500s",
+		"overall_wall_time_ms=1500",
+		"failures<<PINCHTAB_E2E_",
+		"[actions-basic] click failed",
+	} {
+		if !strings.Contains(string(output), want) {
+			t.Fatalf("GitHub output missing %q:\n%s", want, output)
+		}
+	}
+
+	summary, err := os.ReadFile(summaryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"## PinchTab E2E Summary",
+		"- Suite: `api`",
+		"- Status: failed",
+		"- Passed: 2/3",
+		"- Failed: 1/3",
+		"### Failed Tests",
+		"- [actions-basic] click failed",
+		"Artifacts: `tests/e2e/results/`",
+	} {
+		if !strings.Contains(string(summary), want) {
+			t.Fatalf("GitHub summary missing %q:\n%s", want, summary)
+		}
+	}
+}
+
+func TestWriteGitHubActionsMetadataAddsRunnerFailureWithoutSuiteResults(t *testing.T) {
+	tmp := t.TempDir()
+	outputPath := filepath.Join(tmp, "github-output")
+	t.Setenv("GITHUB_OUTPUT", outputPath)
+
+	r := &Runner{suite: "api", stderr: io.Discard}
+	r.writeGitHubActionsMetadata(250*time.Millisecond, 1)
+
+	output, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"status=failed",
+		"passed=0",
+		"failed=1",
+		"tests=1",
+		"Runner failed before suite results were emitted",
+	} {
+		if !strings.Contains(string(output), want) {
+			t.Fatalf("GitHub output missing %q:\n%s", want, output)
+		}
+	}
+}
+
+func TestStructuredEventTeeFiltersHumanOutputOnly(t *testing.T) {
+	var human, log bytes.Buffer
+	tee := &structuredEventTee{human: &human, log: &log}
+
+	if _, err := tee.Write([]byte("visible\nE2E_RESULT\tpassed\t12\tname\nstill visible\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tee.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := human.String(); got != "visible\nstill visible\n" {
+		t.Fatalf("unexpected human output: %q", got)
+	}
+	if got := log.String(); !strings.Contains(got, "E2E_RESULT\tpassed\t12\tname") {
+		t.Fatalf("structured event missing from log: %q", got)
+	}
+}
+
+func TestRejectsRemovedLegacyAliases(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	for _, suite := range []string{"pr", "release", "all"} {
+		var stdout, stderr bytes.Buffer
+		if code := Run([]string{"--suite", suite, "--dry-run"}, &stdout, &stderr); code == 0 {
+			t.Fatalf("Run should reject legacy alias %q, stdout: %s", suite, stdout.String())
+		}
+	}
+}
+
+func TestRejectsUnknownLogsMode(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "basic", "--logs", "quiet", "--dry-run"}, &stdout, &stderr); code == 0 {
+		t.Fatalf("Run should reject unknown logs mode, stdout: %s", stdout.String())
+	}
+}
+
+func TestRejectsUnknownLogsModeFromEnvironment(t *testing.T) {
+	t.Setenv("E2E_LOGS", "quiet")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "basic", "--dry-run"}, &stdout, &stderr); code == 0 {
+		t.Fatalf("Run should reject unknown E2E_LOGS mode, stdout: %s", stdout.String())
+	}
+}
+
+func TestDryRunSmokePlan(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "smoke", "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"suite:  smoke",
+		`Skipping api-smoke: filter "" has no matching scenarios`,
+		`Skipping plugin-smoke: filter "" has no matching scenarios`,
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-medium pinchtab-full fixtures",
+		"E2E_SUMMARY_TITLE=PinchTab E2E CLI Smoke Suite",
+		"runner-cli /bin/bash /e2e/run.sh scenario=system-smoke.sh",
+		"E2E_SUMMARY_TITLE=PinchTab E2E Infra Smoke Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=autosolver-smoke.sh scenario=dashboard-smoke.sh scenario=orchestrator-smoke.sh scenario=security-smoke.sh",
+		"== E2E Docker Smoke tests (host) ==",
+		"docker build -t pinchtab-release-smoke:dry-run .",
+		"docker build --platform linux/amd64 -f tests/tools/docker/chrome-cft-smoke.Dockerfile -t pinchtab-chrome-cft-smoke:dry-run .",
+		"bash scripts/docker-smoke.sh pinchtab-release-smoke:dry-run",
+		"bash scripts/docker-chrome-cft-smoke.sh pinchtab-chrome-cft-smoke:dry-run",
+		"bash scripts/docker-port-conflict-smoke.sh pinchtab-chrome-cft-smoke:dry-run",
+		"bash scripts/docker-mcp-smoke.sh pinchtab-release-smoke:dry-run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	for _, forbidden := range []string{
+		"scenario=actions-basic.sh",
+		"scenario=orchestrator-extended.sh",
+	} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("smoke dry-run should not include %q:\n%s", forbidden, out)
+		}
+	}
+}
+
+func TestDryRunSmokeDockerPlan(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "smoke-docker", "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"suite:  smoke-docker",
+		"== E2E Docker Smoke tests (host) ==",
+		"docker build -t pinchtab-release-smoke:dry-run .",
+		"docker build --platform linux/amd64 -f tests/tools/docker/chrome-cft-smoke.Dockerfile -t pinchtab-chrome-cft-smoke:dry-run .",
+		"bash scripts/docker-smoke.sh pinchtab-release-smoke:dry-run",
+		"bash scripts/docker-chrome-cft-smoke.sh pinchtab-chrome-cft-smoke:dry-run",
+		"bash scripts/docker-port-conflict-smoke.sh pinchtab-chrome-cft-smoke:dry-run",
+		"bash scripts/docker-mcp-smoke.sh pinchtab-release-smoke:dry-run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "docker compose -f tests/e2e/docker-compose-multi.yml up") {
+		t.Fatalf("smoke-docker should not start the compose stack:\n%s", out)
+	}
+}
+
+func TestDryRunSmokeDockerFilterAddsImageBuildDependency(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "smoke-docker", "--filter", "mcp", "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"docker build -t pinchtab-release-smoke:dry-run .",
+		"bash scripts/docker-mcp-smoke.sh pinchtab-release-smoke:dry-run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	for _, forbidden := range []string{
+		"scripts/docker-smoke.sh",
+		"scripts/docker-chrome-cft-smoke.sh",
+		"scripts/docker-port-conflict-smoke.sh",
+	} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("filtered docker smoke should not include %q:\n%s", forbidden, out)
+		}
+	}
+}
+
+func TestDryRunSmokeOrchestratorDoesNotRunDockerSmoke(t *testing.T) {
+	t.Setenv("E2E_LOGS", "")
+	var stdout, stderr bytes.Buffer
+
+	if code := Run([]string{"--suite", "smoke-orchestrator", "--dry-run"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"suite:  smoke-orchestrator",
+		"runner-api /bin/bash /e2e/run.sh scenario=orchestrator-smoke.sh",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "E2E Docker Smoke tests") {
+		t.Fatalf("smoke-orchestrator should not run Docker smoke steps:\n%s", out)
+	}
+}

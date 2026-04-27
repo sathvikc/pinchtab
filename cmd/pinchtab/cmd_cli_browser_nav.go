@@ -7,9 +7,10 @@ import (
 )
 
 var quickCmd = &cobra.Command{
-	Use:   "quick <url>",
-	Short: "Navigate + analyze page",
-	Args:  cobra.ExactArgs(1),
+	Use:        "quick <url>",
+	Short:      "Deprecated: use nav <url> --snap",
+	Deprecated: "use 'pinchtab nav <url> --snap' instead",
+	Args:       cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		args[0] = urls.Normalize(args[0])
 		runCLI(func(rt cliRuntime) {

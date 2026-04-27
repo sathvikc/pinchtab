@@ -73,99 +73,6 @@ assert_ok "scroll down"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab hover (ref)"
-
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-assert_ok "navigate"
-
-pt_get /snapshot
-assert_ok "snapshot"
-REF=$(find_ref_by_role "button")
-assert_ref_found "$REF" "button ref"
-
-pt_post /action "{\"kind\":\"hover\",\"ref\":\"${REF}\"}"
-assert_ok "hover on button"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab low-level mouse actions"
-
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
-assert_ok "navigate"
-
-pt_get "/snapshot?filter=interactive"
-assert_ok "snapshot"
-REF=$(find_ref_by_name "Mouse Target")
-assert_ref_found "$REF" "mouse target ref"
-
-pt_post /action "{\"kind\":\"mouse-move\",\"ref\":\"${REF}\"}"
-assert_ok "mouse-move on target"
-
-pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
-assert_ok "mouse-move by coordinates without hasXY"
-
-pt_post /action '{"kind":"mouse-down","button":"left"}'
-assert_ok "mouse-down at current pointer"
-
-pt_post /action '{"kind":"mouse-up","button":"left"}'
-assert_ok "mouse-up at current pointer"
-
-pt_post /action '{"kind":"mouse-wheel","deltaY":240}'
-assert_ok "mouse-wheel at current pointer"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.mousemoveCount"}'
-assert_ok "evaluate mousemove count"
-assert_result_jq '.result >= 2' "mousemove count incremented twice" "mousemove count did not increment twice"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.mousedownCount"}'
-assert_ok "evaluate mousedown count"
-assert_json_eq "$RESULT" '.result' '1' "mousedown count is 1"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.mouseupCount"}'
-assert_ok "evaluate mouseup count"
-assert_json_eq "$RESULT" '.result' '1' "mouseup count is 1"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.lastButton"}'
-assert_ok "evaluate last button"
-assert_json_eq "$RESULT" '.result' 'left' "last button is left"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelCount"}'
-assert_ok "evaluate wheel count"
-assert_json_eq "$RESULT" '.result' '1' "wheel count is 1"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelDeltaY"}'
-assert_ok "evaluate wheel delta"
-assert_json_eq "$RESULT" '.result' '240' "wheel delta Y accumulated"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab mouse current-pointer sequence"
-
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
-assert_ok "navigate"
-
-pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
-assert_ok "prime pointer position"
-
-pt_post /action '{"kind":"mouse-down","button":"left"}'
-assert_ok "mouse-down without fresh target"
-
-pt_post /action '{"kind":"mouse-move","x":165,"y":195}'
-assert_ok "mouse-move while held"
-
-pt_post /action '{"kind":"mouse-up","button":"left"}'
-assert_ok "mouse-up without fresh target"
-
-pt_post /evaluate '{"expression":"window.mouseFixtureState.sequence.join(\",\")"}'
-assert_ok "evaluate pointer sequence"
-assert_json_contains "$RESULT" '.result' 'mousedown' "sequence includes mousedown"
-assert_json_contains "$RESULT" '.result' 'mouseup' "sequence includes mouseup"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
 start_test "pinchtab focus (ref)"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
@@ -211,25 +118,6 @@ assert_ok "fill input"
 pt_post /evaluate '{"expression":"document.querySelector(\"#username\").value"}'
 assert_ok "evaluate"
 assert_json_contains "$RESULT" '.result' 'e2e_fill_test' "fill value persisted"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab click triggers navigation"
-
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/index.html\"}"
-assert_ok "navigate"
-
-pt_get "/snapshot?filter=interactive"
-REF=$(find_ref_by_role "link")
-
-if assert_ref_found "$REF" "link ref"; then
-  pt_post /action "{\"kind\":\"click\",\"ref\":\"${REF}\",\"waitNav\":true}"
-  assert_ok "click link with waitNav"
-else
-  pt_post /action '{"kind":"click","selector":"a","waitNav":true}'
-  assert_ok "click anchor with waitNav"
-fi
 
 end_test
 

@@ -1,0 +1,90 @@
+{
+  "scenarios": {
+    "api/actions-basic.sh": {
+      "tags": ["actions", "pr"]
+    },
+    "api/actions-extended.sh": {
+      "tags": ["actions", "mouse", "dialogs"]
+    },
+    "api/browser-basic.sh": {
+      "tags": ["browser", "snapshot", "find", "text", "pr"]
+    },
+    "api/browser-extended.sh": {
+      "tags": ["browser", "cookies", "network", "wait"]
+    },
+    "api/tabs-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER"],
+      "tags": ["tabs", "secure", "handoff"]
+    },
+    "api/tabs-autoclose-extended.sh": {
+      "services": ["pinchtab", "pinchtab-autoclose", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_AUTOCLOSE_SERVER"],
+      "tags": ["tabs", "autoclose", "lifecycle"]
+    },
+    "cli/actions-basic.sh": {
+      "tags": ["actions", "pr"]
+    },
+    "cli/actions-extended.sh": {
+      "tags": ["actions", "mouse", "keyboard", "wait"]
+    },
+    "cli/system-smoke.sh": {
+      "tags": ["system", "lifecycle", "instance", "smoke"]
+    },
+    "infra/auth-extended.sh": {
+      "services": ["pinchtab", "pinchtab-full", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_FULL_SERVER"],
+      "tags": ["auth", "dashboard", "sessions"]
+    },
+    "infra/autosolver-smoke.sh": {
+      "services": ["pinchtab", "pinchtab-medium", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_MEDIUM_SERVER"],
+      "tags": ["autosolver", "medium", "smoke"]
+    },
+    "infra/dashboard-smoke.sh": {
+      "services": ["pinchtab", "pinchtab-full", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_FULL_SERVER"],
+      "tags": ["dashboard", "screencast", "full", "smoke"]
+    },
+    "infra/engine-modes-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "pinchtab-lite", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER", "E2E_LITE_SERVER"],
+      "tags": ["engine", "lite", "secure"]
+    },
+    "infra/idpi-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER"],
+      "tags": ["idpi", "secure"]
+    },
+    "infra/orchestrator-extended.sh": {
+      "services": ["pinchtab", "pinchtab-bridge", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_BRIDGE_URL|60|E2E_BRIDGE_TOKEN"],
+      "tags": ["orchestrator", "multiinstance", "bridge", "lifecycle"]
+    },
+    "infra/orchestrator-smoke.sh": {
+      "services": ["pinchtab", "fixtures"],
+      "ready": ["E2E_SERVER"],
+      "tags": ["orchestrator", "multiinstance", "topology", "cleanup", "lifecycle", "smoke"]
+    },
+    "infra/security-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER"],
+      "tags": ["security", "secure", "multiinstance"]
+    },
+    "infra/security-smoke.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER"],
+      "tags": ["security", "secure", "multiinstance", "allowedDomains", "smoke"]
+    },
+    "infra/stealth-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "pinchtab-medium", "pinchtab-full", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER", "E2E_MEDIUM_SERVER", "E2E_FULL_SERVER"],
+      "tags": ["stealth", "secure", "medium", "full"]
+    },
+    "infra/system-extended.sh": {
+      "services": ["pinchtab", "pinchtab-secure", "pinchtab-lite", "fixtures"],
+      "ready": ["E2E_SERVER", "E2E_SECURE_SERVER", "E2E_LITE_SERVER"],
+      "tags": ["system", "tasks", "idpi", "lite", "secure"]
+    }
+  }
+}

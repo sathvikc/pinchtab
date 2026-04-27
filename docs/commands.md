@@ -26,7 +26,6 @@ pinchtab nav <url> --new-tab            # Explicitly force a new tab
 pinchtab nav <url> --block-images       # Block images for this navigation
 pinchtab nav <url> --block-ads          # Block ads for this navigation
 pinchtab nav <url> --snap               # Navigate and output interactive snapshot
-pinchtab quick <url>                    # Navigate and take a snapshot
 pinchtab back                           # Go back in the active tab
 pinchtab back --tab <id>                # Go back in a specific tab
 pinchtab forward                        # Go forward in the active tab

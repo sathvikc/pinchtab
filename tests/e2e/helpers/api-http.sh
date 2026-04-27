@@ -208,11 +208,9 @@ assert_url_accessible() {
   local label="${2:-$url}"
 
   if curl -sf "$url" >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} GET $label"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "GET $label"
   else
-    echo -e "  ${RED}✗${NC} GET $label (not accessible)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "GET $label (not accessible)"
   fi
 }
 
@@ -228,11 +226,9 @@ assert_ok() {
   local label="${1:-request}"
 
   if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-    echo -e "  ${GREEN}✓${NC} $label → $HTTP_STATUS"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$label → $HTTP_STATUS"
   else
-    echo -e "  ${RED}✗${NC} $label failed (status: $HTTP_STATUS)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$label failed (status: $HTTP_STATUS)"
   fi
 }
 
@@ -241,11 +237,9 @@ assert_http_status() {
   local label="${2:-request}"
 
   if [ "$HTTP_STATUS" = "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $label → $HTTP_STATUS"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$label → $HTTP_STATUS"
   else
-    echo -e "  ${RED}✗${NC} $label: expected $expected, got $HTTP_STATUS"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$label: expected $expected, got $HTTP_STATUS"
   fi
 }
 
@@ -253,11 +247,9 @@ assert_not_ok() {
   local label="${1:-request}"
 
   if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
-    echo -e "  ${GREEN}✓${NC} $label → $HTTP_STATUS (error expected)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$label → $HTTP_STATUS (error expected)"
   else
-    echo -e "  ${RED}✗${NC} $label: expected error, got $HTTP_STATUS"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$label: expected error, got $HTTP_STATUS"
   fi
 }
 
@@ -268,11 +260,9 @@ click_button() {
 
   if [ -n "$ref" ] && [ "$ref" != "null" ]; then
     pt_post /action "{\"kind\":\"click\",\"ref\":\"${ref}\"}" >/dev/null
-    echo -e "  ${GREEN}✓${NC} clicked '$name' (ref: $ref)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "clicked '$name' (ref: $ref)"
   else
-    echo -e "  ${RED}✗${NC} button '$name' not found"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "button '$name' not found"
   fi
 }
 
@@ -288,19 +278,16 @@ type_into() {
 
   if [ -n "$ref" ] && [ "$ref" != "null" ]; then
     pt_post /action "{\"kind\":\"type\",\"ref\":\"${ref}\",\"text\":\"${text}\"}" >/dev/null
-    echo -e "  ${GREEN}✓${NC} typed '$text' into '$name' (ref: $ref)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "typed '$text' into '$name' (ref: $ref)"
   else
-    echo -e "  ${RED}✗${NC} input '$name' not found"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "input '$name' not found"
   fi
 }
 
 press_key() {
   local key="$1"
   pt_post /action -d "{\"kind\":\"press\",\"key\":\"${key}\"}" >/dev/null
-  echo -e "  ${GREEN}✓${NC} pressed '$key'"
-  ((ASSERTIONS_PASSED++)) || true
+  pass_assert "pressed '$key'"
 }
 
 get_tab_count() {
@@ -352,11 +339,9 @@ assert_tab_id() {
   local desc="${1:-tabId returned}"
   TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
   if [ -n "$TAB_ID" ] && [ "$TAB_ID" != "null" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc: ${TAB_ID:0:12}..."
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc: ${TAB_ID:0:12}..."
   else
-    echo -e "  ${RED}✗${NC} no tabId in response"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "no tabId in response"
   fi
 }
 
@@ -367,11 +352,9 @@ assert_instance_list_contains() {
   local found
   found=$(echo "$RESULT" | jq -r ".[] | select(.id == \"$instance_id\") | .id")
   if [ "$found" = "$instance_id" ]; then
-    echo -e "  ${GREEN}✓${NC} $present_msg"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$present_msg"
   else
-    echo -e "  ${RED}✗${NC} $missing_msg"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$missing_msg"
   fi
 }
 
@@ -382,22 +365,18 @@ assert_instance_list_absent() {
   local found
   found=$(echo "$RESULT" | jq -r ".[] | select(.id == \"$instance_id\") | .id")
   if [ -z "$found" ] || [ "$found" = "null" ]; then
-    echo -e "  ${GREEN}✓${NC} $absent_msg"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$absent_msg"
   else
-    echo -e "  ${RED}✗${NC} $present_msg"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$present_msg"
   fi
 }
 
 assert_instance_id_prefix() {
   local instance_id="$1"
   if echo "$instance_id" | grep -q "^inst_"; then
-    echo -e "  ${GREEN}✓${NC} instance ID has inst_ prefix: $instance_id"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "instance ID has inst_ prefix: $instance_id"
   else
-    echo -e "  ${RED}✗${NC} bad ID format: $instance_id"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "bad ID format: $instance_id"
   fi
 }
 
@@ -417,11 +396,9 @@ assert_tab_count() {
   actual=$(get_tab_count)
 
   if [ "$actual" -eq "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} tab count = $actual"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "tab count = $actual"
   else
-    echo -e "  ${RED}✗${NC} tab count: expected $expected, got $actual"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "tab count: expected $expected, got $actual"
   fi
 }
 
@@ -431,11 +408,9 @@ assert_tab_count_gte() {
   actual=$(get_tab_count)
 
   if [ "$actual" -ge "$min" ]; then
-    echo -e "  ${GREEN}✓${NC} tab count $actual >= $min"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "tab count $actual >= $min"
   else
-    echo -e "  ${RED}✗${NC} tab count: expected >= $min, got $actual"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "tab count: expected >= $min, got $actual"
   fi
 }
 
@@ -445,11 +420,9 @@ assert_tab_closed() {
   actual=$(get_tab_count)
 
   if [ "$actual" -lt "$before" ]; then
-    echo -e "  ${GREEN}✓${NC} tab closed (before: $before, after: $actual)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "tab closed (before: $before, after: $actual)"
   else
-    echo -e "  ${RED}✗${NC} tab not closed (before: $before, after: $actual)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "tab not closed (before: $before, after: $actual)"
   fi
 }
 
@@ -487,12 +460,10 @@ assert_eval_poll() {
   done
 
   if [ "$ok" = "true" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
     return 0
   fi
 
-  echo -e "  ${RED}✗${NC} $desc (got: $actual, expected: $expected)"
-  ((ASSERTIONS_FAILED++)) || true
+  fail_assert "$desc (got: $actual, expected: $expected)"
   return 1
 }

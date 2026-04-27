@@ -165,21 +165,14 @@ services:
       - E2E_BRIDGE_URL=http://pinchtab-bridge:9999
       - E2E_BRIDGE_TOKEN=e2e-bridge-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
-      - E2E_EXTENDED
       - STEALTH_MATRIX
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-api}; EXTENDED=$${E2E_EXTENDED:-true}; ARGS=\"\"; [ \"$$EXTENDED\" = \"true\" ] && ARGS=\"extended=true\"; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE $$ARGS \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE $$ARGS; fi"]
 
   runner-cli:
-    # Same role as runner-cli in docker-compose.yml — duplicated here so the
-    # release/pr shared-stack flow can route every suite (api/cli/infra/plugin)
-    # through a single multi-compose project, instead of tearing down and
-    # recreating compose stacks between suites.
+    # Same role as runner-cli in docker-compose.yml. The Go runner overrides
+    # the executor command for each suite.
     build:
       context: ../..
       dockerfile: tests/e2e/runner-cli/Dockerfile
@@ -192,11 +185,6 @@ services:
       - E2E_SERVER=http://pinchtab:9999
       - E2E_SERVER_TOKEN=e2e-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
-      - E2E_EXTENDED
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-cli}; EXTENDED=$${E2E_EXTENDED:-false}; ARGS=\"\"; [ \"$$EXTENDED\" = \"true\" ] && ARGS=\"extended=true\"; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE $$ARGS \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE $$ARGS; fi"]

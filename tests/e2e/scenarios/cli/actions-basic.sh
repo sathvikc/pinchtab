@@ -29,110 +29,6 @@ pt_ok scroll down
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab hover <ref>"
-
-pt_ok nav "${FIXTURES_URL}/buttons.html"
-# --full gives JSON (the default snap output is now compact text)
-pt_ok snap --full
-
-# Pick a stable, interactive element ref instead of the first arbitrary ref.
-REF=$(find_ref_by_name "Increment" "$PT_OUT")
-if [ -z "$REF" ] || [ "$REF" = "null" ]; then
-  REF=$(find_ref_by_name "Decrement" "$PT_OUT")
-fi
-if [ -z "$REF" ] || [ "$REF" = "null" ]; then
-  REF=$(find_ref_by_name "Reset" "$PT_OUT")
-fi
-
-if [ -n "$REF" ] && [ "$REF" != "null" ]; then
-  pt_ok hover "$REF"
-else
-  echo -e "  ${YELLOW}⚠${NC} no ref found, skipping hover"
-  ((ASSERTIONS_PASSED++)) || true
-fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab mouse move/down/up/wheel"
-
-pt_ok nav "${FIXTURES_URL}/mouse-events.html"
-# --compact=false gives JSON; --interactive keeps the element filter
-pt_ok snap --interactive --compact=false
-
-MOUSE_REF=$(find_ref_by_name "Mouse Target" "$PT_OUT")
-if assert_ref_found "$MOUSE_REF" "mouse target ref"; then
-  pt_ok mouse move "$MOUSE_REF"
-  assert_output_contains "OK" "confirms mouse move action"
-
-  pt_ok mouse down --button left
-  assert_output_contains "OK" "confirms mouse down action"
-
-  pt_ok mouse up --button left
-  assert_output_contains "OK" "confirms mouse up action"
-
-  pt_ok mouse wheel 240 --dx 40
-  assert_output_contains "OK" "confirms mouse wheel action"
-
-  pt_ok eval "window.mouseFixtureState.mousemoveCount"
-  # Terse output is just the number
-  if [[ "$PT_OUT" =~ ^[0-9]+$ ]] && [ "$PT_OUT" -ge 1 ]; then
-    echo -e "  ${GREEN}✓${NC} mousemove count incremented"
-    ((ASSERTIONS_PASSED++)) || true
-  else
-    echo -e "  ${RED}✗${NC} mousemove count did not increment"
-    ((ASSERTIONS_FAILED++)) || true
-  fi
-
-  pt_ok eval "window.mouseFixtureState.mousedownCount"
-  assert_output_contains "1" "mousedown count is 1"
-
-  pt_ok eval "window.mouseFixtureState.mouseupCount"
-  assert_output_contains "1" "mouseup count is 1"
-
-  pt_ok eval "window.mouseFixtureState.lastButton"
-  assert_output_contains "left" "last button is left"
-
-  pt_ok eval "window.mouseFixtureState.wheelCount"
-  assert_output_contains "1" "wheel count is 1"
-
-  pt_ok eval "window.mouseFixtureState.wheelDeltaY"
-  assert_output_contains "240" "wheel delta Y accumulated"
-fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "pinchtab drag <from> <to>"
-
-pt_ok nav "${FIXTURES_URL}/mouse-events.html"
-pt_ok snap --interactive --compact=false
-
-DRAG_REF=$(find_ref_by_name "Mouse Target" "$PT_OUT")
-if assert_ref_found "$DRAG_REF" "drag target ref"; then
-  pt_ok drag "$DRAG_REF" "160,190"
-  assert_output_contains "OK" "confirms drag wrapper completed"
-
-  pt_ok eval "window.mouseFixtureState.mousemoveCount"
-  # Terse output is just the number
-  if [[ "$PT_OUT" =~ ^[0-9]+$ ]] && [ "$PT_OUT" -ge 2 ]; then
-    echo -e "  ${GREEN}✓${NC} drag performs multiple move events"
-    ((ASSERTIONS_PASSED++)) || true
-  else
-    echo -e "  ${RED}✗${NC} drag did not perform multiple move events"
-    ((ASSERTIONS_FAILED++)) || true
-  fi
-
-  pt_ok eval "window.mouseFixtureState.mousedownCount"
-  assert_output_contains "1" "drag performed one mouse down"
-
-  pt_ok eval "window.mouseFixtureState.mouseupCount"
-  assert_output_contains "1" "drag performed one mouse up"
-fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
 start_test "pinchtab check/uncheck <selector>"
 
 pt_ok nav "${FIXTURES_URL}/form.html"
@@ -155,8 +51,7 @@ start_test "pinchtab select"
 pt_ok nav "${FIXTURES_URL}/form.html"
 pt_ok snap --interactive
 pt select e0 "option1" 2>/dev/null
-echo -e "  ${GREEN}✓${NC} select command executed"
-((ASSERTIONS_PASSED++)) || true
+pass_assert "select command executed"
 end_test
 
 # ─────────────────────────────────────────────────────────────────

@@ -121,5 +121,5 @@ fi
 end_test
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  print_summary
+  finish_suite
 fi

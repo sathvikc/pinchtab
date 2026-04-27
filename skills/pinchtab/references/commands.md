@@ -41,6 +41,7 @@ Navigate the current tab to a URL.
 ```bash
 pinchtab nav https://pinchtab.com
 pinchtab nav https://pinchtab.com --new-tab
+pinchtab nav https://pinchtab.com --snap
 pinchtab nav https://pinchtab.com --block-images
 pinchtab nav https://pinchtab.com --timeout 60
 ```
@@ -48,6 +49,7 @@ pinchtab nav https://pinchtab.com --timeout 60
 | Flag | Description |
 |------|-------------|
 | `--new-tab` | Open in a new tab instead of current |
+| `--snap` | Navigate and print an interactive compact snapshot |
 | `--block-images` | Block image loading (faster, fewer tokens) |
 | `--timeout <s>` | Navigation timeout in seconds |
 | `--profile <name>` | Target a named profile |

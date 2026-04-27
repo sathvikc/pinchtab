@@ -230,8 +230,7 @@ curl http://localhost:9867/health
 ### Try CLI
 
 ```bash
-./pinchtab quick https://pinchtab.com
-./pinchtab nav https://pinchtab.com
+./pinchtab nav https://pinchtab.com --snap
 ./pinchtab snap
 ```
 

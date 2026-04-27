@@ -16,16 +16,8 @@ if [ "${E2E_DEBUG:-0}" = "1" ]; then
   set -x
 fi
 
-# Guard for jq (prevent 127)
 safe_jq() {
-  if command -v jq >/dev/null 2>&1; then
-    jq "$@"
-  else
-    # Minimal fallback: if it's just a raw field access like '.field', try to hack it or just return raw
-    # But mostly we just want to avoid the 127. 
-    # In E2E containers, jq SHOULD be present. This is for host-side or limited environments.
-    cat
-  fi
+  jq "$@"
 }
 
 E2E_SERVER="${E2E_SERVER:-http://localhost:9999}"
@@ -42,21 +34,14 @@ E2E_SERVER_TOKEN="${E2E_SERVER_TOKEN:-}"
 
 E2E_BRIDGE_TOKEN="${E2E_BRIDGE_TOKEN:-}"
 FIXTURES_URL="${FIXTURES_URL:-http://localhost:8080}"
-RESULTS_DIR="${RESULTS_DIR:-/results}"
 
 CURRENT_TEST="${CURRENT_TEST:-}"
 CURRENT_SCENARIO_FILE="${CURRENT_SCENARIO_FILE:-}"
-TESTS_PASSED="${TESTS_PASSED:-0}"
 TESTS_FAILED="${TESTS_FAILED:-0}"
 ASSERTIONS_PASSED="${ASSERTIONS_PASSED:-0}"
 ASSERTIONS_FAILED="${ASSERTIONS_FAILED:-0}"
 ASSERTIONS_SKIPPED="${ASSERTIONS_SKIPPED:-0}"
 TEST_START_TIME="${TEST_START_TIME:-0}"
-TEST_START_NS="${TEST_START_NS:-0}"
-if [ -z "${TEST_RESULTS_INIT:-}" ]; then
-  TEST_RESULTS=()
-  TEST_RESULTS_INIT=1
-fi
 
 get_time_ms() {
   if [ -f /proc/uptime ]; then
@@ -117,6 +102,7 @@ wait_for_instance_ready() {
 start_test() {
   ASSERTIONS_PASSED=0
   ASSERTIONS_FAILED=0
+  ASSERTIONS_SKIPPED=0
   if [ -n "${CURRENT_SCENARIO_FILE}" ]; then
     CURRENT_TEST="[${CURRENT_SCENARIO_FILE}] $1"
   else
@@ -130,18 +116,39 @@ end_test() {
   local end_time
   end_time=$(get_time_ms)
   local duration=$((end_time - TEST_START_TIME))
+  local status
 
   if [ "$ASSERTIONS_FAILED" -eq 0 ]; then
     echo -e "${GREEN}✓ ${CURRENT_TEST} passed${NC} ${MUTED}(${duration}ms)${NC}\n"
-    TEST_RESULTS+=("✅ ${CURRENT_TEST}|${duration}ms|passed")
-    ((TESTS_PASSED++)) || true
+    status="passed"
   else
     echo -e "${RED}✗ ${CURRENT_TEST} failed${NC} ${MUTED}(${duration}ms, failed assertions: ${ASSERTIONS_FAILED})${NC}\n"
-    TEST_RESULTS+=("❌ ${CURRENT_TEST}|${duration}ms|failed")
+    status="failed"
     ((TESTS_FAILED++)) || true
   fi
+  echo -e "E2E_RESULT\t${status}\t${duration}\t${CURRENT_TEST}"
   ASSERTIONS_PASSED=0
   ASSERTIONS_FAILED=0
+}
+
+pass_assert() {
+  echo -e "  ${GREEN}✓${NC} ${1:-}"
+  ((ASSERTIONS_PASSED++)) || true
+}
+
+fail_assert() {
+  echo -e "  ${RED}✗${NC} ${1:-}"
+  ((ASSERTIONS_FAILED++)) || true
+}
+
+skip_assert() {
+  echo -e "  ${YELLOW}⚠${NC} ${1:-}"
+  ((ASSERTIONS_SKIPPED++)) || true
+}
+
+soft_pass_assert() {
+  echo -e "  ${YELLOW}~${NC} ${1:-}"
+  ((ASSERTIONS_PASSED++)) || true
 }
 
 _e2e_default_ref_json() {
@@ -172,13 +179,11 @@ assert_ref_found() {
   local ref="$1"
   local desc="${2:-ref}"
   if [ -n "$ref" ] && [ "$ref" != "null" ]; then
-    echo -e "  ${GREEN}✓${NC} found $desc: $ref"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "found $desc: $ref"
     return 0
   fi
 
-  echo -e "  ${YELLOW}⚠${NC} could not find $desc, skipping"
-  ((ASSERTIONS_PASSED++)) || true
+  skip_assert "could not find $desc, skipping"
   return 1
 }
 
@@ -191,11 +196,9 @@ assert_json_jq() {
   local -a jq_args=("$@")
 
   if echo "$json" | safe_jq -e "${jq_args[@]}" "$expr" >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} $success_desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$success_desc"
   else
-    echo -e "  ${RED}✗${NC} $fail_desc"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$fail_desc"
   fi
 }
 
@@ -207,74 +210,7 @@ assert_ref_json_jq() {
   assert_json_jq "$(_e2e_default_ref_json)" "$expr" "$success_desc" "$fail_desc" "$@"
 }
 
-print_summary() {
-  local total=$((TESTS_PASSED + TESTS_FAILED))
-  local total_time=0
-  local title="${E2E_SUMMARY_TITLE:-E2E Test Summary}"
-  local summary_file="${E2E_SUMMARY_FILE:-summary.txt}"
-  local report_file="${E2E_REPORT_FILE:-report.md}"
-
-  local name_width=40
-  for result in "${TEST_RESULTS[@]}"; do
-    IFS='|' read -r name _ _ <<< "$result"
-    local len=${#name}
-    [ "$len" -gt "$name_width" ] && name_width=$len
-  done
-  ((name_width += 2)) || true
-  local line_width=$((name_width + 24))
-  local separator
-  separator=$(printf '─%.0s' $(seq 1 $line_width))
-
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo -e "${BLUE}${title}${NC}"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo ""
-  printf "  %-${name_width}s %10s %10s\n" "Test" "Duration" "Status"
-  echo "  ${separator}"
-
-  for result in "${TEST_RESULTS[@]}"; do
-    IFS='|' read -r name duration status <<< "$result"
-    local time_num=${duration%ms}
-    ((total_time += time_num)) || true
-    if [ "$status" = "passed" ]; then
-      printf "  %-${name_width}s %10s ${GREEN}%10s${NC}\n" "$name" "$duration" "✓"
-    else
-      printf "  %-${name_width}s %10s ${RED}%10s${NC}\n" "$name" "$duration" "✗"
-    fi
-  done
-
-  echo "  ${separator}"
-  printf "  %-${name_width}s %10s\n" "Total" "${total_time}ms"
-  echo ""
-  echo -e "  ${GREEN}Passed:${NC} ${TESTS_PASSED}/${total}"
-  echo -e "  ${RED}Failed:${NC} ${TESTS_FAILED}/${total}"
-
-  if [ "$TESTS_FAILED" -gt 0 ]; then
-    echo ""
-    echo -e "  ${RED}Failed tests:${NC}"
-    for result in "${TEST_RESULTS[@]}"; do
-      IFS='|' read -r name duration status <<< "$result"
-      if [ "$status" = "failed" ]; then
-        echo -e "    ${RED}✗${NC} $name"
-      fi
-    done
-  fi
-
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-  if [ -d "${RESULTS_DIR:-}" ]; then
-    echo "passed=$TESTS_PASSED" > "${RESULTS_DIR}/${summary_file}"
-    echo "failed=$TESTS_FAILED" >> "${RESULTS_DIR}/${summary_file}"
-    echo "total_time=${total_time}ms" >> "${RESULTS_DIR}/${summary_file}"
-    echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${RESULTS_DIR}/${summary_file}"
-
-    if [ "${E2E_GENERATE_MARKDOWN_REPORT:-0}" = "1" ] && declare -F generate_markdown_report >/dev/null 2>&1; then
-      generate_markdown_report > "${RESULTS_DIR}/${report_file}"
-    fi
-  fi
-
+finish_suite() {
   if [ "$TESTS_FAILED" -gt 0 ]; then
     exit 1
   fi

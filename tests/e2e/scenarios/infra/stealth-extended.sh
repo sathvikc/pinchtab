@@ -424,7 +424,7 @@ if [ "${STEALTH_MATRIX:-0}" = "1" ]; then
     unset STEALTH_LEVEL
   fi
   if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    print_summary
+    finish_suite
   fi
   return 0
 fi
@@ -601,5 +601,5 @@ end_test
 E2E_SERVER="$ORIG_URL"
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  print_summary
+  finish_suite
 fi

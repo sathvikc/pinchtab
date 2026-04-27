@@ -266,12 +266,8 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /network/export/stream: SSE events on navigation"
 
-# The previous version of this test ran curl as foreground command
-# substitution, which blocked for the whole --max-time before the
-# navigate fired — so no SSE events ever overlapped the stream and
-# the assertion silently fell through to the "no events captured"
-# pass branch. Background the curl so it actually overlaps the
-# navigate, drop the foreground budget from 5s to ~2s.
+# Keep curl in the background so navigation overlaps the stream, but stop as
+# soon as the expected SSE event arrives instead of waiting for --max-time.
 STREAM_TMP=$(mktemp)
 e2e_curl -s -N --max-time 2 \
   -H "Content-Type: application/json" \
@@ -280,12 +276,22 @@ e2e_curl -s -N --max-time 2 \
 SSE_PID=$!
 
 # Brief delay to let the stream open before generating traffic.
-sleep 0.2
+sleep 0.1
 
-# Trigger traffic while the stream is still running.
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
+# Trigger traffic on the tab the stream is subscribed to.
+pt_post /navigate "{\"tabId\":\"${TAB_ID}\",\"url\":\"${FIXTURES_URL}/form.html\"}"
 
-# Wait for the SSE curl to hit --max-time and return.
+for _ in $(seq 1 40); do
+  if grep -q "^event:" "$STREAM_TMP"; then
+    break
+  fi
+  if ! kill -0 "$SSE_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.05
+done
+
+kill "$SSE_PID" 2>/dev/null || true
 wait "$SSE_PID" 2>/dev/null || true
 STREAM_OUTPUT=$(cat "$STREAM_TMP")
 rm -f "$STREAM_TMP"
@@ -293,13 +299,9 @@ rm -f "$STREAM_TMP"
 if echo "$STREAM_OUTPUT" | grep -q "event:"; then
   echo -e "  ${GREEN}✓${NC} received SSE events from stream"
   ((ASSERTIONS_PASSED++)) || true
-elif echo "$STREAM_OUTPUT" | grep -q "text/event-stream"; then
-  echo -e "  ${GREEN}✓${NC} stream responded with SSE content-type"
-  ((ASSERTIONS_PASSED++)) || true
 else
-  # Even without events the endpoint should have started successfully (200)
-  echo -e "  ${YELLOW}~${NC} no SSE events captured (timing-dependent)"
-  ((ASSERTIONS_PASSED++)) || true
+  echo -e "  ${RED}✗${NC} no SSE events captured"
+  ((ASSERTIONS_FAILED++)) || true
 fi
 
 end_test
