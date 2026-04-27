@@ -38,7 +38,6 @@ start_test "idpi-off: hidden injection passes through without IDPI"
 # Navigate to the hidden injection fixture (permissive server, IDPI warn only)
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-hidden-injection.html\"}"
 assert_ok "navigate to hidden injection page"
-sleep 0.5
 
 # Get snapshot — visible content should be present, IDPI warning should be set
 pt_get "/snapshot?format=json"
@@ -57,7 +56,6 @@ start_test "idpi-off: unicode bypass passes through without strict IDPI"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-unicode-bypass.html\"}"
 assert_ok "navigate to unicode bypass page"
-sleep 0.5
 
 pt_get "/snapshot"
 assert_ok "snapshot succeeds"
@@ -75,12 +73,10 @@ start_test "idpi-strict: hidden injection BLOCKED by scanner"
 # First navigate to a clean page to establish tab
 secure_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-clean.html\"}"
 assert_ok "navigate to clean page first"
-sleep 0.5
 
 # Now navigate to the injection page
 secure_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-hidden-injection.html\"}"
 assert_ok "navigate to injection page"
-sleep 0.5
 
 # Snapshot should be BLOCKED (403) because strict mode + injection detected
 secure_get "/snapshot"
@@ -94,7 +90,6 @@ start_test "idpi-strict: standard injection BLOCKED"
 
 secure_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-inject.html\"}"
 assert_ok "navigate to injection page"
-sleep 0.5
 
 secure_get "/snapshot"
 assert_http_status 403 "snapshot blocked by IDPI"
@@ -107,7 +102,6 @@ start_test "idpi-strict: clean page passes through"
 
 secure_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-clean.html\"}"
 assert_ok "navigate to clean page"
-sleep 0.5
 
 secure_get "/snapshot"
 assert_ok "clean snapshot passes IDPI"
@@ -124,7 +118,6 @@ start_test "idpi-hidden: hidden traps omitted from snapshot but warning preserve
 # Use permissive server (warn mode) so we get the snapshot back with flags
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-hidden-injection.html\"}"
 assert_ok "navigate to injection page"
-sleep 0.5
 
 pt_get "/snapshot"
 assert_ok "snapshot returned"
@@ -163,7 +156,6 @@ start_test "idpi-strict: unicode homoglyph bypass BLOCKED"
 
 secure_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-unicode-bypass.html\"}"
 assert_ok "navigate to unicode bypass page"
-sleep 0.5
 
 # The Cyrillic homoglyph "Іgnore previous instructions" should be caught
 # after NFKC normalization + homoglyph replacement
@@ -179,7 +171,6 @@ start_test "idpi-warn: unicode bypass detected with warning"
 # Permissive server — warn mode
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-unicode-bypass.html\"}"
 assert_ok "navigate to unicode bypass page"
-sleep 0.5
 
 pt_get "/snapshot"
 assert_ok "snapshot returned (warn mode)"
@@ -209,7 +200,6 @@ assert_ok "IDPI wrapContent disabled on base server"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/idpi-clean.html\"}"
 assert_ok "navigate to clean page"
-sleep 0.5
 
 # E2E config has wrapContent disabled — text should NOT be wrapped
 pt_get "/snapshot?format=text"

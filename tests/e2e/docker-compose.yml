@@ -15,10 +15,10 @@ services:
     shm_size: '2gb'
     healthcheck:
       test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
+      interval: 1s
       timeout: 10s
-      retries: 20
-      start_period: 15s
+      retries: 30
+      start_period: 5s
 
   fixtures:
     # Custom image: nginx + baked-in default.conf with httpbin-compatible
@@ -47,9 +47,9 @@ services:
       # test runner refuses to start, which surfaces "stale image / config
       # not loaded" failures up front instead of as opaque test errors.
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:80/ && wget -q -O /dev/null http://localhost:80/get"]
-      interval: 2s
+      interval: 1s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   runner-api:
     build:
@@ -63,14 +63,10 @@ services:
       - E2E_SERVER=http://pinchtab:9999
       - E2E_SERVER_TOKEN=e2e-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
       - STEALTH_MATRIX
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-api}; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE; fi"]
 
   runner-cli:
     build:
@@ -85,11 +81,6 @@ services:
       - E2E_SERVER=http://pinchtab:9999
       - E2E_SERVER_TOKEN=e2e-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
-      - E2E_EXTENDED
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-cli}; EXTENDED=$${E2E_EXTENDED:-false}; ARGS=\"\"; [ \"$$EXTENDED\" = \"true\" ] && ARGS=\"extended=true\"; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE $$ARGS \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE $$ARGS; fi"]

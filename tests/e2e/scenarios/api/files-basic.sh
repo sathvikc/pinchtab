@@ -8,7 +8,6 @@ source "${GROUP_DIR}/../../helpers/api.sh"
 start_test "pinchtab screenshot"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/table.html\"}"
-sleep 1
 
 pt_get /screenshot
 assert_ok "screenshot"
@@ -27,7 +26,6 @@ end_test
 start_test "pinchtab screenshot --tab <id>"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/table.html\"}"
-sleep 1
 
 pt_get /tabs
 TAB_ID=$(get_first_tab)
@@ -63,7 +61,6 @@ end_test
 start_test "screenshot: quality parameter"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/table.html\"}"
-sleep 1
 
 LOW_Q_SIZE=$(e2e_curl -s "${E2E_SERVER}/screenshot?quality=10" | wc -c)
 HIGH_Q_SIZE=$(e2e_curl -s "${E2E_SERVER}/screenshot?quality=95" | wc -c)
@@ -154,7 +151,6 @@ assert_ok "tab download"
 end_test
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/upload.html\"}"
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab upload (base64 file)"
@@ -182,7 +178,6 @@ start_test "pinchtab upload --tab <id>"
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/upload.html\",\"newTab\":true}"
 assert_ok "navigate for upload"
 TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
-sleep 1
 
 # 1x1 transparent PNG
 PNG_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="

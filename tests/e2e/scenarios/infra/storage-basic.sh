@@ -14,7 +14,6 @@ start_test "Setup: navigate to fixture page for storage tests"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 assert_ok "navigate to fixture"
-sleep 0.5
 
 end_test
 

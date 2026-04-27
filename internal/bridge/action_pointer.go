@@ -16,6 +16,25 @@ var mouseMoveByCoordinateAction = MouseMoveByCoordinate
 var mouseDownByCoordinateAction = MouseDownByCoordinate
 var mouseUpByCoordinateAction = MouseUpByCoordinate
 
+// effectiveHumanize resolves whether an action should use the humanized
+// (bezier + per-event jitter + pre-press sleeps) input path. Precedence:
+//
+//  1. Per-request override: ActionRequest.Humanize (if non-nil)
+//  2. Per-instance default: bridge Config.Humanize
+//  3. Built-in default: false
+//
+// The action kind is intentionally NOT consulted. The public API uses
+// click/type with humanize=true instead of separate humanized action names.
+func (b *Bridge) effectiveHumanize(req ActionRequest) bool {
+	if req.Humanize != nil {
+		return *req.Humanize
+	}
+	if b != nil && b.Config != nil {
+		return b.Config.Humanize
+	}
+	return false
+}
+
 const (
 	dialogAutoHandlePollInterval = 10 * time.Millisecond
 	dialogAutoHandleSettleDelay  = 40 * time.Millisecond
@@ -85,6 +104,12 @@ func submitFormIfButton(ctx context.Context, selector string) (bool, error) {
 }
 
 func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
+	// Promote to the humanized click path when the caller (or instance
+	// config) opted in via humanize=true.
+	if b.effectiveHumanize(req) {
+		return b.actionHumanizedClick(ctx, req)
+	}
+
 	// Arm a one-shot dialog auto-handler if the caller expects the click
 	// to open a native JS dialog. Without this, the click would hang
 	// waiting for the dialog to be handled from a separate request.
@@ -434,7 +459,7 @@ func (b *Bridge) actionDrag(ctx context.Context, req ActionRequest) (map[string]
 	return nil, fmt.Errorf("need selector, ref, or nodeId")
 }
 
-func (b *Bridge) actionHumanClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
+func (b *Bridge) actionHumanizedClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	var backendNodeID cdp.BackendNodeID
 	switch {
 	case req.NodeID > 0:
@@ -449,7 +474,7 @@ func (b *Bridge) actionHumanClick(ctx context.Context, req ActionRequest) (map[s
 		return nil, fmt.Errorf("need selector, ref, or nodeId")
 	}
 
-	// Run the multi-step humanClick (bezier mouse-move + press + release) in
+	// Run the multi-step humanized click (bezier mouse-move + press + release) in
 	// a goroutine and poll for blocking dialogs. Without this, a dialog or
 	// dialog-like popup opened by the click would hang the renderer for the
 	// full action timeout. Mirrors the wrapping used by actionClick.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# api-actions.sh — Action helpers (click, type, humanClick, humanType)
+# api-actions.sh — Action helpers for click/type variants.
 #
 # Higher-level wrappers around pt_post /action for readable tests.
 
@@ -28,30 +28,30 @@ action_type() {
   assert_ok "type '$text' into ref=$ref"
 }
 
-# Human-like click by ref (uses mouse events).
-# Usage: action_human_click "$ref"
-action_human_click() {
+# Humanized click by ref (uses mouse events).
+# Usage: action_click_humanized "$ref"
+action_click_humanized() {
   local ref="$1"
-  pt_post /action -d "{\"kind\":\"humanClick\",\"ref\":\"$ref\"}" > /dev/null
-  assert_ok "humanClick ref=$ref"
+  pt_post /action -d "{\"kind\":\"click\",\"ref\":\"$ref\",\"humanize\":true}" > /dev/null
+  assert_ok "humanized click ref=$ref"
 }
 
-# Human-like type by ref (character-by-character key events).
-# Usage: action_human_type "$ref" "hello"
-action_human_type() {
+# Humanized type by ref (character-by-character key events).
+# Usage: action_type_humanized "$ref" "hello"
+action_type_humanized() {
   local ref="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"humanType\",\"ref\":\"$ref\",\"text\":\"$text\"}" > /dev/null
-  assert_ok "humanType '$text' into ref=$ref"
+  pt_post /action -d "{\"kind\":\"type\",\"ref\":\"$ref\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
+  assert_ok "humanized type '$text' into ref=$ref"
 }
 
-# Human-like type by CSS selector.
-# Usage: action_human_type_selector "#email" "hello"
-action_human_type_selector() {
+# Humanized type by CSS selector.
+# Usage: action_type_humanized_selector "#email" "hello"
+action_type_humanized_selector() {
   local selector="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"humanType\",\"selector\":\"$selector\",\"text\":\"$text\"}" > /dev/null
-  assert_ok "humanType '$text' into $selector"
+  pt_post /action -d "{\"kind\":\"type\",\"selector\":\"$selector\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
+  assert_ok "humanized type '$text' into $selector"
 }
 
 # Navigate to a fixture page and wait for load.

@@ -125,11 +125,9 @@ assert_autosolver_score() {
   fi
 
   if [ "$passed" = "true" ] && [ "$critical" -ge "$min_critical" ]; then
-    echo -e "  ${GREEN}✓${NC} [autosolver:${label}] passed (critical ${critical}/${critical_total})"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "[autosolver:${label}] passed (critical ${critical}/${critical_total})"
   else
-    echo -e "  ${RED}✗${NC} [autosolver:${label}] failed (critical ${critical}/${critical_total}, need ${min_critical})"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "[autosolver:${label}] failed (critical ${critical}/${critical_total}, need ${min_critical})"
     dump_autosolver_debug "$label"
   fi
 }
@@ -166,9 +164,8 @@ autosolver_run_score_case() {
 
   if run_autosolver_and_extract "$label" "$fixture" "$score_expr" 1; then
     if autosolver_null_result; then
-      echo -e "  ${RED}✗${NC} [autosolver:${label}] score not populated"
+      fail_assert "[autosolver:${label}] score not populated"
       echo -e "  ${MUTED}page text: ${AUTOSOLVER_PAGE_TEXT:0:300}${NC}"
-      ((ASSERTIONS_FAILED++)) || true
     else
       local score_json="$AUTOSOLVER_RESULT"
       assert_autosolver_score "$score_json" "$label"
@@ -180,7 +177,7 @@ autosolver_run_score_case() {
       fi
     fi
   else
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "[autosolver:${label}] evaluation failed"
   fi
 
   end_test
@@ -215,11 +212,9 @@ autosolver_run_normal_page_case() {
   autosolver_log "no-crash" "page title: ${page_title}"
 
   if autosolver_title_has_challenge "$page_title"; then
-    echo -e "  ${RED}✗${NC} normal page: unexpected challenge indicator in title: ${page_title}"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "normal page: unexpected challenge indicator in title: ${page_title}"
   else
-    echo -e "  ${GREEN}✓${NC} normal page: no challenge indicators in title"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "normal page: no challenge indicators in title"
   fi
 
   pt_post /evaluate '{"expression":"typeof window !== \"undefined\""}'
@@ -272,24 +267,19 @@ autosolver_run_retry_case() {
     autosolver_log "retry" "settled score: critical=${settled_critical}/${settled_total} passed=${settled_passed}"
 
     if [ "$settled_passed" = "true" ]; then
-      echo -e "  ${GREEN}✓${NC} retry: page settled to passed state within ${poll_attempts} polls"
-      ((ASSERTIONS_PASSED++)) || true
+      pass_assert "retry: page settled to passed state within ${poll_attempts} polls"
     else
-      echo -e "  ${YELLOW}⚠${NC} retry: page loaded but score not 100% passed (critical: ${settled_critical}/${settled_total})"
-      ((ASSERTIONS_PASSED++)) || true
+      soft_pass_assert "retry: page loaded but score not 100% passed (critical: ${settled_critical}/${settled_total})"
     fi
 
     if [ "$poll_attempts" -le "$max_poll" ]; then
-      echo -e "  ${GREEN}✓${NC} retry: settled within max_attempts bound (${poll_attempts} <= ${max_poll})"
-      ((ASSERTIONS_PASSED++)) || true
+      pass_assert "retry: settled within max_attempts bound (${poll_attempts} <= ${max_poll})"
     else
-      echo -e "  ${RED}✗${NC} retry: exceeded max_attempts (${poll_attempts} > ${max_poll})"
-      ((ASSERTIONS_FAILED++)) || true
+      fail_assert "retry: exceeded max_attempts (${poll_attempts} > ${max_poll})"
     fi
   else
-    echo -e "  ${RED}✗${NC} retry: page never produced a score after ${max_poll} poll attempts"
+    fail_assert "retry: page never produced a score after ${max_poll} poll attempts"
     echo -e "  ${MUTED}page text: ${AUTOSOLVER_PAGE_TEXT:0:300}${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   fi
 
   end_test

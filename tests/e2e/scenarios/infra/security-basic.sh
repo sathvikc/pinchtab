@@ -22,7 +22,6 @@ end_test
 start_test "security: upload ALLOWED when enabled"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/upload.html\"}"
-sleep 1
 pt_post /upload -d '{"selector":"#single-file","files":["data:text/plain;base64,dGVzdA=="]}'
 assert_ok "upload allowed"
 

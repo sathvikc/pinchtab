@@ -125,7 +125,7 @@ Common commands:
 | Command | Purpose |
 | --- | --- |
 | `pinchtab nav <url>` | Open a new tab and navigate it |
-| `pinchtab quick <url>` | Navigate and snapshot |
+| `pinchtab nav <url> --snap` | Navigate and output an interactive compact snapshot |
 | `pinchtab snap` | Accessibility snapshot |
 | `pinchtab frame [target\|main]` | Show or set selector frame scope |
 | `pinchtab click <selector>` | Click an element |

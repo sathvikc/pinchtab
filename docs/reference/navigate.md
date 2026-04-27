@@ -48,6 +48,15 @@ pinchtab nav https://example.com --block-images  # Skip images
 | `waitFor` | Wait condition |
 | `waitSelector` | Wait for selector |
 
+## Behavior
+
+- Top-level `POST /navigate` and `pinchtab nav <url>` open a new tab when no `tabId` or `--tab` is provided.
+- `POST /tabs/{id}/navigate`, `POST /navigate` with `tabId`, and `pinchtab nav <url> --tab <id>` reuse the specified tab and make it the current tab for later unscoped operations.
+- `--new-tab` and `newTab:true` force a new tab even if another tab is current.
+- Commands that operate without `--tab` use the current tracked tab. Focusing or using a tab updates that current-tab pointer; if the pointer is stale, PinchTab falls back to the most recently used tracked tab.
+
+Rationale: unscoped navigation should not accidentally replace the user or agent's active work surface. Reuse is explicit through `--tab`/`tabId`, while later unscoped read/action commands still have predictable current-tab behavior.
+
 ## Related Pages
 
 - [Snapshot](./snapshot.md)

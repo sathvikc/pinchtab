@@ -47,6 +47,7 @@ pinchtab click --x 100 --y 200          # Click at coordinates
 - Use [`/frame`](./frame.md) before selector-based iframe actions
 - Missing selectors fail immediately; use [`pinchtab wait`](./wait.md) first for dynamic UI
 - The API also accepts `selector` field: `{"kind":"click","selector":"#login"}`
+- Raw input is the default. To opt a click into the slower humanized path for a page that needs it, pass `humanize:true` in the action JSON or set `instanceDefaults.humanize:true`.
 
 ## Related Pages
 

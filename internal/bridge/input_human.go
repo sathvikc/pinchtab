@@ -142,12 +142,12 @@ func Click(ctx context.Context, x, y float64) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			slog.Debug("humanClick initial-move stalled, skipping bezier", "err", err)
+			slog.Debug("humanized click initial-move stalled, skipping bezier", "err", err)
 		} else if err := MouseMove(ctx, startX, startY, x, y); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			slog.Debug("humanClick bezier trail failed, proceeding to click", "err", err)
+			slog.Debug("humanized click bezier trail failed, proceeding to click", "err", err)
 		}
 	}
 

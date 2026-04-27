@@ -137,7 +137,7 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.recordActionRequest(r, req)
-	if !h.shouldUseLiteAction(req.Kind) {
+	if !h.shouldUseLiteAction(req) {
 		if available := h.Bridge.AvailableActions(); len(available) > 0 {
 			known := false
 			for _, k := range available {
@@ -154,7 +154,7 @@ func (h *Handlers) HandleAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve tab — skip for lite actions (lite engine manages its own tabs)
-	useLiteAction := h.shouldUseLiteAction(req.Kind)
+	useLiteAction := h.shouldUseLiteAction(req)
 	var resolvedTabID string
 	var ctx context.Context
 	if useLiteAction {
@@ -529,8 +529,16 @@ func (h *Handlers) HandleTabActions(w http.ResponseWriter, r *http.Request) {
 // handleActionsBatch processes a batch of actions (used by both single and batch endpoints)
 func (h *Handlers) handleActionsBatch(w http.ResponseWriter, r *http.Request, req actionsRequest) {
 
-	// Check if the first action is lite-routable to decide tab resolution strategy
+	// Use lite tab resolution only when every action can stay on the lite path.
 	allLite := h.Router != nil && h.Router.Mode() == engine.ModeLite
+	if allLite {
+		for _, action := range req.Actions {
+			if !h.shouldUseLiteAction(action) {
+				allLite = false
+				break
+			}
+		}
+	}
 	var ctx context.Context
 	var resolvedTabID string
 	owner := resolveOwner(r, req.Owner)
@@ -589,7 +597,7 @@ func (h *Handlers) handleActionsBatch(w http.ResponseWriter, r *http.Request, re
 		}
 
 		tCtx, tCancel := context.WithTimeout(ctx, h.Config.ActionTimeout)
-		useLiteAction := h.shouldUseLiteAction(action.Kind)
+		useLiteAction := h.shouldUseLiteAction(action)
 
 		// Unified selector resolution for batch actions.
 		action.NormalizeSelector()
@@ -870,6 +878,14 @@ func (h *Handlers) HandleMacro(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allLiteMacro := h.Router != nil && h.Router.Mode() == engine.ModeLite
+	if allLiteMacro {
+		for _, step := range req.Steps {
+			if !h.shouldUseLiteAction(step) {
+				allLiteMacro = false
+				break
+			}
+		}
+	}
 	var ctx context.Context
 	var resolvedTabID string
 	if allLiteMacro {
@@ -905,7 +921,7 @@ func (h *Handlers) HandleMacro(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
-		useLiteAction := h.shouldUseLiteAction(step.Kind)
+		useLiteAction := h.shouldUseLiteAction(step)
 		// Unified selector resolution for macro steps (mirrors HandleAction).
 		step.NormalizeSelector()
 		stepRefMissing := false
@@ -1178,7 +1194,7 @@ func (h *Handlers) cacheActionIntent(tabID string, req bridge.ActionRequest) {
 
 func (h *Handlers) executeAction(ctx context.Context, req bridge.ActionRequest) (map[string]any, string, error) {
 	req.Kind = bridge.CanonicalActionKind(req.Kind)
-	if h.shouldUseLiteAction(req.Kind) {
+	if h.shouldUseLiteAction(req) {
 		return h.executeLiteAction(ctx, req)
 	}
 
@@ -1189,13 +1205,26 @@ func (h *Handlers) executeAction(ctx context.Context, req bridge.ActionRequest) 
 	return result, "", err
 }
 
-func (h *Handlers) shouldUseLiteAction(kind string) bool {
-	kind = bridge.CanonicalActionKind(kind)
+func (h *Handlers) shouldUseLiteAction(req bridge.ActionRequest) bool {
+	kind := bridge.CanonicalActionKind(req.Kind)
+	if h.effectiveActionHumanize(req) && (kind == bridge.ActionClick || kind == bridge.ActionType || kind == bridge.ActionKeyboardType) {
+		return false
+	}
 	capability, ok := actionCapability(kind)
 	if !ok {
 		return h.Router != nil && h.Router.Mode() == engine.ModeLite
 	}
 	return h.useLite(capability, "")
+}
+
+func (h *Handlers) effectiveActionHumanize(req bridge.ActionRequest) bool {
+	if req.Humanize != nil {
+		return *req.Humanize
+	}
+	if h != nil && h.Config != nil {
+		return h.Config.Humanize
+	}
+	return false
 }
 
 func (h *Handlers) executeLiteAction(ctx context.Context, req bridge.ActionRequest) (map[string]any, string, error) {

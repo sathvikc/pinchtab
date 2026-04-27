@@ -1,5 +1,21 @@
+x-pinchtab-base: &pinchtab-base
+  # All pinchtab variants share the same image — only the pinchtab service
+  # carries `build:` so compose builds it once. The 6 variants differ only
+  # by config file and command flags, supplied via volumes/env at runtime.
+  image: e2e-pinchtab:latest
+  pull_policy: never
+  shm_size: '2gb'
+
+x-pinchtab-healthcheck: &pinchtab-healthcheck
+  test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
+  interval: 1s
+  timeout: 10s
+  retries: 30
+  start_period: 5s
+
 services:
   pinchtab:
+    <<: *pinchtab-base
     build:
       context: ../..
       dockerfile: Dockerfile
@@ -12,18 +28,10 @@ services:
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab.json /data/e2e-config/pinchtab.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
       - "9999:9999"
-    shm_size: '2gb'
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-secure:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-secure.json
     volumes:
@@ -31,36 +39,20 @@ services:
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-secure.json /data/e2e-config/pinchtab-secure.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
       - "9998:9999"
-    shm_size: '2gb'
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-autoclose:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-autoclose.json
     volumes:
       - ./config/pinchtab-autoclose.json:/fixture-config/pinchtab-autoclose.json:ro
       - ./fixtures/test-extension:/extensions/test-extension
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-autoclose.json /data/e2e-config/pinchtab-autoclose.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
-    shm_size: '2gb'
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-medium:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-medium-permissive.json
     volumes:
@@ -69,18 +61,10 @@ services:
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-medium-permissive.json /data/e2e-config/pinchtab-medium-permissive.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
       - "9994:9999"
-    shm_size: '2gb'
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-full:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-full-permissive.json
     volumes:
@@ -89,18 +73,10 @@ services:
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-full-permissive.json /data/e2e-config/pinchtab-full-permissive.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
       - "9995:9999"
-    shm_size: '2gb'
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-lite:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-lite.json
     volumes:
@@ -108,17 +84,10 @@ services:
     ports:
       - "9997:9999"
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-lite.json /data/e2e-config/pinchtab-lite.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab bridge"]
-    healthcheck:
-      test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
-      timeout: 10s
-      retries: 20
-      start_period: 15s
+    healthcheck: *pinchtab-healthcheck
 
   pinchtab-bridge:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    <<: *pinchtab-base
     environment:
       PINCHTAB_CONFIG: /data/e2e-config/pinchtab-bridge.json
     volumes:
@@ -126,13 +95,14 @@ services:
     ports:
       - "9996:9999"
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-bridge.json /data/e2e-config/pinchtab-bridge.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab bridge"]
-    shm_size: '2gb'
     healthcheck:
+      # Bridge-mode pinchtab uses a different auth token. Same tightened
+      # cadence as the shared healthcheck anchor above.
       test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-bridge-token' -q -O /dev/null http://localhost:9999/health"]
-      interval: 3s
+      interval: 1s
       timeout: 10s
-      retries: 20
-      start_period: 15s
+      retries: 30
+      start_period: 5s
 
   fixtures:
     # Custom image: nginx + baked-in default.conf with httpbin-compatible
@@ -160,9 +130,9 @@ services:
       # test runner refuses to start, which surfaces "stale image / config
       # not loaded" failures up front instead of as opaque test errors.
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:80/ && wget -q -O /dev/null http://localhost:80/get"]
-      interval: 2s
+      interval: 1s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   runner-api:
     build:
@@ -195,12 +165,26 @@ services:
       - E2E_BRIDGE_URL=http://pinchtab-bridge:9999
       - E2E_BRIDGE_TOKEN=e2e-bridge-token
       - FIXTURES_URL=http://fixtures:80
-      - E2E_SCENARIO_FILTER
-      - E2E_TEST_FILTER
-      - E2E_SUITE
-      - E2E_EXTENDED
       - STEALTH_MATRIX
     volumes:
       - ./:/e2e:ro
       - ./results:/results
-    command: ["/bin/bash", "-lc", "SUITE=$${E2E_SUITE:-api}; EXTENDED=$${E2E_EXTENDED:-true}; ARGS=\"\"; [ \"$$EXTENDED\" = \"true\" ] && ARGS=\"extended=true\"; if [ -n \"$${E2E_SCENARIO_FILTER:-}\" ]; then exec /bin/bash /e2e/run.sh $$SUITE $$ARGS \"filter=$${E2E_SCENARIO_FILTER:-}\"; else exec /bin/bash /e2e/run.sh $$SUITE $$ARGS; fi"]
+
+  runner-cli:
+    # Same role as runner-cli in docker-compose.yml. The Go runner overrides
+    # the executor command for each suite.
+    build:
+      context: ../..
+      dockerfile: tests/e2e/runner-cli/Dockerfile
+    depends_on:
+      pinchtab:
+        condition: service_healthy
+      fixtures:
+        condition: service_healthy
+    environment:
+      - E2E_SERVER=http://pinchtab:9999
+      - E2E_SERVER_TOKEN=e2e-token
+      - FIXTURES_URL=http://fixtures:80
+    volumes:
+      - ./:/e2e:ro
+      - ./results:/results

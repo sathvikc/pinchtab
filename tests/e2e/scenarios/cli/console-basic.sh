@@ -18,7 +18,6 @@ end_test
 start_test "pinchtab console (with logs)"
 
 pt_ok nav "${FIXTURES_URL}/console.html"
-sleep 1
 pt_ok console
 # Should show logged messages
 assert_output_contains "LOG\|log\|console\|Hello\|No console" "shows log level or no logs"
@@ -37,7 +36,6 @@ end_test
 start_test "pinchtab console --limit"
 
 pt_ok nav "${FIXTURES_URL}/console.html"
-sleep 1
 pt_ok console --limit 2
 
 end_test

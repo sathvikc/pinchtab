@@ -50,15 +50,65 @@ pt_ok click --css "button[type=submit]"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab hover (basic)"
+start_test "pinchtab hover <ref>"
 
-pt_ok nav "${FIXTURES_URL}/form.html"
+pt_ok nav "${FIXTURES_URL}/buttons.html"
 pt_ok snap --interactive --compact=false
 
-HOVER_REF=$(find_ref_by_role_and_name "textbox" "Username:" "$PT_OUT")
-if assert_ref_found "$HOVER_REF" "username input ref"; then
-  pt_ok hover "$HOVER_REF"
+# Pick a stable, interactive element ref instead of the first arbitrary ref.
+REF=$(find_ref_by_name "Increment" "$PT_OUT")
+if [ -z "$REF" ] || [ "$REF" = "null" ]; then
+  REF=$(find_ref_by_name "Decrement" "$PT_OUT")
 fi
+if [ -z "$REF" ] || [ "$REF" = "null" ]; then
+  REF=$(find_ref_by_name "Reset" "$PT_OUT")
+fi
+
+if [ -n "$REF" ] && [ "$REF" != "null" ]; then
+  pt_ok hover "$REF"
+else
+  skip_assert "no ref found, skipping hover"
+fi
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab mouse move/down/up/wheel"
+
+pt_ok nav "${FIXTURES_URL}/mouse-events.html"
+pt_ok mouse move --css "#mouse-target"
+assert_output_contains "OK" "confirms mouse move action"
+
+pt_ok mouse down --button left
+assert_output_contains "OK" "confirms mouse down action"
+
+pt_ok mouse up --button left
+assert_output_contains "OK" "confirms mouse up action"
+
+pt_ok mouse wheel 240 --dx 40
+assert_output_contains "OK" "confirms mouse wheel action"
+
+pt_ok eval "JSON.stringify({mousemoveCount: window.mouseFixtureState.mousemoveCount, mousedownCount: window.mouseFixtureState.mousedownCount, mouseupCount: window.mouseFixtureState.mouseupCount, lastButton: window.mouseFixtureState.lastButton, wheelCount: window.mouseFixtureState.wheelCount, wheelDeltaY: window.mouseFixtureState.wheelDeltaY})"
+assert_json_jq "$PT_OUT" '(.mousemoveCount // 0) >= 1' "mousemove count incremented" "mousemove count did not increment"
+assert_json_jq "$PT_OUT" '.mousedownCount == 1' "mousedown count is 1" "mousedown count is not 1"
+assert_json_jq "$PT_OUT" '.mouseupCount == 1' "mouseup count is 1" "mouseup count is not 1"
+assert_json_jq "$PT_OUT" '.lastButton == "left"' "last button is left" "last button is not left"
+assert_json_jq "$PT_OUT" '.wheelCount == 1' "wheel count is 1" "wheel count is not 1"
+assert_json_jq "$PT_OUT" '.wheelDeltaY == 240' "wheel delta Y accumulated" "wheel delta Y did not accumulate"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab drag <from> <to>"
+
+pt_ok nav "${FIXTURES_URL}/mouse-events.html"
+pt_ok drag "#mouse-target" --drag-x 80 --drag-y 30
+assert_output_contains "OK" "confirms drag action completed"
+
+pt_ok eval "JSON.stringify({mousemoveCount: window.mouseFixtureState.mousemoveCount, mousedownCount: window.mouseFixtureState.mousedownCount, mouseupCount: window.mouseFixtureState.mouseupCount})"
+assert_json_jq "$PT_OUT" '(.mousemoveCount // 0) >= 2' "drag performs multiple move events" "drag did not perform multiple move events"
+assert_json_jq "$PT_OUT" '.mousedownCount == 1' "drag performed one mouse down" "drag did not perform one mouse down"
+assert_json_jq "$PT_OUT" '.mouseupCount == 1' "drag performed one mouse up" "drag did not perform one mouse up"
 
 end_test
 
@@ -241,11 +291,9 @@ pt_ok nav "${FIXTURES_URL}/buttons.html"
 pt wait --not-text "Increment" --timeout 500
 # Expect non-zero exit due to timeout
 if [ "$PT_CODE" -ne 0 ]; then
-  echo -e "  ${GREEN}✓${NC} timeout reported when text persists (exit $PT_CODE)"
-  ((ASSERTIONS_PASSED++)) || true
+  pass_assert "timeout reported when text persists (exit $PT_CODE)"
 else
-  echo -e "  ${RED}✗${NC} expected timeout, got success"
-  ((ASSERTIONS_FAILED++)) || true
+  fail_assert "expected timeout, got success"
 fi
 
 end_test

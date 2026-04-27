@@ -112,7 +112,6 @@ end_test
 start_test "pinchtab snap (buttons.html)"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_get /snapshot
 assert_buttons_page "$RESULT"
@@ -123,7 +122,6 @@ end_test
 start_test "pinchtab snap (form.html)"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 1
 
 pt_get /snapshot
 assert_form_page "$RESULT"
@@ -134,7 +132,6 @@ end_test
 start_test "pinchtab text (table.html)"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/table.html\"}"
-sleep 1
 
 TEXT_RESULT=$(e2e_curl -s "${E2E_SERVER}/text" | jq -r '.text')
 assert_table_page "$TEXT_RESULT"
@@ -145,7 +142,6 @@ end_test
 start_test "snapshot: diff mode"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_get /snapshot
 assert_ok "initial snapshot"
@@ -169,7 +165,6 @@ end_test
 start_test "snapshot: maxTokens truncation"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_get /snapshot
 FULL_COUNT=$(echo "$RESULT" | jq '.nodes | length')
@@ -192,7 +187,6 @@ end_test
 start_test "snapshot: depth parameter"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_get /snapshot
 FULL_COUNT=$(echo "$RESULT" | jq '.nodes | length')
@@ -313,7 +307,6 @@ assert_contains "$RESULT" "Form Test" "tab B text matches form.html"
 end_test
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/find.html\"}"
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab find (login button)"
@@ -355,7 +348,6 @@ start_test "pinchtab find --tab <id>"
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/find.html\",\"newTab\":true}"
 assert_ok "navigate for find"
 TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
-sleep 1
 
 pt_post "/tabs/${TAB_ID}/find" -d '{"query":"sign up link"}'
 assert_ok "tab find"
@@ -366,7 +358,6 @@ end_test
 start_test "pinchtab find (explain mode)"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/find.html\"}"
-sleep 1
 
 pt_post /find -d '{"query":"login button","explain":true}'
 assert_ok "find with explain"
@@ -409,7 +400,6 @@ fi
 end_test
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/evaluate.html\"}"
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "pinchtab evaluate (simple expression)"
@@ -464,7 +454,6 @@ start_test "pinchtab evaluate --tab <id>"
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/evaluate.html\",\"newTab\":true}"
 assert_ok "navigate for evaluate"
 TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
-sleep 1
 
 pt_post "/tabs/${TAB_ID}/evaluate" -d '{"expression":"1 + 2 + 3"}'
 assert_ok "tab evaluate"

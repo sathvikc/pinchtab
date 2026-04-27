@@ -10,7 +10,6 @@ source "${GROUP_DIR}/../../helpers/api-actions.sh"
 start_test "HTTP: dblclick by ref"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_get /snapshot
 REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment")][0].ref // empty')
@@ -24,7 +23,6 @@ end_test
 start_test "HTTP: dblclick by CSS selector"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_post /action -d "{\"kind\":\"dblclick\",\"selector\":\"#increment\"}"
 assert_ok "dblclick by selector"
@@ -35,83 +33,131 @@ end_test
 start_test "HTTP: dblclick by coordinates"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
 
 pt_post /action -d "{\"kind\":\"dblclick\",\"x\":100,\"y\":100,\"hasXY\":true}"
 assert_ok "dblclick by coordinates"
 
 end_test
 
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick <ref>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
-
-pt_get /snapshot
-REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment")][0].ref // empty')
-
-run_cli dblclick "$REF"
-assert_ok "CLI dblclick by ref"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick --css <selector>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
-
-run_cli dblclick --css "#increment"
-assert_ok "CLI dblclick by selector"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "CLI: pinchtab dblclick --tab <id>"
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\",\"newTab\":true}"
-assert_ok "navigate for new tab"
-TAB_ID=$(echo "$RESULT" | jq -r '.tabId')
-
-pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
-sleep 1
-
-pt_get /snapshot
-REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment")][0].ref // empty')
-
-run_cli dblclick "$REF" --tab "$TAB_ID"
-assert_ok "CLI dblclick with --tab flag"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
 start_test "HTTP: dblclick validation - missing ref/selector/coordinates"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 
 pt_post /action -d "{\"kind\":\"dblclick\"}"
-assert_error "dblclick without parameters should fail"
+assert_not_ok "dblclick without parameters should fail"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanClick: click input by ref"
+start_test "pinchtab hover (ref)"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
+assert_ok "navigate"
+
+pt_get /snapshot
+assert_ok "snapshot"
+REF=$(find_ref_by_role "button")
+assert_ref_found "$REF" "button ref"
+
+pt_post /action "{\"kind\":\"hover\",\"ref\":\"${REF}\"}"
+assert_ok "hover on button"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab low-level mouse actions"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
+assert_ok "navigate"
+
+pt_get "/snapshot?filter=interactive"
+assert_ok "snapshot"
+REF=$(find_ref_by_name "Mouse Target")
+assert_ref_found "$REF" "mouse target ref"
+
+pt_post /action "{\"kind\":\"mouse-move\",\"ref\":\"${REF}\"}"
+assert_ok "mouse-move on target"
+
+pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
+assert_ok "mouse-move by coordinates without hasXY"
+
+pt_post /action '{"kind":"mouse-down","button":"left"}'
+assert_ok "mouse-down at current pointer"
+
+pt_post /action '{"kind":"mouse-up","button":"left"}'
+assert_ok "mouse-up at current pointer"
+
+pt_post /action '{"kind":"mouse-wheel","deltaY":240}'
+assert_ok "mouse-wheel at current pointer"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousemoveCount"}'
+assert_ok "evaluate mousemove count"
+assert_result_jq '.result >= 2' "mousemove count incremented twice" "mousemove count did not increment twice"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mousedownCount"}'
+assert_ok "evaluate mousedown count"
+assert_json_eq "$RESULT" '.result' '1' "mousedown count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.mouseupCount"}'
+assert_ok "evaluate mouseup count"
+assert_json_eq "$RESULT" '.result' '1' "mouseup count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.lastButton"}'
+assert_ok "evaluate last button"
+assert_json_eq "$RESULT" '.result' 'left' "last button is left"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelCount"}'
+assert_ok "evaluate wheel count"
+assert_json_eq "$RESULT" '.result' '1' "wheel count is 1"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.wheelDeltaY"}'
+assert_ok "evaluate wheel delta"
+assert_json_eq "$RESULT" '.result' '240' "wheel delta Y accumulated"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab mouse current-pointer sequence"
+
+pt_post /navigate "{\"url\":\"${FIXTURES_URL}/mouse-events.html\"}"
+assert_ok "navigate"
+
+pt_post /action '{"kind":"mouse-move","x":160,"y":190}'
+assert_ok "prime pointer position"
+
+pt_post /action '{"kind":"mouse-down","button":"left"}'
+assert_ok "mouse-down without fresh target"
+
+pt_post /action '{"kind":"mouse-move","x":165,"y":195}'
+assert_ok "mouse-move while held"
+
+pt_post /action '{"kind":"mouse-up","button":"left"}'
+assert_ok "mouse-up without fresh target"
+
+pt_post /evaluate '{"expression":"window.mouseFixtureState.sequence.join(\",\")"}'
+assert_ok "evaluate pointer sequence"
+assert_json_contains "$RESULT" '.result' 'mousedown' "sequence includes mousedown"
+assert_json_contains "$RESULT" '.result' 'mouseup' "sequence includes mouseup"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "click with humanize: click input by ref"
 
 navigate_fixture "human-type.html"
 fresh_snapshot
 
 require_ref "textbox" "Email" EMAIL_REF && \
-  action_human_click "$EMAIL_REF"
+  action_click_humanized "$EMAIL_REF"
 
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type into input by ref"
+start_test "type with humanize: type into input by ref"
 
 fresh_snapshot
 require_ref "textbox" "Email" EMAIL_REF && {
-  action_human_type "$EMAIL_REF" "test@example.com"
+  action_type_humanized "$EMAIL_REF" "test@example.com"
 
   fresh_snapshot
   assert_value "textbox" "Email" "test@example.com"
@@ -120,11 +166,11 @@ require_ref "textbox" "Email" EMAIL_REF && {
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type into second input by ref"
+start_test "type with humanize: type into second input by ref"
 
 fresh_snapshot
 require_ref "textbox" "Name" NAME_REF && {
-  action_human_type "$NAME_REF" "John Doe"
+  action_type_humanized "$NAME_REF" "John Doe"
 
   fresh_snapshot
   assert_value "textbox" "Name" "John Doe"
@@ -133,9 +179,9 @@ require_ref "textbox" "Name" NAME_REF && {
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "humanType: type with CSS selector"
+start_test "type with humanize: type with CSS selector"
 
-action_human_type_selector "#name" " Jr."
+action_type_humanized_selector "#name" " Jr."
 
 end_test
 
@@ -313,7 +359,6 @@ end_test
 start_test "iframe: srcdoc frame-scoped selectors work"
 
 navigate_fixture "srcdoc-iframe.html"
-sleep 1
 fresh_snapshot
 
 pt_post /frame -d '{"target":"#srcdoc-payment-frame"}'
@@ -382,7 +427,6 @@ end_test
 start_test "iframe: cross-origin selector scope is not claimed as supported"
 
 navigate_fixture "cross-origin-iframe.html"
-sleep 1
 fresh_snapshot
 
 pt_post /frame -d '{"target":"#cross-origin-frame"}'
@@ -409,7 +453,6 @@ E2E_SERVER="http://pinchtab:9999"
 start_test "press Enter: does not type 'Enter' as text"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 1
 
 pt_post /action -d '{"kind":"type","selector":"#username","text":"testuser"}'
 assert_ok "type into username"
@@ -425,7 +468,6 @@ end_test
 start_test "press Tab: does not type 'Tab' as text"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 1
 
 pt_post /action -d '{"kind":"click","selector":"#username"}'
 pt_post /action -d '{"kind":"type","selector":"#username","text":"hello"}'
@@ -442,7 +484,6 @@ end_test
 start_test "press Escape: does not type 'Escape' as text"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 1
 
 pt_post /action -d '{"kind":"type","selector":"#username","text":"world"}'
 assert_ok "type world"
@@ -540,7 +581,6 @@ start_test "POST /dialog: no pending dialog"
 # Navigate to a page that has no dialog
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate"
-sleep 0.5
 
 # Try to accept a dialog when none is pending
 pt_post /dialog '{"action":"accept"}'
@@ -593,7 +633,6 @@ start_test "click alert without dialogAction: fast-fail with dialog_blocking err
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 ALERT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Alert")][0].ref // empty')
@@ -624,7 +663,6 @@ start_test "click alert with dialogAction accept: dialog dismissed"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 ALERT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Alert")][0].ref // empty')
@@ -644,7 +682,6 @@ start_test "click confirm with dialogAction dismiss: confirm cancelled"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 CONFIRM_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Confirm")][0].ref // empty')
@@ -664,7 +701,6 @@ start_test "click confirm with dialogAction accept: confirm accepted"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 CONFIRM_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Confirm")][0].ref // empty')
@@ -684,7 +720,6 @@ start_test "click prompt with dialogAction accept and text: prompt value returne
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 PROMPT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Prompt")][0].ref // empty')
@@ -704,7 +739,6 @@ start_test "click prompt with dialogAction dismiss: prompt cancelled"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons"
-sleep 0.5
 
 pt_get /snapshot
 PROMPT_REF=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Trigger Prompt")][0].ref // empty')

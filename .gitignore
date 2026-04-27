@@ -52,5 +52,5 @@ pinchtab-small
 pinchtab.exe
 plugins/*/.venv/
 tests/e2e/results/*
-runner
+/runner
 skills/agent-browser

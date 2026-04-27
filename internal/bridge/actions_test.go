@@ -277,6 +277,145 @@ func TestActionRequestUnmarshal_UsesCanonicalMouseFields(t *testing.T) {
 	}
 }
 
+func boolPtr(v bool) *bool {
+	return &v
+}
+
+func TestEffectiveHumanizePrecedence(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     *config.RuntimeConfig
+		req        ActionRequest
+		want       bool
+		justifying string
+	}{
+		{
+			name:       "default false",
+			config:     &config.RuntimeConfig{},
+			want:       false,
+			justifying: "raw input remains the fast default",
+		},
+		{
+			name:       "config true",
+			config:     &config.RuntimeConfig{Humanize: true},
+			want:       true,
+			justifying: "instance default opt-in enables humanized input",
+		},
+		{
+			name:       "request true overrides config false",
+			config:     &config.RuntimeConfig{Humanize: false},
+			req:        ActionRequest{Humanize: boolPtr(true)},
+			want:       true,
+			justifying: "per-request override can opt in",
+		},
+		{
+			name:       "request false overrides config true",
+			config:     &config.RuntimeConfig{Humanize: true},
+			req:        ActionRequest{Humanize: boolPtr(false)},
+			want:       false,
+			justifying: "per-request override can force raw input",
+		},
+		{
+			name:       "nil bridge config defaults false",
+			config:     nil,
+			want:       false,
+			justifying: "nil config stays safe and fast",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b := &Bridge{Config: tc.config}
+			if got := b.effectiveHumanize(tc.req); got != tc.want {
+				t.Fatalf("effectiveHumanize = %v, want %v (%s)", got, tc.want, tc.justifying)
+			}
+		})
+	}
+}
+
+func TestRemovedHumanActionKindsAreUnknown(t *testing.T) {
+	b := New(context.TODO(), nil, &config.RuntimeConfig{})
+
+	for _, kind := range []string{"humanClick", "humanType"} {
+		t.Run(kind, func(t *testing.T) {
+			_, err := b.ExecuteAction(context.Background(), kind, ActionRequest{Kind: kind, Text: "hi"})
+			if err == nil {
+				t.Fatalf("expected %s to be rejected", kind)
+			}
+			if !strings.Contains(err.Error(), "unknown action") {
+				t.Fatalf("expected unknown action error for %s, got: %v", kind, err)
+			}
+		})
+	}
+}
+
+func TestClickAction_HumanizeOptInUsesHumanizedPath(t *testing.T) {
+	raw := New(context.TODO(), nil, &config.RuntimeConfig{Humanize: true})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := raw.Actions[ActionClick](ctx, ActionRequest{
+		Kind:     ActionClick,
+		Humanize: boolPtr(false),
+		HasXY:    true,
+		X:        10,
+		Y:        20,
+	})
+	if err == nil {
+		t.Fatal("expected cancelled raw coordinate click to fail")
+	}
+	if strings.Contains(err.Error(), "need selector") {
+		t.Fatalf("humanize=false should force raw click coordinate path, got: %v", err)
+	}
+
+	humanized := New(context.TODO(), nil, &config.RuntimeConfig{})
+	_, err = humanized.Actions[ActionClick](context.Background(), ActionRequest{
+		Kind:     ActionClick,
+		Humanize: boolPtr(true),
+		HasXY:    true,
+		X:        10,
+		Y:        20,
+	})
+	if err == nil {
+		t.Fatal("expected humanized coordinate-only click to fail")
+	}
+	if !strings.Contains(err.Error(), "need selector") {
+		t.Fatalf("humanized click should require selector/ref/nodeId, got: %v", err)
+	}
+}
+
+func TestTypeAction_HumanizeOptInUsesHumanizedPath(t *testing.T) {
+	raw := New(context.TODO(), nil, &config.RuntimeConfig{Humanize: true})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := raw.Actions[ActionType](ctx, ActionRequest{
+		Kind:     ActionType,
+		Selector: "#name",
+		Text:     "hi",
+		Humanize: boolPtr(false),
+	})
+	if err == nil {
+		t.Fatal("expected cancelled raw type to fail")
+	}
+	if strings.Contains(err.Error(), "need selector") {
+		t.Fatalf("humanize=false should force raw type path, got: %v", err)
+	}
+
+	humanized := New(context.TODO(), nil, &config.RuntimeConfig{})
+	_, err = humanized.Actions[ActionType](context.Background(), ActionRequest{
+		Kind:     ActionType,
+		Text:     "hi",
+		Humanize: boolPtr(true),
+	})
+	if err == nil {
+		t.Fatal("expected humanized targetless type to fail")
+	}
+	if !strings.Contains(err.Error(), "need selector, ref, or nodeId") {
+		t.Fatalf("humanized type should require selector/ref/nodeId, got: %v", err)
+	}
+}
+
 func TestScrollAction_UsesCoordinateWheelPath(t *testing.T) {
 	b := New(context.TODO(), nil, &config.RuntimeConfig{})
 

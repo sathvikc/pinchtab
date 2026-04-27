@@ -230,8 +230,7 @@ curl http://localhost:9867/health
 ### Try CLI
 
 ```bash
-./pinchtab quick https://pinchtab.com
-./pinchtab nav https://pinchtab.com
+./pinchtab nav https://pinchtab.com --snap
 ./pinchtab snap
 ```
 
@@ -246,9 +245,10 @@ go test ./...                              # Unit tests only
 go test ./... -v                           # Verbose
 go test ./... -v -coverprofile=coverage.out
 go tool cover -html=coverage.out           # View coverage
-./dev e2e                                 # Run the default E2E release suite
-./dev e2e docker                          # Build the local image and run Docker smoke
-./dev e2e pr                              # Run API + CLI + Infra basic tests
+./dev e2e                                 # Run the default extended E2E suite
+./dev e2e basic                           # Run API + CLI + Infra basic tests
+./dev e2e smoke                           # Run smoke scenarios + host Docker smoke checks
+./dev e2e smoke-docker                    # Run host Docker smoke checks only
 ./dev e2e api                             # Run API basic tests
 ./dev e2e cli                             # Run CLI basic tests
 ./dev e2e infra                           # Run Infra basic tests
@@ -283,16 +283,16 @@ All dev scripts are accessible through `./dev`:
 | `test` | Run all tests |
 | `test unit` | Unit tests only |
 | `test dashboard` | Dashboard tests only |
-| `e2e` | Run the default E2E release suite (all extended tests) |
-| `e2e docker` | Build the local image and run the Docker smoke test |
-| `e2e pr` | Run the PR E2E suite (`api` + `cli` + `infra` basic tests) |
+| `e2e` | Run the default extended E2E suite |
+| `e2e basic` | Run the PR E2E suite (`api` + `cli` + `infra` basic tests) |
+| `e2e smoke` | Run smoke scenarios plus host Docker smoke checks |
+| `e2e smoke-docker` | Run only host Docker smoke checks |
 | `e2e api` | Run API basic tests |
 | `e2e cli` | Run CLI basic tests |
 | `e2e infra` | Run Infra basic tests |
 | `e2e api-extended` | Run API extended tests (multi-instance) |
 | `e2e cli-extended` | Run CLI extended tests |
 | `e2e infra-extended` | Run Infra extended tests (multi-instance) |
-| `e2e release` | Run the release E2E meta-suite (all extended) |
 | `build` | Build the application |
 | `dev` | Build and run the application |
 | `run` | Run the application |
@@ -374,7 +374,7 @@ Run automatically on pull requests and/or push to `main`:
 | **CI / Dashboard** | PR + push (dashboard paths) | TypeScript, ESLint, Prettier, tests, build |
 | **CI / Docs** | PR + push (docs paths) | docs.json reference validation |
 | **CI / npm** | PR (npm paths) + tag push | npm package verification |
-| **CI / E2E** | PR (fast suites) + manual (full suites) | Docker-based end-to-end tests |
+| **CI / E2E** | PR basic suites + manual extended/smoke suites | Docker-based end-to-end tests |
 | **CI / Branch Naming** | PR | Branch name convention enforcement |
 
 ### Release Pipeline
@@ -384,7 +384,7 @@ Run automatically on pull requests and/or push to `main`:
 | **Release** | Manual | Runs all checks + E2E → manual approval gate → creates tag → publishes binaries, npm, Docker, and skill |
 | **Release / Manual Publish** | Manual | Publishes an existing tag as a recovery path |
 
-In **Release**, E2E and Docker smoke failures are non-blocking — they surface
+In **Release**, E2E and smoke failures are non-blocking — they surface
 in the approval summary so you can decide whether to proceed. Core checks (Go, Dashboard,
 Docs, npm, publish dry-run) must pass for the approval gate to appear.
 

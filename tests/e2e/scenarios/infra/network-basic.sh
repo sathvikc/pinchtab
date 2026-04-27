@@ -10,7 +10,6 @@ start_test "GET /network: returns entries after navigation"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 TAB_ID=$(get_tab_id)
-sleep 1
 
 pt_get "/network?tabId=${TAB_ID}"
 assert_ok "get network entries"
@@ -86,7 +85,6 @@ start_test "GET /network/export: basic HAR export works"
 
 # Generate fresh traffic
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/index.html\"}"
-sleep 1
 
 pt_get "/network/export?tabId=${TAB_ID}"
 assert_ok "basic HAR export"

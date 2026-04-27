@@ -11,6 +11,9 @@ func (b *Bridge) actionType(ctx context.Context, req ActionRequest) (map[string]
 	if req.Text == "" {
 		return nil, fmt.Errorf("text required for type")
 	}
+	if b.effectiveHumanize(req) {
+		return b.actionHumanizedType(ctx, req)
+	}
 	if req.Selector != "" {
 		return map[string]any{"typed": req.Text}, chromedp.Run(ctx,
 			chromedp.Click(req.Selector, chromedp.ByQuery),
@@ -47,9 +50,9 @@ func (b *Bridge) actionPress(ctx context.Context, req ActionRequest) (map[string
 	return map[string]any{"pressed": req.Key}, DispatchNamedKey(ctx, req.Key)
 }
 
-func (b *Bridge) actionHumanType(ctx context.Context, req ActionRequest) (map[string]any, error) {
+func (b *Bridge) actionHumanizedType(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	if req.Text == "" {
-		return nil, fmt.Errorf("text required for humanType")
+		return nil, fmt.Errorf("text required for type")
 	}
 
 	if req.Selector != "" {
@@ -57,7 +60,7 @@ func (b *Bridge) actionHumanType(ctx context.Context, req ActionRequest) (map[st
 			return nil, err
 		}
 	} else if req.NodeID > 0 {
-		// req.NodeID is a BackendNodeID from the accessibility tree (same as humanClick).
+		// req.NodeID is a BackendNodeID from the accessibility tree.
 		// Must use DOM.focus with backendNodeId, not dom.Focus().WithNodeID() which
 		// expects a DOM NodeID — a different ID space. Using the wrong type causes
 		// "Could not find node with given id (-32000)". See issue #226.
@@ -84,6 +87,11 @@ const keyboardTypeThreshold = 20
 func (b *Bridge) actionKeyboardType(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	if req.Text == "" {
 		return nil, fmt.Errorf("text required for keyboard-type")
+	}
+
+	// Promote to the humanized typing path when humanize=true was opted into.
+	if b.effectiveHumanize(req) {
+		return b.actionHumanizedType(ctx, req)
 	}
 
 	// For long strings, use insertText to avoid timeout (issue #413).

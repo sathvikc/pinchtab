@@ -10,11 +10,9 @@ assert_json_eq() {
   actual=$(echo "$json" | jq -r "$path")
 
   if [ "$actual" = "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got: $actual)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got: $actual)"
   fi
 }
 
@@ -35,11 +33,9 @@ assert_json_contains() {
   actual=$(echo "$json" | jq -r "$path")
 
   if [[ "$actual" == *"$needle"* ]]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got: $actual)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got: $actual)"
   fi
 }
 
@@ -52,11 +48,9 @@ assert_json_length() {
   actual=$(echo "$json" | jq "$path | length")
 
   if [ "$actual" -eq "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got: $actual)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got: $actual)"
   fi
 }
 
@@ -69,11 +63,9 @@ assert_json_length_gte() {
   actual=$(echo "$json" | jq "$path | length")
 
   if [ "$actual" -ge "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got: $actual)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got: $actual)"
   fi
 }
 
@@ -83,11 +75,9 @@ assert_json_exists() {
   local desc="${3:-$path exists}"
 
   if echo "$json" | jq -e "$path" >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (field missing or null)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (field missing or null)"
   fi
 }
 
@@ -97,11 +87,9 @@ assert_json_not_exists() {
   local desc="${3:-$path does not exist}"
 
   if echo "$json" | jq -e "$path" >/dev/null 2>&1; then
-    echo -e "  ${RED}✗${NC} $desc (unexpected field found)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (unexpected field found)"
   else
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   fi
 }
 
@@ -111,11 +99,9 @@ assert_contains() {
   local desc="${3:-contains '$needle'}"
 
   if echo "$haystack" | grep -q "$needle"; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (not found)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (not found)"
   fi
 }
 
@@ -125,11 +111,9 @@ assert_not_contains() {
   local desc="${3:-does not contain '$needle'}"
 
   if echo "$haystack" | grep -q "$needle"; then
-    echo -e "  ${RED}✗${NC} $desc (found when should be absent)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (found when should be absent)"
   else
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   fi
 }
 
@@ -179,13 +163,11 @@ assert_input_not_contains() {
   value=$(echo "$RESULT" | jq -r '.result // empty')
 
   if echo "$value" | grep -qi "$forbidden"; then
-    echo -e "  ${RED}✗${NC} $desc: found '$forbidden' in value '$value'"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc: found '$forbidden' in value '$value'"
     return 1
   fi
 
-  echo -e "  ${GREEN}✓${NC} $desc (value: '$value')"
-  ((ASSERTIONS_PASSED++)) || true
+  pass_assert "$desc (value: '$value')"
   return 0
 }
 
@@ -197,11 +179,9 @@ assert_http_error() {
   actual_status=$(echo "$RESULT" | jq -r '.status // empty')
 
   if [ "$actual_status" = "$expected_status" ] || grep -q "$error_pattern" <<< "$RESULT"; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${YELLOW}~${NC} $desc (got: $actual_status)"
-    ((ASSERTIONS_PASSED++)) || true
+    soft_pass_assert "$desc (got: $actual_status)"
   fi
 }
 
@@ -211,11 +191,9 @@ assert_contains_any() {
   local desc="${3:-contains expected pattern}"
 
   if echo "$haystack" | grep -qE "$patterns"; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${YELLOW}~${NC} $desc (not found)"
-    ((ASSERTIONS_PASSED++)) || true
+    soft_pass_assert "$desc (not found)"
   fi
 }
 
@@ -231,11 +209,9 @@ assert_buttons_page() {
   done
 
   if [ "$found" -ge 3 ]; then
-    echo -e "  ${GREEN}✓${NC} buttons.html: found $found/3 expected buttons"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "buttons.html: found $found/3 expected buttons"
   else
-    echo -e "  ${RED}✗${NC} buttons.html: found only $found/3 expected buttons"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "buttons.html: found only $found/3 expected buttons"
   fi
 }
 
@@ -249,11 +225,9 @@ assert_form_page() {
   echo "$snap" | jq -e '.nodes[] | select(.role == "combobox")' > /dev/null 2>&1 && ((checks++))
 
   if [ "$checks" -ge 3 ]; then
-    echo -e "  ${GREEN}✓${NC} form.html: found expected form elements"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "form.html: found expected form elements"
   else
-    echo -e "  ${RED}✗${NC} form.html: missing expected form elements ($checks/3)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "form.html: missing expected form elements ($checks/3)"
   fi
 }
 
@@ -266,11 +240,9 @@ assert_table_page() {
   echo "$text" | grep -q "Active" && ((checks++))
 
   if [ "$checks" -ge 3 ]; then
-    echo -e "  ${GREEN}✓${NC} table.html: found expected table data"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "table.html: found expected table data"
   else
-    echo -e "  ${RED}✗${NC} table.html: missing expected data ($checks/3)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "table.html: missing expected data ($checks/3)"
   fi
 }
 
@@ -278,42 +250,8 @@ assert_index_page() {
   local snap="$1"
 
   if echo "$snap" | jq -e '.title' | grep -q "E2E Test"; then
-    echo -e "  ${GREEN}✓${NC} index.html: correct title"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "index.html: correct title"
   else
-    echo -e "  ${RED}✗${NC} index.html: wrong title"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "index.html: wrong title"
   fi
-}
-
-generate_markdown_report() {
-  local total=$((TESTS_PASSED + TESTS_FAILED))
-  local total_time=0
-
-  echo "## 🦀 PinchTab E2E Test Report"
-  echo ""
-  if [ "$TESTS_FAILED" -eq 0 ]; then
-    echo "**Status:** ✅ All tests passed"
-  else
-    echo "**Status:** ❌ ${TESTS_FAILED} test(s) failed"
-  fi
-  echo ""
-  echo "| Test | Duration | Status |"
-  echo "|------|----------|--------|"
-
-  for result in "${TEST_RESULTS[@]}"; do
-    IFS='|' read -r name duration status <<< "$result"
-    local time_num=${duration%ms}
-    ((total_time += time_num)) || true
-    local icon="✅"
-    [ "$status" = "failed" ] && icon="❌"
-    local clean_name="${name#✅ }"
-    clean_name="${clean_name#❌ }"
-    echo "| ${clean_name} | ${duration} | ${icon} |"
-  done
-
-  echo ""
-  echo "**Summary:** ${TESTS_PASSED}/${total} passed in ${total_time}ms"
-  echo ""
-  echo "<sub>Generated at $(date -u +%Y-%m-%dT%H:%M:%SZ)</sub>"
 }

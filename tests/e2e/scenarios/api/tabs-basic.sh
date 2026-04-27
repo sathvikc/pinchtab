@@ -41,7 +41,6 @@ AFTER_CREATE=$(get_tab_count)
 pt_post "/tabs/${TAB_ID}/close" -d '{}'
 assert_ok "tab close"
 
-sleep 1
 assert_tab_closed "$AFTER_CREATE"
 
 end_test
@@ -57,7 +56,6 @@ pt_post /close -d "{\"tabId\":\"${TAB_ID}\"}"
 assert_ok "shorthand close"
 assert_json_contains "$RESULT" ".tabId" "$TAB_ID" "close response contains tabId"
 
-sleep 1
 assert_tab_closed "$AFTER_CREATE"
 
 end_test

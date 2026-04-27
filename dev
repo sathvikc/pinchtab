@@ -26,13 +26,14 @@ COMMANDS=(
   "test dashboard:🔬:Dashboard unit tests"
   "test plugin:🔬:Plugin unit tests"
   "e2e:🐳:E2E suites"
-  "  pr:🐳:PR suite (api + cli + infra)"
-  "  release:🐳:Release suite (all extended)"
-  "  docker:🐳:Build local image and run Docker smoke test"
+  "  basic:🐳:Basic suite (api + cli + infra)"
+  "  extended:🐳:Extended suite (all extended)"
+  "  smoke:🐳:Smoke suite"
+  "  smoke-docker:🐳:Host Docker smoke checks only"
   "  api:🐳:API basic tests"
   "  cli:🐳:CLI basic tests"
   "  infra:🐳:Infra basic tests"
-  "  plugin:🐳:Plugin smoke tests"
+  "  plugin:🐳:Plugin tests"
   "  api-extended:🐳:API extended (multi-instance)"
   "  cli-extended:🐳:CLI extended tests"
   "  infra-extended:🐳:Infra extended (multi-instance)"
@@ -72,6 +73,71 @@ show_help() {
   echo ""
   echo "  ${MUTED}Usage: dev [command] [sub]${NC}"
   echo ""
+}
+
+run_e2e_runner() {
+  local suite="extended"
+  local filter_seen=0
+  local -a runner_args=()
+
+  if [ "$#" -gt 0 ] && [[ "${1:-}" != --* && "${1:-}" != *=* ]]; then
+    suite="$1"
+    shift
+  fi
+
+  runner_args=(--suite "$suite")
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      filter=*)
+        runner_args+=(--filter "${1#filter=}")
+        filter_seen=1
+        ;;
+      test=*)
+        runner_args+=(--test "${1#test=}")
+        ;;
+      extra=*)
+        runner_args+=(--extra "${1#extra=}")
+        ;;
+      logs=*)
+        runner_args+=(--logs "${1#logs=}")
+        ;;
+      --suite|--filter|--test|--extra|--logs)
+        if [ "$#" -lt 2 ]; then
+          echo "  ${ERROR}Missing value for $1${NC}" >&2
+          exit 1
+        fi
+        local opt="$1"
+        local value="$2"
+        shift
+        runner_args+=("$opt" "$value")
+        [ "$opt" = "--filter" ] && filter_seen=1
+        ;;
+      --suite=*|--filter=*|--test=*|--extra=*|--logs=*)
+        local opt="${1%%=*}"
+        local value="${1#*=}"
+        runner_args+=("$opt" "$value")
+        [ "$opt" = "--filter" ] && filter_seen=1
+        ;;
+      --dry-run|--help|-h)
+        runner_args+=("$1")
+        ;;
+      --*)
+        runner_args+=("$1")
+        ;;
+      *)
+        if [ "$filter_seen" -ne 0 ]; then
+          echo "  ${ERROR}Unexpected extra e2e argument: $1${NC}" >&2
+          exit 1
+        fi
+        runner_args+=(--filter "$1")
+        filter_seen=1
+        ;;
+    esac
+    shift
+  done
+
+  exec env E2E_LOGS="${E2E_LOGS:-hide}" go run ./tests/tools/runner e2e "${runner_args[@]}"
 }
 
 run_command() {
@@ -163,26 +229,6 @@ run_command() {
       echo ""
       exec bash scripts/test.sh system
       ;;
-    "e2e docker")
-      local platform="${DOCKER_DEFAULT_PLATFORM:-}"
-      if [ -z "$platform" ]; then
-        platform="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')"
-      fi
-      echo "  ${ACCENT}${BOLD}🏗️ Build local Docker image${NC}"
-      echo ""
-      echo "  ${MUTED}platform: ${platform}${NC}"
-      docker buildx build --load --platform "$platform" -t pinchtab-local:test .
-      echo ""
-      echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
-      echo ""
-      exec bash scripts/docker-smoke.sh pinchtab-local:test
-      ;;
-    "e2e docker "*)
-      local image="${target#e2e docker }"
-      echo "  ${ACCENT}${BOLD}💨 Docker smoke test${NC}"
-      echo ""
-      exec bash scripts/docker-smoke.sh "$image"
-      ;;
     "opt")
       echo "  ${ACCENT}${BOLD}⚡ Optimization${NC}"
       echo ""
@@ -216,19 +262,11 @@ run_command() {
       exec env E2E_LOGS="${E2E_LOGS:-show}" bash scripts/dev-e2e.sh "$test_name"
       ;;
     "e2e"*)
-      local suite="release"
-      local filter=""
+      local -a e2e_args=()
       if [ "$target" != "e2e" ]; then
-        local e2e_args="${target#e2e }"
-        suite="${e2e_args%% *}"
-        if [ "$suite" != "$e2e_args" ]; then
-          filter="${e2e_args#"$suite "}"
-        fi
+        read -r -a e2e_args <<< "${target#e2e }"
       fi
-      if [ -n "$filter" ]; then
-        exec env E2E_LOGS="${E2E_LOGS:-hide}" bash scripts/e2e.sh "$suite" "$filter"
-      fi
-      exec env E2E_LOGS="${E2E_LOGS:-hide}" bash scripts/e2e.sh "$suite"
+      run_e2e_runner "${e2e_args[@]}"
       ;;
     "dev")          exec bash scripts/dev.sh ;;
     "dashboard")    exec bash scripts/dev-dashboard.sh ;;
@@ -360,10 +398,7 @@ if [ $# -gt 0 ]; then
         echo ""
         exec env E2E_LOGS="${E2E_LOGS:-show}" bash scripts/dev-e2e.sh "$3"
       fi
-      if [ $# -eq 1 ] || [[ "${2:-}" == *=* ]]; then
-        exec env E2E_LOGS="${E2E_LOGS:-hide}" bash scripts/e2e.sh release "${@:2}"
-      fi
-      exec env E2E_LOGS="${E2E_LOGS:-hide}" bash scripts/e2e.sh "${@:2}"
+      run_e2e_runner "${@:2}"
       ;;
     binary)
       if [ $# -gt 1 ]; then

@@ -8,7 +8,6 @@ source "${GROUP_DIR}/../../helpers/api.sh"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 assert_ok "navigate"
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "stealth: status endpoint available"
@@ -112,7 +111,6 @@ assert_eval_poll "window.innerHeight === ${ROTATE_HEIGHT}" "true" "rotated tab v
 
 pt_post "/tabs/${TAB_ID}/navigate" "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 assert_ok "navigate rotated tab"
-sleep 1
 
 assert_eval_poll "navigator.userAgent === $(jq -Rn --arg v "$ROTATE_USER_AGENT" '$v')" "true" "rotated userAgent persists across navigation" 8 0.3 "$TAB_ID"
 assert_eval_poll "navigator.platform === $(jq -Rn --arg v "$ROTATE_PLATFORM" '$v')" "true" "rotated platform persists across navigation" 8 0.3 "$TAB_ID"
@@ -123,13 +121,12 @@ assert_eval_poll "window.innerHeight === ${ROTATE_HEIGHT}" "true" "rotated viewp
 end_test
 
 # Tests the core stealth invariants from GitHub issue #275.
-# This is the API fast-suite bot scenario.
+# This is the basic-suite bot scenario.
 
 start_test "bot-detect: navigate to test page"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/bot-detect.html\"}"
 assert_ok "navigate to bot-detect fixture"
-sleep 1
 
 end_test
 
@@ -231,7 +228,6 @@ start_test "stealth-capabilities: navigate to capability fixture"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-capabilities.html\"}"
 assert_ok "navigate to stealth-capabilities fixture"
-sleep 1
 
 end_test
 
@@ -337,7 +333,6 @@ start_test "stealth-devtools-probe: navigate to local probe fixture"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-devtools-probe.html\"}"
 assert_ok "navigate to devtools probe fixture"
-sleep 2
 
 end_test
 
@@ -365,7 +360,6 @@ start_test "stealth-workers: navigate to worker parity fixture"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-workers.html\"}"
 assert_ok "navigate to stealth-workers fixture"
-sleep 1
 
 end_test
 

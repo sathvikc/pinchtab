@@ -114,6 +114,10 @@ pinchtab tab close 8f9c7d4e1234...     # close tab
 
 Numeric arguments are resolved as 1-based indices against `GET /tabs`. Non-numeric arguments are treated as tab IDs.
 
+Focusing, creating, navigating, or otherwise accessing a tracked tab marks it as the current tab. Unscoped commands use that current tab; if the recorded current tab has gone stale, PinchTab falls back to the most recently used tracked tab.
+
+Top-level navigation is intentionally different from unscoped reads/actions: `pinchtab nav <url>` opens a new tab unless you pass `--tab <id>`. This keeps new navigations from replacing an existing work surface by accident.
+
 ## Operate On An Existing Tab
 
 Use the tab-scoped HTTP route or the top-level CLI command with `--tab`.

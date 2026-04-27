@@ -9,8 +9,6 @@ source "${HELPERS_DIR}/base.sh"
 rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/pinchtab/current-tab" 2>/dev/null || true
 rm -f /tmp/pinchtab-current-tab 2>/dev/null || true
 
-E2E_SUMMARY_TITLE="CLI E2E Test Summary"
-E2E_SUMMARY_FILE="summary.txt"
 E2E_REF_JSON_VAR="PT_OUT"
 
 pt() {
@@ -57,37 +55,31 @@ assert_cli_ok() {
   local code="${PT_CODE:-127}"
 
   if [ "$code" -eq 0 ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (exit $code)"
+    fail_assert "$desc (exit $code)"
     if [ -n "${PT_ERR:-}" ]; then
       echo -e "  ${RED}stderr: ${PT_ERR}${NC}"
     fi
-    ((ASSERTIONS_FAILED++)) || true
   fi
 }
 
 pt_ok() {
   pt "$@"
   if [ "$PT_CODE" -eq 0 ]; then
-    echo -e "  ${GREEN}✓${NC} exit 0"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "exit 0"
   else
-    echo -e "  ${RED}✗${NC} expected exit 0, got $PT_CODE"
+    fail_assert "expected exit 0, got $PT_CODE"
     echo -e "  ${RED}stderr: $PT_ERR${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   fi
 }
 
 pt_fail() {
   pt "$@"
   if [ "$PT_CODE" -ne 0 ]; then
-    echo -e "  ${GREEN}✓${NC} exit $PT_CODE (expected failure)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "exit $PT_CODE (expected failure)"
   else
-    echo -e "  ${RED}✗${NC} expected non-zero exit, got 0"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "expected non-zero exit, got 0"
   fi
 }
 
@@ -96,12 +88,10 @@ assert_output_contains() {
   local desc="${2:-output contains '$expected'}"
 
   if echo "$PT_OUT" | grep -q "$expected"; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc"
+    fail_assert "$desc"
     echo -e "  ${RED}  output was: $PT_OUT${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   fi
 }
 
@@ -109,11 +99,9 @@ assert_exit_code() {
   local expected="$1"
   local desc="${2:-exit code is $expected}"
   if [ "$PT_CODE" -eq "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc (exit $PT_CODE)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc (exit $PT_CODE)"
   else
-    echo -e "  ${RED}✗${NC} $desc (expected $expected, got $PT_CODE)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (expected $expected, got $PT_CODE)"
   fi
 }
 
@@ -121,11 +109,9 @@ assert_exit_code_lte() {
   local max="$1"
   local desc="${2:-exit code <= $max}"
   if [ "$PT_CODE" -le "$max" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc (exit $PT_CODE)"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc (exit $PT_CODE)"
   else
-    echo -e "  ${RED}✗${NC} $desc (got $PT_CODE)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got $PT_CODE)"
   fi
 }
 
@@ -136,11 +122,9 @@ assert_json_field_contains() {
   local actual
   actual=$(echo "$PT_OUT" | safe_jq -r "$path" 2>/dev/null)
   if [[ "$actual" == *"$needle"* ]]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got '$actual')"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got '$actual')"
   fi
 }
 
@@ -148,11 +132,9 @@ assert_file_exists() {
   local path="$1"
   local desc="${2:-file exists: $path}"
   if [ -f "$path" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (not found)"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (not found)"
   fi
 }
 
@@ -169,11 +151,9 @@ assert_config_version() {
   actual=$(config_version_of "$path")
 
   if [ "$actual" = "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $success_desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$success_desc"
   else
-    echo -e "  ${RED}✗${NC} expected configVersion $expected, got $actual"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "expected configVersion $expected, got $actual"
   fi
 }
 
@@ -188,14 +168,12 @@ assert_config_version_one_of() {
     local success_desc="$2"
     shift 2
     if [ "$actual" = "$expected" ]; then
-      echo -e "  ${GREEN}✓${NC} $success_desc"
-      ((ASSERTIONS_PASSED++)) || true
+      pass_assert "$success_desc"
       return 0
     fi
   done
 
-  echo -e "  ${RED}✗${NC} unexpected configVersion: $actual"
-  ((ASSERTIONS_FAILED++)) || true
+  fail_assert "unexpected configVersion: $actual"
   return 1
 }
 
@@ -207,12 +185,10 @@ assert_tab_id() {
   local trimmed
   trimmed=$(echo "$PT_OUT" | tr -d '[:space:]')
   if [[ "$trimmed" =~ ^[A-Fa-f0-9]{16,64}$ ]]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc"
+    fail_assert "$desc"
     echo -e "  ${RED}  output was: $PT_OUT${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   fi
 }
 
@@ -221,12 +197,10 @@ assert_output_not_contains() {
   local desc="${2:-output does not contain '$forbidden'}"
 
   if echo "$PT_OUT" | grep -q "$forbidden"; then
-    echo -e "  ${RED}✗${NC} $desc"
+    fail_assert "$desc"
     echo -e "  ${RED}  output was: $PT_OUT${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   else
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   fi
 }
 
@@ -234,12 +208,10 @@ assert_output_json() {
   local desc="${1:-output is valid JSON}"
 
   if echo "$PT_OUT" | safe_jq . >/dev/null 2>&1; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc"
+    fail_assert "$desc"
     echo -e "  ${RED}  output was: $PT_OUT${NC}"
-    ((ASSERTIONS_FAILED++)) || true
   fi
 }
 
@@ -251,11 +223,9 @@ assert_json_field() {
   actual=$(echo "$PT_OUT" | safe_jq -r "$path" 2>/dev/null)
 
   if [ "$actual" = "$expected" ]; then
-    echo -e "  ${GREEN}✓${NC} $desc"
-    ((ASSERTIONS_PASSED++)) || true
+    pass_assert "$desc"
   else
-    echo -e "  ${RED}✗${NC} $desc (got '$actual')"
-    ((ASSERTIONS_FAILED++)) || true
+    fail_assert "$desc (got '$actual')"
   fi
 }
 

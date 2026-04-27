@@ -115,7 +115,7 @@ end_test
 start_test "tab eviction: new tab evicts oldest"
 
 FIRST_TAB="${TAB_IDS[0]}"
-sleep 1
+sleep 0.1
 pt_ok nav --new-tab "${FIXTURES_URL}/index.html?t=overflow"
 
 pt_ok tab

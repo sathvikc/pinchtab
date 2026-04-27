@@ -192,7 +192,6 @@ start_test "safe-lite: IDPI blocks injection on text extraction"
 
 lite_post /navigate "{\"url\":\"${FIXTURES_URL}/idpi-inject.html\"}"
 assert_ok "lite navigate to injection page"
-sleep 0.5
 
 # Lite with IDPI in warn mode — text should still return but may have warnings
 lite_get "/text?format=text"
@@ -205,7 +204,6 @@ start_test "safe-lite: clean page passes IDPI"
 
 lite_post /navigate "{\"url\":\"${FIXTURES_URL}/idpi-clean.html\"}"
 assert_ok "lite navigate to clean page"
-sleep 0.5
 
 lite_get "/snapshot"
 assert_ok "lite snapshot passes"
@@ -234,7 +232,6 @@ start_test "safe-chrome: strict IDPI blocks injection"
 
 secure_post /navigate "{\"url\":\"${FIXTURES_URL}/idpi-inject.html\"}"
 assert_ok "secure navigate to injection page"
-sleep 0.5
 
 secure_get "/snapshot"
 assert_http_status 403 "snapshot blocked by strict IDPI"
@@ -246,7 +243,6 @@ start_test "safe-chrome: strict IDPI passes clean page"
 
 secure_post /navigate "{\"url\":\"${FIXTURES_URL}/idpi-clean.html\"}"
 assert_ok "secure navigate to clean page"
-sleep 0.5
 
 secure_get "/snapshot"
 assert_ok "snapshot passes strict IDPI"
@@ -262,7 +258,6 @@ start_test "engine-parity: click action on both engines"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "chrome navigate to buttons"
-sleep 0.5
 pt_get /snapshot
 CHROME_BTN=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment") | .ref] | first // empty')
 if [ -n "$CHROME_BTN" ]; then
@@ -272,7 +267,6 @@ fi
 
 lite_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "lite navigate to buttons"
-sleep 0.5
 lite_get /snapshot
 LITE_BTN=$(echo "$RESULT" | jq -r '[.nodes[] | select(.name == "Increment") | .ref] | first // empty')
 if [ -n "$LITE_BTN" ]; then
@@ -287,7 +281,6 @@ start_test "engine-parity: type action on both engines"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
 assert_ok "chrome navigate to form"
-sleep 0.5
 pt_get "/snapshot?filter=interactive"
 CHROME_INPUT=$(echo "$RESULT" | jq -r '[.nodes[] | select(.role == "textbox") | .ref] | first // empty')
 if [ -n "$CHROME_INPUT" ]; then
@@ -297,7 +290,6 @@ fi
 
 lite_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
 assert_ok "lite navigate to form"
-sleep 0.5
 lite_get "/snapshot?filter=interactive"
 LITE_INPUT=$(echo "$RESULT" | jq -r '[.nodes[] | select(.role == "textbox") | .ref] | first // empty')
 if [ -n "$LITE_INPUT" ]; then

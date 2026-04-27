@@ -21,12 +21,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Building Ubuntu + Chrome for Testing smoke image..."
-docker build \
-  --platform linux/amd64 \
-  -f tests/tools/docker/chrome-cft-smoke.Dockerfile \
-  -t "$IMAGE" \
-  .
+if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "Using existing Ubuntu + Chrome for Testing smoke image: $IMAGE"
+else
+  echo "Building Ubuntu + Chrome for Testing smoke image..."
+  docker build \
+    --platform linux/amd64 \
+    -f tests/tools/docker/chrome-cft-smoke.Dockerfile \
+    -t "$IMAGE" \
+    .
+fi
 
 docker run -d \
   --platform linux/amd64 \

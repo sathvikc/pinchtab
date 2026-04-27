@@ -45,6 +45,7 @@ type instanceDefaultsConfigJSON struct {
 	MaxParallelTabs   *int               `json:"maxParallelTabs"`
 	UserAgent         string             `json:"userAgent"`
 	NoAnimations      *bool              `json:"noAnimations"`
+	Humanize          *bool              `json:"humanize"`
 	StealthLevel      string             `json:"stealthLevel"`
 	TabEvictionPolicy string             `json:"tabEvictionPolicy"`
 	TabPolicy         *TabPolicyDefaults `json:"tabPolicy,omitempty"`

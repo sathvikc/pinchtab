@@ -8,7 +8,6 @@ source "${GROUP_DIR}/../../helpers/api.sh"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/upload.html\"}"
 assert_ok "navigate"
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "upload: default selector"

@@ -31,7 +31,6 @@ end_test
 start_test "console logs captured after console.log in page"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/console.html\"}"
-sleep 1
 
 pt_get /console
 assert_ok "get console after logging page"
@@ -70,7 +69,6 @@ end_test
 start_test "GET /console with limit parameter"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/console.html\"}"
-sleep 1
 
 pt_get "/console?limit=2"
 assert_ok "get console with limit"

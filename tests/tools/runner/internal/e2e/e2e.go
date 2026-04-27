@@ -1,0 +1,178 @@
+package e2e
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type Args struct {
+	Suite  string
+	Filter string
+	Test   string
+	Extra  string
+	Logs   string
+	DryRun bool
+}
+
+var errHelp = errors.New("help requested")
+
+const usageText = `Usage:
+  runner e2e --suite basic [options]
+  runner e2e --suite extended [options]
+  runner e2e --suite smoke [options]
+  runner e2e --suite infra-extended --filter orchestrator
+
+Options:
+  --suite basic|extended|smoke|api|cli|infra|plugin|api-extended|cli-extended|infra-extended
+          smoke-orchestrator|smoke-security|smoke-lifecycle|smoke-docker
+  --filter TEXT       Filter scenario file names, groups, tiers, helpers, or tags
+  --test TEXT         Run one start_test block by name
+  --extra FILES       Add extra scenario files, space-separated
+  --logs show|hide    Control compose build/runner output
+  --dry-run           Print the compose plan without running it
+  --help, -h          Show this help
+`
+
+func Run(argv []string, stdout, stderr io.Writer) int {
+	args, err := ParseArgs(argv)
+	if err != nil {
+		if errors.Is(err, errHelp) {
+			WriteUsage(stdout)
+			return 0
+		}
+		_, _ = fmt.Fprintf(stderr, "e2e: %v\n\n", err)
+		WriteUsage(stderr)
+		return 1
+	}
+
+	r, err := NewRunner(args, stdout, stderr)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "e2e: %v\n", err)
+		return 1
+	}
+	return r.Run()
+}
+
+func ParseArgs(argv []string) (Args, error) {
+	args := Args{Suite: "basic"}
+
+	next := func(i *int, name string) (string, error) {
+		*i = *i + 1
+		if *i >= len(argv) {
+			return "", fmt.Errorf("%s requires a value", name)
+		}
+		return argv[*i], nil
+	}
+
+	for i := 0; i < len(argv); i++ {
+		arg := argv[i]
+		switch arg {
+		case "--help", "-h":
+			return args, errHelp
+		case "--suite":
+			v, err := next(&i, arg)
+			if err != nil {
+				return args, err
+			}
+			args.Suite = v
+		case "--filter":
+			v, err := next(&i, arg)
+			if err != nil {
+				return args, err
+			}
+			args.Filter = v
+		case "--test":
+			v, err := next(&i, arg)
+			if err != nil {
+				return args, err
+			}
+			args.Test = v
+		case "--extra":
+			v, err := next(&i, arg)
+			if err != nil {
+				return args, err
+			}
+			args.Extra = v
+		case "--logs":
+			v, err := next(&i, arg)
+			if err != nil {
+				return args, err
+			}
+			args.Logs = v
+		case "--dry-run":
+			args.DryRun = true
+		default:
+			return args, fmt.Errorf("unknown option: %s", arg)
+		}
+	}
+
+	args.Suite = strings.TrimSpace(args.Suite)
+	if args.Suite == "" {
+		return args, errors.New("--suite cannot be empty")
+	}
+	if args.Logs != "" {
+		switch args.Logs {
+		case "show", "hide":
+		default:
+			return args, fmt.Errorf("--logs must be show or hide")
+		}
+	}
+	return args, nil
+}
+
+func normalizeSuite(raw string) (string, error) {
+	switch raw {
+	case "basic", "extended":
+		return raw, nil
+	case "api", "cli", "infra", "plugin",
+		"api-extended", "cli-extended", "infra-extended",
+		"smoke", "smoke-orchestrator", "smoke-security", "smoke-lifecycle", "smoke-docker":
+		return raw, nil
+	default:
+		return "", fmt.Errorf("unknown suite %q", raw)
+	}
+}
+
+func WriteUsage(w io.Writer) {
+	_, _ = io.WriteString(w, usageText)
+}
+
+func resolveRepoRoot() string {
+	cwd, _ := os.Getwd()
+	dir := cwd
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return cwd
+		}
+		dir = parent
+	}
+}
+
+func shellQuoteArgs(args []string) string {
+	quoted := make([]string, len(args))
+	for i, arg := range args {
+		quoted[i] = shellQuote(arg)
+	}
+	return strings.Join(quoted, " ")
+}
+
+func shellQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	if strings.IndexFunc(s, func(r rune) bool {
+		return r != '/' && r != '-' && r != '_' && r != '.' && r != '=' && r != ':' &&
+			(r < '0' || r > '9') && (r < 'A' || r > 'Z') && (r < 'a' || r > 'z')
+	}) == -1 {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}

@@ -47,6 +47,7 @@ Notes:
 - `mouse wheel` accepts either a delta form (`<dy> [--dx <n>]`) or an optional selector. Without a selector, it uses the current pointer position.
 - `drag <from> <to>` accepts selector/ref targets or `x,y` coordinate pairs.
 - `button` supports `left`, `right`, and `middle`.
+- Pointer move uses a bounded CDP `mouseMoved` dispatch first. If headless Chromium stalls that dispatch, PinchTab falls back to DOM mouse events so hover and mouse-move flows remain responsive.
 
 ## HTTP API
 
@@ -124,8 +125,12 @@ curl -X POST http://localhost:9867/tabs/<tabId>/action \
 
 - POST coordinate bodies work with plain `x` and `y`; no extra `hasXY` flag is required.
 - `mouse-down`, `mouse-up`, and `mouse-wheel` use per-tab current-pointer state when you omit a fresh target.
-- If no current pointer position is known yet, `mouse-down`, `mouse-up`, and `mouse-wheel` fail with a clear error. Use `mouse-move` first or pass an explicit target.
+- If no current pointer position is known yet, `mouse-down` and `mouse-up` fail with a clear error. Use `mouse-move` first or pass an explicit target.
+- If no current pointer position is known yet, `mouse-wheel` and page `scroll` use the viewport center as a deterministic fallback.
 - `mouse-wheel` defaults to vertical scrolling when only `deltaY` is provided.
+- The CDP-to-DOM move fallback only handles renderer acknowledgement timeouts. Other CDP errors and caller cancellation are returned to the caller.
+
+Rationale: low-level pointer actions are often used in hover menus, drag handles, and canvas-like controls where a five-second headless mouse-move stall makes a simple check look like a suite timeout. The fallback keeps these flows fast, while still surfacing real CDP errors.
 
 ## Related Pages
 

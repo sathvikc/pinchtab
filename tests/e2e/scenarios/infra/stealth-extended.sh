@@ -30,7 +30,6 @@ run_stealth_level_matrix() {
   start_test "stealth-levels: navigate to test page"
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/bot-detect.html\"}"
   assert_ok "navigate"
-  sleep 1
   end_test
 
   start_test "stealth-levels: status reports configured level"
@@ -140,7 +139,6 @@ run_stealth_level_matrix() {
   start_test "stealth-levels: capability fixture reports expected page surface"
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-capabilities.html\"}"
   assert_ok "navigate to capability fixture"
-  sleep 1
 
   if [ "$STEALTH_LEVEL" = "light" ]; then
     assert_eval_poll "window.__stealthCapabilities.chromeRuntimeConnect" "false" "connect remains absent at light"
@@ -221,7 +219,6 @@ run_stealth_level_matrix() {
 
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-capabilities.html\",\"newTab\":true}"
   assert_ok "navigate created capability tab"
-  sleep 1
   created_tab_id=$(echo "$RESULT" | jq -r '.tabId // empty')
   if [ -n "$created_tab_id" ] && [ -n "$base_status" ]; then
     pt_get "/stealth/status?tabId=${created_tab_id}"
@@ -359,7 +356,6 @@ run_stealth_level_matrix() {
   start_test "stealth-levels: local devtools probe stays quiet"
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-devtools-probe.html\"}"
   assert_ok "navigate to devtools probe fixture"
-  sleep 2
   assert_eval_poll "!!window.__stealthDevtoolsProbe && window.__stealthDevtoolsProbe.ready" "true" "devtools probe report ready"
   assert_eval_poll "window.__stealthDevtoolsProbe.initialFormattersLen" "0" "page starts without preinstalled devtools formatters"
   assert_eval_poll "window.__stealthDevtoolsProbe.formatterCalled" "false" "console formatter probe stays untouched"
@@ -370,7 +366,6 @@ run_stealth_level_matrix() {
   start_test "stealth-levels: worker parity fixture stays coherent"
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/stealth-workers.html\"}"
   assert_ok "navigate to worker parity fixture"
-  sleep 1
   assert_eval_poll "!!window.__stealthWorkerReport && window.__stealthWorkerReport.ready" "true" "worker report ready"
   assert_eval_poll "window.__stealthWorkerReport.matches.userAgent" "true" "worker userAgent matches page"
   assert_eval_poll "window.__stealthWorkerReport.matches.platform" "true" "worker platform matches page"
@@ -381,7 +376,6 @@ run_stealth_level_matrix() {
   start_test "stealth-levels: comprehensive score at ${STEALTH_LEVEL} level"
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/bot-detect.html\"}"
   assert_ok "navigate back to bot-detect fixture"
-  sleep 1
   pt_post /evaluate '{"expression":"JSON.stringify(window.__botDetectScore || {})"}'
   score_json=$(echo "$RESULT" | jq -r '.result // "{}"')
   critical_passed=$(echo "$score_json" | jq -r '.critical // 0')
@@ -430,7 +424,7 @@ if [ "${STEALTH_MATRIX:-0}" = "1" ]; then
     unset STEALTH_LEVEL
   fi
   if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    print_summary
+    finish_suite
   fi
   return 0
 fi
@@ -442,7 +436,6 @@ start_test "bot-detect-full: navigate to test page"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/bot-detect.html\"}"
 assert_ok "navigate"
-sleep 1  # Allow stealth.js injection
 
 end_test
 
@@ -515,7 +508,6 @@ if [ -n "$FULL_URL" ]; then
 
   pt_post /navigate "{\"url\":\"${FIXTURES_URL}/bot-detect.html\"}"
   assert_ok "navigate to bot-detect fixture (permissive full stealth)"
-  sleep 1
 
   end_test
 
@@ -609,5 +601,5 @@ end_test
 E2E_SERVER="$ORIG_URL"
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  print_summary
+  finish_suite
 fi

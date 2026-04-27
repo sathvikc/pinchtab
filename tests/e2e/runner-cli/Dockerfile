@@ -45,5 +45,4 @@ RUN mkdir -p /results
 
 WORKDIR /e2e
 
-# Default: run all CLI tests
-CMD ["/bin/bash", "/e2e/run.sh", "cli", "all=true"]
+CMD ["/bin/bash", "-lc", "echo 'runner-cli is executor-only; use go run ./tests/tools/runner e2e --suite ...' >&2; exit 2"]

@@ -15,8 +15,6 @@ const (
 	ActionMouseUp        = "mouse-up"
 	ActionMouseWheel     = "mouse-wheel"
 	ActionDrag           = "drag"
-	ActionHumanClick     = "humanClick"
-	ActionHumanType      = "humanType"
 	ActionCheck          = "check"
 	ActionUncheck        = "uncheck"
 	ActionKeyboardType   = "keyboard-type"
@@ -42,8 +40,6 @@ func (b *Bridge) InitActionRegistry() {
 		ActionMouseUp:        b.actionMouseUp,
 		ActionMouseWheel:     b.actionMouseWheel,
 		ActionDrag:           b.actionDrag,
-		ActionHumanClick:     b.actionHumanClick,
-		ActionHumanType:      b.actionHumanType,
 		ActionCheck:          b.actionCheck,
 		ActionUncheck:        b.actionUncheck,
 		ActionKeyboardType:   b.actionKeyboardType,

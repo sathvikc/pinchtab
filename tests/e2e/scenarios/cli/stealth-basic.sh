@@ -11,7 +11,6 @@ source "${GROUP_DIR}/../../helpers/cli.sh"
 start_test "bot-detect-cli: navigate to test page"
 
 pt_ok nav "${FIXTURES_URL}/bot-detect.html"
-sleep 1
 
 end_test
 
@@ -51,7 +50,6 @@ end_test
 start_test "stealth-cli: capability fixture reports native webdriver contract"
 
 pt_ok nav "${FIXTURES_URL}/stealth-capabilities.html"
-sleep 1
 
 pt_ok eval "window.__stealthCapabilities.webdriverDescriptorNativeLike"
 assert_output_contains "true" "webdriver descriptor stays native-like"
@@ -77,7 +75,6 @@ else
 fi
 
 pt_ok nav "${FIXTURES_URL}/stealth-capabilities.html" --tab "$TAB_ID"
-sleep 1
 
 pt_ok eval "window.__stealthCapabilities.webdriverDescriptorNativeLike" --tab "$TAB_ID"
 assert_output_contains "true" "created tab keeps native webdriver descriptor"
@@ -94,7 +91,6 @@ start_test "bot-detect-cli: full test suite score"
 
 # Navigate to bot-detect page in a new tab (previous test closed its tab)
 pt_ok nav --new-tab "${FIXTURES_URL}/bot-detect.html"
-sleep 1
 
 pt_ok eval "JSON.stringify(window.__botDetectScore || {})"
 score="$PT_OUT"
@@ -125,5 +121,5 @@ fi
 end_test
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  print_summary
+  finish_suite
 fi

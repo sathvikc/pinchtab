@@ -12,7 +12,6 @@ start_test "Setup: navigate to fixture page for storage tests"
 
 pt navigate "${FIXTURES_URL}/index.html"
 assert_cli_ok "navigate to fixture"
-sleep 0.5
 
 end_test
 

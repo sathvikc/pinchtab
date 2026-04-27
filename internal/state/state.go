@@ -182,7 +182,7 @@ func List(stateDir string) ([]StateEntry, error) {
 		return nil, fmt.Errorf("read sessions dir: %w", err)
 	}
 
-	var result []StateEntry
+	result := make([]StateEntry, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !isStateFile(entry.Name()) {
 			continue

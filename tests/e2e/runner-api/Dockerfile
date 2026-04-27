@@ -7,4 +7,4 @@ RUN apk add --no-cache \
 
 WORKDIR /e2e
 
-CMD ["/bin/bash", "/e2e/run.sh", "api", "all=true"]
+CMD ["/bin/bash", "-lc", "echo 'runner-api is executor-only; use go run ./tests/tools/runner e2e --suite ...' >&2; exit 2"]

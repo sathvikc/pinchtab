@@ -187,9 +187,9 @@ end_test
 # end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab quick <url>"
+start_test "pinchtab nav <url> --snap"
 
-pt_ok quick "${FIXTURES_URL}/form.html"
+pt_ok nav "${FIXTURES_URL}/form.html" --snap
 assert_output_contains "nodes" "returns snapshot nodes"
 assert_output_contains "form.html" "navigated to correct page"
 

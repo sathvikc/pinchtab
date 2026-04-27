@@ -61,6 +61,12 @@ type ActionRequest struct {
 	Fast    bool   `json:"fast"`
 	Owner   string `json:"owner"`
 
+	// Humanize, when set, overrides the per-instance `humanize` default for
+	// this action only. nil = use the configured default. true forces the
+	// bezier/jitter/pre-press-sleep code path; false forces the raw
+	// straight-to-target dispatch.
+	Humanize *bool `json:"humanize,omitempty"`
+
 	// DialogAction arms a one-shot dialog auto-handler before the action
 	// executes. Used when clicking a button/link that opens a JS dialog
 	// (alert/confirm/prompt). Values: "accept" or "dismiss". When set, the

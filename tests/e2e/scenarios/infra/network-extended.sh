@@ -12,7 +12,6 @@ source "${GROUP_DIR}/../../helpers/api.sh"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 TAB_ID=$(get_tab_id)
-sleep 1
 
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /network/export: default HAR format"
@@ -267,29 +266,42 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /network/export/stream: SSE events on navigation"
 
-# Start a streaming export in background, navigate, then check output.
-# We use a short timeout curl to capture initial SSE events.
-STREAM_OUTPUT=$(e2e_curl -s -N \
-  --max-time 5 \
+# Keep curl in the background so navigation overlaps the stream, but stop as
+# soon as the expected SSE event arrives instead of waiting for --max-time.
+STREAM_TMP=$(mktemp)
+e2e_curl -s -N --max-time 2 \
   -H "Content-Type: application/json" \
   "${E2E_SERVER}/network/export/stream?tabId=${TAB_ID}&format=har&path=e2e-stream.har" \
-  2>/dev/null || true)
+  > "$STREAM_TMP" 2>/dev/null &
+SSE_PID=$!
 
-# Trigger traffic while the stream might still be running
-pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 2
+# Brief delay to let the stream open before generating traffic.
+sleep 0.1
 
-# The curl with --max-time will have timed out by now. Check output.
+# Trigger traffic on the tab the stream is subscribed to.
+pt_post /navigate "{\"tabId\":\"${TAB_ID}\",\"url\":\"${FIXTURES_URL}/form.html\"}"
+
+for _ in $(seq 1 40); do
+  if grep -q "^event:" "$STREAM_TMP"; then
+    break
+  fi
+  if ! kill -0 "$SSE_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.05
+done
+
+kill "$SSE_PID" 2>/dev/null || true
+wait "$SSE_PID" 2>/dev/null || true
+STREAM_OUTPUT=$(cat "$STREAM_TMP")
+rm -f "$STREAM_TMP"
+
 if echo "$STREAM_OUTPUT" | grep -q "event:"; then
   echo -e "  ${GREEN}✓${NC} received SSE events from stream"
   ((ASSERTIONS_PASSED++)) || true
-elif echo "$STREAM_OUTPUT" | grep -q "text/event-stream"; then
-  echo -e "  ${GREEN}✓${NC} stream responded with SSE content-type"
-  ((ASSERTIONS_PASSED++)) || true
 else
-  # Even without events the endpoint should have started successfully (200)
-  echo -e "  ${YELLOW}~${NC} no SSE events captured (timing-dependent)"
-  ((ASSERTIONS_PASSED++)) || true
+  echo -e "  ${RED}✗${NC} no SSE events captured"
+  ((ASSERTIONS_FAILED++)) || true
 fi
 
 end_test
@@ -370,14 +382,13 @@ fi
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-# Network basics (moved from browser-full for grouping)
+# Network basics kept with network coverage for grouping
 # ─────────────────────────────────────────────────────────────────
 
 start_test "GET /network: list entries with filters"
 
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/index.html\"}"
 NEW_TAB_ID=$(get_tab_id)
-sleep 1
 
 pt_get "/network?tabId=${NEW_TAB_ID}"
 assert_ok "get network entries"

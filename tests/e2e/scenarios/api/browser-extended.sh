@@ -191,7 +191,6 @@ pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "final navigate succeeded"
 
-sleep 1
 pt_get /snapshot
 assert_ok "snapshot after rapid nav"
 

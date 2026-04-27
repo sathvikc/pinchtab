@@ -60,6 +60,7 @@ type RuntimeConfig struct {
 	ExtensionPaths     []string
 	UserAgent          string
 	NoAnimations       bool
+	Humanize           bool // when true, mouse moves and clicks use a humanized bezier path with per-step jitter and pre-press delays; default false (raw, fast input)
 	StealthLevel       string
 	TabEvictionPolicy  string        // "close_lru" (default), "reject", "close_oldest" — fires on MaxTabs pressure
 	TabLifecyclePolicy string        // "close_idle" (default), "keep" — fires on idle after read/action
@@ -291,6 +292,7 @@ type InstanceDefaultsConfig struct {
 	MaxParallelTabs   *int               `json:"maxParallelTabs,omitempty"`
 	UserAgent         string             `json:"userAgent,omitempty"`
 	NoAnimations      *bool              `json:"noAnimations,omitempty"`
+	Humanize          *bool              `json:"humanize,omitempty"`
 	StealthLevel      string             `json:"stealthLevel,omitempty"`
 	TabEvictionPolicy string             `json:"tabEvictionPolicy,omitempty"` // Deprecated: use TabPolicy.Eviction
 	TabPolicy         *TabPolicyDefaults `json:"tabPolicy,omitempty"`

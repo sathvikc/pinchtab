@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# dev-e2e.sh — run a single E2E test by name, with a fresh build.
+# dev-e2e.sh — locate one start_test block, then delegate to the Go E2E runner.
 #
 # Usage:
 #   scripts/dev-e2e.sh "<test name substring>"
-#   scripts/dev-e2e.sh "humanClick: click input by ref"
+#   scripts/dev-e2e.sh "click with humanize"
 #   scripts/dev-e2e.sh "scroll (down)"
 #
-# Locates the matching scenario file, infers the suite (api/cli/infra/plugin)
-# and whether it's an -extended scenario, then dispatches scripts/e2e.sh with
-# the right filter+test arguments. Each compose run of e2e.sh already builds
-# fresh images (--build flag), so there's no need for an explicit prune here.
+# This script is a convenience lookup wrapper, not an execution boundary. The
+# Go runner still owns suite planning, compose services, logs, reports, and
+# scenario execution.
 
 set -euo pipefail
 
@@ -49,8 +48,7 @@ scenario_file=$(basename "${scenario_path}")
 scenario_dir=$(basename "$(dirname "${scenario_path}")")
 scenario_stem="${scenario_file%.sh}"
 
-# Map scenario dir → suite. The scripts/e2e.sh dispatcher accepts api, cli,
-# infra, plugin (and their -extended variants); see that file's case statement.
+# Map scenario dir to the Go runner suite.
 case "${scenario_dir}" in
   api|cli|infra|plugin) suite="${scenario_dir}" ;;
   *)
@@ -59,9 +57,11 @@ case "${scenario_dir}" in
     ;;
 esac
 
-# Plugin suite has no extended variant; basic/extended scenarios in api/cli/
-# infra map to the corresponding -extended dispatcher entry.
-if [ "${suite}" != "plugin" ] && [[ "${scenario_file}" == *-extended.sh ]]; then
+# Smoke is a separate tier across groups; the smoke meta-suite plus the
+# scenario filename filter selects the matching group.
+if [[ "${scenario_file}" == *-smoke.sh ]]; then
+  dispatch="smoke"
+elif [ "${suite}" != "plugin" ] && [[ "${scenario_file}" == *-extended.sh ]]; then
   dispatch="${suite}-extended"
 else
   dispatch="${suite}"
@@ -72,4 +72,7 @@ echo "  scenario: ${scenario_path}"
 echo "  suite:    ${dispatch}"
 echo ""
 
-exec bash scripts/e2e.sh "${dispatch}" "filter=${scenario_stem}" "test=${TEST_NAME}"
+exec env E2E_LOGS="${E2E_LOGS:-show}" go run ./tests/tools/runner e2e \
+  --suite "${dispatch}" \
+  --filter "${scenario_stem}" \
+  --test "${TEST_NAME}"

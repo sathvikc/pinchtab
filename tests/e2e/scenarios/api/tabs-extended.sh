@@ -112,6 +112,10 @@ end_test
 ORIG_URL="$E2E_SERVER"
 E2E_SERVER="$E2E_SECURE_SERVER"
 
+short_ordering_wait() {
+  sleep 0.1
+}
+
 # ─────────────────────────────────────────────────────────────────
 start_test "LRU eviction: open 2 tabs (at limit)"
 
@@ -120,7 +124,7 @@ TAB1=$(echo "$RESULT" | jq -r '.tabId')
 assert_ok "open tab 1 (index)"
 echo -e "  ${MUTED}tab1: ${TAB1:0:12}...${NC}"
 
-sleep 1
+short_ordering_wait
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/form.html\"}"
 TAB2=$(echo "$RESULT" | jq -r '.tabId')
@@ -137,9 +141,9 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "LRU eviction: 3rd tab evicts least recently used"
 
-sleep 1
+short_ordering_wait
 pt_get "/tabs/$TAB2/snapshot" > /dev/null
-sleep 1
+short_ordering_wait
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 TAB3=$(echo "$RESULT" | jq -r '.tabId')
@@ -160,9 +164,9 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "LRU eviction: continuous eviction works"
 
-sleep 1
+short_ordering_wait
 pt_get "/tabs/$TAB3/snapshot" > /dev/null
-sleep 1
+short_ordering_wait
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/table.html\"}"
 TAB4=$(echo "$RESULT" | jq -r '.tabId')
@@ -279,6 +283,21 @@ pt_post /unlock -d "{\"tabId\":\"${TAB_ID}\",\"owner\":\"agent-a\"}"
 end_test
 
 E2E_SERVER="$ORIG_URL"
+
+wait_for_handoff_status() {
+  local tab_id="$1" wanted="$2" attempts="${3:-30}"
+  for _ in $(seq 1 "$attempts"); do
+    local response status
+    response=$(e2e_curl -s -w "\n%{http_code}" "${E2E_SERVER}/tabs/${tab_id}/handoff")
+    split_pinchtab_response "$response"
+    status=$(echo "$RESULT" | jq -r '.status // empty' 2>/dev/null || true)
+    if [ "$HTTP_STATUS" = "200" ] && [ "$status" = "$wanted" ]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  return 1
+}
 
 # ─────────────────────────────────────────────────────────────────
 start_test "tab lock: lock with timeoutSec"
@@ -397,7 +416,7 @@ pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 TIMEOUT_TAB=$(get_tab_id)
 show_tab "created" "$TIMEOUT_TAB"
 
-pt_post "/tabs/${TIMEOUT_TAB}/handoff" -d '{"reason":"short_timeout","timeoutMs":1500}'
+pt_post "/tabs/${TIMEOUT_TAB}/handoff" -d '{"reason":"short_timeout","timeoutMs":250}'
 assert_ok "handoff with timeout"
 assert_json_exists "$RESULT" '.expiresAt' "response includes expiresAt"
 
@@ -405,11 +424,11 @@ pt_get "/tabs/${TIMEOUT_TAB}/handoff"
 assert_ok "check status before timeout"
 assert_json_eq "$RESULT" '.status' 'paused_handoff' "still paused before timeout"
 
-sleep 2
-
-pt_get "/tabs/${TIMEOUT_TAB}/handoff"
-assert_ok "check status after timeout"
-assert_json_eq "$RESULT" '.status' 'active' "auto-expired to active"
+if wait_for_handoff_status "$TIMEOUT_TAB" "active" 30; then
+  pass_assert "auto-expired to active"
+else
+  fail_assert "auto-expired to active"
+fi
 
 pt_post "/tabs/${TIMEOUT_TAB}/navigate" -d "{\"url\":\"${FIXTURES_URL}/buttons.html\"}"
 assert_ok "navigate to buttons page"

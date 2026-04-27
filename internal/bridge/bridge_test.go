@@ -271,6 +271,39 @@ func TestTabContext_EmptyID_UsesCurrentTrackedTab(t *testing.T) {
 	}
 }
 
+func TestSelectCurrentTrackedTabFallsBackToMostRecentlyUsed(t *testing.T) {
+	tm := NewTabManager(context.Background(), &config.RuntimeConfig{}, nil, nil, nil)
+	now := time.Now()
+
+	tm.tabs["older"] = &TabEntry{Ctx: context.Background(), CreatedAt: now.Add(-3 * time.Minute), LastUsed: now.Add(-2 * time.Minute)}
+	tm.tabs["newer"] = &TabEntry{Ctx: context.Background(), CreatedAt: now.Add(-2 * time.Minute), LastUsed: now.Add(-1 * time.Minute)}
+	tm.currentTab = "stale-tab-id"
+
+	if got := tm.selectCurrentTrackedTab(); got != "newer" {
+		t.Fatalf("selectCurrentTrackedTab = %q, want most recently used tab", got)
+	}
+}
+
+func TestMarkAccessedUpdatesCurrentTabAndLastUsed(t *testing.T) {
+	tm := NewTabManager(context.Background(), &config.RuntimeConfig{}, nil, nil, nil)
+	oldTime := time.Now().Add(-1 * time.Hour)
+	tm.tabs["tab1"] = &TabEntry{Ctx: context.Background(), CreatedAt: oldTime, LastUsed: oldTime}
+	tm.tabs["tab2"] = &TabEntry{Ctx: context.Background(), CreatedAt: oldTime, LastUsed: oldTime}
+	tm.currentTab = "tab1"
+
+	tm.markAccessed("tab2")
+
+	if tm.currentTab != "tab2" {
+		t.Fatalf("currentTab = %q, want tab2", tm.currentTab)
+	}
+	if !tm.accessed["tab2"] {
+		t.Fatal("expected tab2 to be marked accessed")
+	}
+	if !tm.tabs["tab2"].LastUsed.After(oldTime) {
+		t.Fatalf("tab2 LastUsed = %v, want after %v", tm.tabs["tab2"].LastUsed, oldTime)
+	}
+}
+
 func TestCloseTab_PreventsLastTabClose(t *testing.T) {
 	// CloseTab should fail when attempting to close the last remaining tab
 	// This prevents Chrome from exiting and crashing the server

@@ -170,6 +170,8 @@ func getInstanceDefaultsField(c *InstanceDefaultsConfig, field string) (string, 
 		return c.UserAgent, nil
 	case "noAnimations":
 		return formatBoolPtr(c.NoAnimations), nil
+	case "humanize":
+		return formatBoolPtr(c.Humanize), nil
 	case "stealthLevel":
 		return c.StealthLevel, nil
 	case "tabEvictionPolicy":

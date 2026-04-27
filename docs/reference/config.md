@@ -172,6 +172,7 @@ Current nested file-config shape:
     "maxParallelTabs": 0,
     "userAgent": "",
     "noAnimations": false,
+    "humanize": false,
     "stealthLevel": "light",
     "tabEvictionPolicy": "close_lru",
     "tabPolicy": {
@@ -367,6 +368,17 @@ You can change or clear that default with `browser.extensionPaths`.
 - `restore` controls whether session tabs are restored on startup. The default is `false`.
 
 `instanceDefaults.tabEvictionPolicy` is still accepted for compatibility. New configs should use `instanceDefaults.tabPolicy.eviction`.
+
+### Humanized Input
+
+`instanceDefaults.humanize` controls whether click and typing actions use the slower humanized path by default. The default is `false`, which keeps automation fast and deterministic by using raw CDP input.
+
+Callers can override the instance default per action with the JSON field `humanize`:
+
+- `{"kind":"click","selector":"#submit","humanize":true}` opts a single action into bezier mouse movement and human-like delays.
+- `{"kind":"type","selector":"#name","text":"Ada","humanize":true}` opts a single type action into the slower per-character path.
+
+Rationale: humanized input is useful for compatibility with pages that react poorly to raw input, but it adds sleeps and multi-step pointer movement. Keeping it opt-in prevents accidental seconds of overhead in default E2E and agent runs.
 
 ## Sections
 

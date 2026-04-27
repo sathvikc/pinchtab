@@ -27,6 +27,7 @@ OK
 - Use [`/frame`](./frame.md) before iframe typing
 - Missing selectors fail immediately; use [`pinchtab wait`](./wait.md) for async fields
 - For typing into focused element, use `keyboard type`
+- Raw keyboard input is the default. To opt a type action into the slower humanized per-character path, pass `humanize:true` in the action JSON or set `instanceDefaults.humanize:true`.
 
 ## Related Pages
 
