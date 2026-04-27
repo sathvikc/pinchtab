@@ -16,6 +16,28 @@ var mouseMoveByCoordinateAction = MouseMoveByCoordinate
 var mouseDownByCoordinateAction = MouseDownByCoordinate
 var mouseUpByCoordinateAction = MouseUpByCoordinate
 
+// effectiveHumanize resolves whether an action should use the humanized
+// (bezier + per-event jitter + pre-press sleeps) input path. Precedence:
+//
+//  1. Per-request override: ActionRequest.Humanize (if non-nil)
+//  2. Per-instance default: bridge Config.Humanize
+//  3. Built-in default: false
+//
+// The action kind is intentionally NOT consulted — both click/type and
+// humanClick/humanType honour the same resolution. This means
+// `kind: humanClick` defaults to raw input unless config.humanize=true
+// or the request explicitly sets humanize:true; callers who relied on
+// the legacy auto-humanizing behaviour need to opt in.
+func (b *Bridge) effectiveHumanize(req ActionRequest) bool {
+	if req.Humanize != nil {
+		return *req.Humanize
+	}
+	if b != nil && b.Config != nil {
+		return b.Config.Humanize
+	}
+	return false
+}
+
 const (
 	dialogAutoHandlePollInterval = 10 * time.Millisecond
 	dialogAutoHandleSettleDelay  = 40 * time.Millisecond
@@ -85,6 +107,13 @@ func submitFormIfButton(ctx context.Context, selector string) (bool, error) {
 }
 
 func (b *Bridge) actionClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
+	// Promote to the humanized click path when the caller (or instance
+	// config) opted in via humanize=true. The guard on req.Kind avoids
+	// ping-ponging when actionHumanClick has already delegated here.
+	if req.Kind != ActionHumanClick && b.effectiveHumanize(req) {
+		return b.actionHumanClick(ctx, req)
+	}
+
 	// Arm a one-shot dialog auto-handler if the caller expects the click
 	// to open a native JS dialog. Without this, the click would hang
 	// waiting for the dialog to be handled from a separate request.
@@ -435,6 +464,14 @@ func (b *Bridge) actionDrag(ctx context.Context, req ActionRequest) (map[string]
 }
 
 func (b *Bridge) actionHumanClick(ctx context.Context, req ActionRequest) (map[string]any, error) {
+	// Fall through to the raw click path when humanization is disabled.
+	// `kind: humanClick` is preserved as an action name for back-compat,
+	// but its bezier+sleeps semantics now require humanize=true (either
+	// per-request or via instance config).
+	if !b.effectiveHumanize(req) {
+		return b.actionClick(ctx, req)
+	}
+
 	var backendNodeID cdp.BackendNodeID
 	switch {
 	case req.NodeID > 0:

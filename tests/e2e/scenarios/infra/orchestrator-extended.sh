@@ -157,6 +157,16 @@ assert_ok "instance tabs"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
+# Run the ID-format check before the stop test so it can reuse the
+# still-running INST_ID from "launch new instance" instead of paying
+# another full launch+stop cycle (~6s) just to inspect the prefix.
+start_test "orchestrator: ID format (inst_ prefix)"
+
+assert_instance_id_prefix "$INST_ID"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
 start_test "orchestrator: stop instance"
 
 pt_post "/instances/${INST_ID}/stop" '{}'
@@ -165,19 +175,6 @@ assert_ok "stop instance"
 wait_for_instances_gone "${E2E_SERVER}" 10 "${INST_ID}" || true
 pt_get /instances
 assert_instance_list_absent "$INST_ID" "instance removed after stop" "instance still in list after stop"
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "orchestrator: ID format (inst_ prefix)"
-
-pt_post /instances/start '{"mode":"headless"}'
-assert_ok "launch"
-ID_CHECK_INST=$(echo "$RESULT" | jq -r '.id')
-
-assert_instance_id_prefix "$ID_CHECK_INST"
-
-pt_post "/instances/${ID_CHECK_INST}/stop" '{}'
 
 end_test
 

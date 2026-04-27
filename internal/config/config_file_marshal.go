@@ -83,6 +83,7 @@ func (fc FileConfig) MarshalJSON() ([]byte, error) {
 			MaxParallelTabs:   fc.InstanceDefaults.MaxParallelTabs,
 			UserAgent:         fc.InstanceDefaults.UserAgent,
 			NoAnimations:      fc.InstanceDefaults.NoAnimations,
+			Humanize:          fc.InstanceDefaults.Humanize,
 			StealthLevel:      fc.InstanceDefaults.StealthLevel,
 			TabEvictionPolicy: fc.InstanceDefaults.TabEvictionPolicy,
 			TabPolicy:         fc.InstanceDefaults.TabPolicy,
@@ -242,6 +243,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 	maxTabs := cfg.MaxTabs
 	maxParallelTabs := cfg.MaxParallelTabs
 	noAnimations := cfg.NoAnimations
+	humanize := cfg.Humanize
 	allowEvaluate := cfg.AllowEvaluate
 	allowMacro := cfg.AllowMacro
 	allowScreencast := cfg.AllowScreencast
@@ -330,6 +332,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 			MaxParallelTabs:   &maxParallelTabs,
 			UserAgent:         cfg.UserAgent,
 			NoAnimations:      &noAnimations,
+			Humanize:          &humanize,
 			StealthLevel:      cfg.StealthLevel,
 			TabEvictionPolicy: cfg.TabEvictionPolicy,
 			TabPolicy:         tabPolicyDefaultsFromRuntime(cfg),

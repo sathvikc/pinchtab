@@ -52,6 +52,12 @@ func (b *Bridge) actionHumanType(ctx context.Context, req ActionRequest) (map[st
 		return nil, fmt.Errorf("text required for humanType")
 	}
 
+	// Fall through to the raw keyboard path when humanization is disabled.
+	// Mirrors the actionHumanClick → actionClick fallback.
+	if !b.effectiveHumanize(req) {
+		return b.actionKeyboardType(ctx, req)
+	}
+
 	if req.Selector != "" {
 		if err := chromedp.Run(ctx, chromedp.Focus(req.Selector, chromedp.ByQuery)); err != nil {
 			return nil, err
@@ -84,6 +90,13 @@ const keyboardTypeThreshold = 20
 func (b *Bridge) actionKeyboardType(ctx context.Context, req ActionRequest) (map[string]any, error) {
 	if req.Text == "" {
 		return nil, fmt.Errorf("text required for keyboard-type")
+	}
+
+	// Promote to the humanized typing path when humanize=true was opted
+	// into. Guard on req.Kind so actionHumanType's delegation doesn't
+	// bounce back here.
+	if req.Kind != ActionHumanType && b.effectiveHumanize(req) {
+		return b.actionHumanType(ctx, req)
 	}
 
 	// For long strings, use insertText to avoid timeout (issue #413).

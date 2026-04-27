@@ -57,6 +57,16 @@ func Action(client *http.Client, base, token, kind, selectorArg string, cmd *cob
 		}
 	}
 
+	// --humanize lets the caller opt into the bezier+jitter input path on
+	// any pointer/typing action. Honours the same precedence as the API
+	// flag (per-request override > instance config > built-in default).
+	// Only set the body field when the flag was explicitly provided so
+	// nil/null is preserved when omitted.
+	if cmd.Flags().Changed("humanize") {
+		v, _ := cmd.Flags().GetBool("humanize")
+		body["humanize"] = v
+	}
+
 	postAction(client, base, token, cmd, body)
 }
 
@@ -278,6 +288,11 @@ func MouseAction(client *http.Client, base, token, kind string, args []string, c
 		cli.Fatal("unsupported mouse action: %s", kind)
 	}
 
+	if cmd.Flags().Changed("humanize") {
+		v, _ := cmd.Flags().GetBool("humanize")
+		body["humanize"] = v
+	}
+
 	postAction(client, base, token, cmd, body)
 }
 
@@ -414,6 +429,11 @@ func ActionSimple(client *http.Client, base, token, kind string, args []string, 
 		body["key"] = args[0]
 	case "keyup":
 		body["key"] = args[0]
+	}
+
+	if cmd.Flags().Changed("humanize") {
+		v, _ := cmd.Flags().GetBool("humanize")
+		body["humanize"] = v
 	}
 
 	postAction(client, base, token, cmd, body)

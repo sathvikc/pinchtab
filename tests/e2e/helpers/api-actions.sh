@@ -29,10 +29,13 @@ action_type() {
 }
 
 # Human-like click by ref (uses mouse events).
+# Sets humanize=true explicitly: with the new opt-in default, kind=humanClick
+# alone falls through to a raw click. These helpers exist specifically to
+# exercise the bezier+jitter+pre-press-sleep path, so we always opt in.
 # Usage: action_human_click "$ref"
 action_human_click() {
   local ref="$1"
-  pt_post /action -d "{\"kind\":\"humanClick\",\"ref\":\"$ref\"}" > /dev/null
+  pt_post /action -d "{\"kind\":\"humanClick\",\"ref\":\"$ref\",\"humanize\":true}" > /dev/null
   assert_ok "humanClick ref=$ref"
 }
 
@@ -41,7 +44,7 @@ action_human_click() {
 action_human_type() {
   local ref="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"humanType\",\"ref\":\"$ref\",\"text\":\"$text\"}" > /dev/null
+  pt_post /action -d "{\"kind\":\"humanType\",\"ref\":\"$ref\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
   assert_ok "humanType '$text' into ref=$ref"
 }
 
@@ -50,7 +53,7 @@ action_human_type() {
 action_human_type_selector() {
   local selector="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"humanType\",\"selector\":\"$selector\",\"text\":\"$text\"}" > /dev/null
+  pt_post /action -d "{\"kind\":\"humanType\",\"selector\":\"$selector\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
   assert_ok "humanType '$text' into $selector"
 }
 

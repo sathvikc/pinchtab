@@ -266,19 +266,30 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "GET /network/export/stream: SSE events on navigation"
 
-# Start a streaming export in background, navigate, then check output.
-# We use a short timeout curl to capture initial SSE events.
-STREAM_OUTPUT=$(e2e_curl -s -N \
-  --max-time 5 \
+# The previous version of this test ran curl as foreground command
+# substitution, which blocked for the whole --max-time before the
+# navigate fired — so no SSE events ever overlapped the stream and
+# the assertion silently fell through to the "no events captured"
+# pass branch. Background the curl so it actually overlaps the
+# navigate, drop the foreground budget from 5s to ~2s.
+STREAM_TMP=$(mktemp)
+e2e_curl -s -N --max-time 2 \
   -H "Content-Type: application/json" \
   "${E2E_SERVER}/network/export/stream?tabId=${TAB_ID}&format=har&path=e2e-stream.har" \
-  2>/dev/null || true)
+  > "$STREAM_TMP" 2>/dev/null &
+SSE_PID=$!
 
-# Trigger traffic while the stream might still be running
+# Brief delay to let the stream open before generating traffic.
+sleep 0.2
+
+# Trigger traffic while the stream is still running.
 pt_post /navigate "{\"url\":\"${FIXTURES_URL}/form.html\"}"
-sleep 2
 
-# The curl with --max-time will have timed out by now. Check output.
+# Wait for the SSE curl to hit --max-time and return.
+wait "$SSE_PID" 2>/dev/null || true
+STREAM_OUTPUT=$(cat "$STREAM_TMP")
+rm -f "$STREAM_TMP"
+
 if echo "$STREAM_OUTPUT" | grep -q "event:"; then
   echo -e "  ${GREEN}✓${NC} received SSE events from stream"
   ((ASSERTIONS_PASSED++)) || true

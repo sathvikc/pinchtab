@@ -147,26 +147,35 @@ func configureBrowserFlags() {
 	clickCmd.Flags().Bool("text", false, "Output page text after action (for verification)")
 	clickCmd.Flags().String("dialog-action", "", "Auto-handle a JS dialog opened by the click: accept | dismiss")
 	clickCmd.Flags().String("dialog-text", "", "Prompt response text (with --dialog-action accept on prompt())")
+	clickCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	dblclickCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(dblclickCmd, "dblclick")
+	dblclickCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	hoverCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(hoverCmd, "hover")
+	hoverCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	mouseMoveCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(mouseMoveCmd, bridge.ActionMouseMove)
+	mouseMoveCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	mouseDownCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(mouseDownCmd, bridge.ActionMouseDown)
 	mouseDownCmd.Flags().String("button", "left", "Mouse button: left, right, middle")
+	mouseDownCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	mouseUpCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(mouseUpCmd, bridge.ActionMouseUp)
 	mouseUpCmd.Flags().String("button", "left", "Mouse button: left, right, middle")
+	mouseUpCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
 
 	mouseWheelCmd.Flags().String("css", "", "CSS selector instead of ref")
 	addPointFlags(mouseWheelCmd, bridge.ActionMouseWheel)
+	mouseWheelCmd.Flags().Bool("humanize", false, "Use humanized bezier+jitter input path (overrides instance config)")
+
+	typeCmd.Flags().Bool("humanize", false, "Use humanized per-character keypress timing (overrides instance config)")
 	mouseWheelCmd.Flags().Int("dx", 0, "Wheel delta X")
 	mouseWheelCmd.Flags().Int("dy", 0, "Wheel delta Y")
 

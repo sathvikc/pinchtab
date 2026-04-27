@@ -57,6 +57,7 @@ func Load() *RuntimeConfig {
 		ExtensionPaths:     []string{defaultExtensionsDir(userConfigDir())},
 		UserAgent:          "",
 		NoAnimations:       false,
+		Humanize:           false,
 		StealthLevel:       "light",
 		TabEvictionPolicy:  "close_lru",
 		TabLifecyclePolicy: "close_idle",
@@ -399,6 +400,9 @@ func applyFileConfig(cfg *RuntimeConfig, fc *FileConfig) {
 	}
 	if fc.InstanceDefaults.NoAnimations != nil {
 		cfg.NoAnimations = *fc.InstanceDefaults.NoAnimations
+	}
+	if fc.InstanceDefaults.Humanize != nil {
+		cfg.Humanize = *fc.InstanceDefaults.Humanize
 	}
 	if fc.InstanceDefaults.StealthLevel != "" {
 		cfg.StealthLevel = fc.InstanceDefaults.StealthLevel

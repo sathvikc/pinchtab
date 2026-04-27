@@ -289,8 +289,10 @@ end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "idpi: same-tab domain pivot warns in warn mode"
+# idpi_setup already does navigate + sleep 1, which covers the fixture's
+# 250ms setTimeout pivot and the follow-up navigation settle. The extra
+# sleep 2 here was redundant.
 TAB_ID=$(idpi_setup "$E2E_SERVER" "${FIXTURES_URL}/idpi-domain-pivot.html")
-sleep 2
 idpi_request GET "$E2E_SERVER" "/tabs/${TAB_ID}/text" "" "X-IDPI-Warning"
 assert_ok "text allowed after domain pivot in warn mode"
 assert_header_present "X-IDPI-Warning present after domain pivot"
@@ -300,8 +302,9 @@ end_test
 
 # ─────────────────────────────────────────────────────────────────
 start_test "idpi: same-tab domain pivot blocks in strict mode"
+# See note on the warn-mode pivot test above — idpi_setup's internal
+# sleep 1 already covers the pivot timer.
 TAB_ID=$(idpi_setup "$E2E_SECURE_SERVER" "${FIXTURES_URL}/idpi-domain-pivot.html")
-sleep 2
 idpi_request GET "$E2E_SECURE_SERVER" "/tabs/${TAB_ID}/text" "" "X-IDPI-Warning"
 assert_http_status 403 "text blocked after domain pivot in strict mode"
 assert_header_present "X-IDPI-Warning present on strict block"
