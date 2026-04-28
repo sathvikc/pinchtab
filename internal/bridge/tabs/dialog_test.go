@@ -112,6 +112,7 @@ func TestHandlePendingDialog_Pending_ErrorRequeues(t *testing.T) {
 	pending := dm.GetPending("tab1")
 	if pending == nil {
 		t.Fatal("expected dialog state to be re-queued")
+		return
 	}
 	if pending.Type != "confirm" {
 		t.Fatalf("pending.Type = %q, want confirm", pending.Type)

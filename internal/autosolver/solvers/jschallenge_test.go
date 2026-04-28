@@ -153,6 +153,7 @@ func TestJSChallenge_UsesSharedDetection(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected shared detection intent")
+		return
 	}
 	if intent.ChallengeType != "custom-js" {
 		t.Fatalf("expected custom-js challenge type, got %q", intent.ChallengeType)
