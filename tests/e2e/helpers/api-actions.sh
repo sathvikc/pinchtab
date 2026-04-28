@@ -36,21 +36,21 @@ action_click_humanized() {
   assert_ok "humanized click ref=$ref"
 }
 
-# Humanized type by ref (character-by-character key events).
+# Humanized type by ref (character-by-character key events with shorter E2E delay).
 # Usage: action_type_humanized "$ref" "hello"
 action_type_humanized() {
   local ref="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"type\",\"ref\":\"$ref\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
+  pt_post /action -d "{\"kind\":\"type\",\"ref\":\"$ref\",\"text\":\"$text\",\"humanize\":true,\"fast\":true}" > /dev/null
   assert_ok "humanized type '$text' into ref=$ref"
 }
 
-# Humanized type by CSS selector.
+# Humanized type by CSS selector (character-by-character key events with shorter E2E delay).
 # Usage: action_type_humanized_selector "#email" "hello"
 action_type_humanized_selector() {
   local selector="$1"
   local text="$2"
-  pt_post /action -d "{\"kind\":\"type\",\"selector\":\"$selector\",\"text\":\"$text\",\"humanize\":true}" > /dev/null
+  pt_post /action -d "{\"kind\":\"type\",\"selector\":\"$selector\",\"text\":\"$text\",\"humanize\":true,\"fast\":true}" > /dev/null
   assert_ok "humanized type '$text' into $selector"
 }
 

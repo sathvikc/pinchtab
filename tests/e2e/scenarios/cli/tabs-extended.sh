@@ -8,8 +8,13 @@ source "${GROUP_DIR}/../../helpers/cli.sh"
 start_test "pinchtab back (no history)"
 
 pt_ok back
-# Terse mode outputs just the URL (or "OK" if no URL)
-assert_output_contains "http" "back returns URL or OK"
+# Terse mode outputs the current URL (or "OK" if no URL).
+if [[ "$PT_OUT" == *"://"* ]] || [[ "$PT_OUT" == *"OK"* ]]; then
+  pass_assert "back returns URL or OK"
+else
+  fail_assert "back returns URL or OK"
+  echo -e "  ${RED}  output was: $PT_OUT${NC}"
+fi
 
 end_test
 
@@ -88,48 +93,13 @@ pt_fail tab close "nonexistent_tab_id_12345"
 
 end_test
 
-MAX_TABS=10
-
-# ─────────────────────────────────────────────────────────────────
-start_test "tab eviction: open tabs up to limit"
-
-TAB_IDS=()
-for i in $(seq 1 $MAX_TABS); do
-  pt_ok nav --new-tab "${FIXTURES_URL}/index.html?t=$i"
-  TAB_IDS+=($(echo "$PT_OUT" | tr -d '[:space:]'))
-done
-
-pt_ok tab --json
-TAB_COUNT=$(echo "$PT_OUT" | jq '.tabs | length')
-if [ "$TAB_COUNT" -ge "$MAX_TABS" ]; then
-  echo -e "  ${GREEN}✓${NC} $TAB_COUNT tabs open (>= $MAX_TABS)"
-  ((ASSERTIONS_PASSED++)) || true
-else
-  echo -e "  ${RED}✗${NC} expected >= $MAX_TABS tabs, got $TAB_COUNT"
-  ((ASSERTIONS_FAILED++)) || true
-fi
-
-end_test
-
-# ─────────────────────────────────────────────────────────────────
-start_test "tab eviction: new tab evicts oldest"
-
-FIRST_TAB="${TAB_IDS[0]}"
-sleep 0.1
-pt_ok nav --new-tab "${FIXTURES_URL}/index.html?t=overflow"
-
-pt_ok tab
-assert_output_not_contains "$FIRST_TAB" "oldest tab evicted (LRU)"
-
-end_test
-
 # ─────────────────────────────────────────────────────────────────
 # Human Handoff CLI Tests
 # ─────────────────────────────────────────────────────────────────
 
 start_test "tab handoff: pause and check status"
 
-pt_ok nav "${FIXTURES_URL}/buttons.html"
+pt_ok nav --new-tab "${FIXTURES_URL}/buttons.html"
 HANDOFF_TAB=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab handoff "$HANDOFF_TAB" --reason "cli_test"
@@ -154,7 +124,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "tab handoff: --json flag returns raw JSON"
 
-pt_ok nav "${FIXTURES_URL}/buttons.html"
+pt_ok nav --new-tab "${FIXTURES_URL}/buttons.html"
 JSON_TAB=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab handoff "$JSON_TAB" --reason "json_test" --json
@@ -172,7 +142,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "tab handoff: actions blocked while paused"
 
-pt_ok nav "${FIXTURES_URL}/buttons.html"
+pt_ok nav --new-tab "${FIXTURES_URL}/buttons.html"
 BLOCK_TAB=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab handoff "$BLOCK_TAB" --reason "block_test"

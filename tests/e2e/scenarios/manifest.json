@@ -17,10 +17,10 @@
       "ready": ["E2E_SERVER", "E2E_SECURE_SERVER"],
       "tags": ["tabs", "secure", "handoff"]
     },
-    "api/tabs-autoclose-extended.sh": {
+    "api/tabs-autoclose-smoke.sh": {
       "services": ["pinchtab", "pinchtab-autoclose", "fixtures"],
       "ready": ["E2E_SERVER", "E2E_AUTOCLOSE_SERVER"],
-      "tags": ["tabs", "autoclose", "lifecycle"]
+      "tags": ["tabs", "autoclose", "lifecycle", "smoke"]
     },
     "cli/actions-basic.sh": {
       "tags": ["actions", "pr"]
@@ -30,6 +30,9 @@
     },
     "cli/system-smoke.sh": {
       "tags": ["system", "lifecycle", "instance", "smoke"]
+    },
+    "cli/tabs-smoke.sh": {
+      "tags": ["tabs", "eviction", "smoke"]
     },
     "infra/auth-extended.sh": {
       "services": ["pinchtab", "pinchtab-full", "fixtures"],

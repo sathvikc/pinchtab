@@ -53,9 +53,9 @@ func TestDryRunExtendedPlan(t *testing.T) {
 	out := stdout.String()
 	for _, want := range []string{
 		"suite:  extended",
-		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-autoclose pinchtab-medium pinchtab-full pinchtab-lite pinchtab-bridge fixtures",
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-medium pinchtab-full pinchtab-lite pinchtab-bridge fixtures",
 		"run --rm --no-deps",
-		"E2E_READY_TARGETS=E2E_SERVER E2E_SECURE_SERVER E2E_AUTOCLOSE_SERVER",
+		"E2E_READY_TARGETS=E2E_SERVER E2E_SECURE_SERVER",
 		"E2E_SUMMARY_TITLE=PinchTab E2E API Extended Suite",
 		"runner-api /bin/bash /e2e/run.sh scenario=actions-basic.sh",
 		"scenario=actions-extended.sh",
@@ -504,11 +504,13 @@ func TestDryRunSmokePlan(t *testing.T) {
 	out := stdout.String()
 	for _, want := range []string{
 		"suite:  smoke",
-		`Skipping api-smoke: filter "" has no matching scenarios`,
 		`Skipping plugin-smoke: filter "" has no matching scenarios`,
-		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-medium pinchtab-full fixtures",
+		"docker compose -f tests/e2e/docker-compose-multi.yml up -d pinchtab pinchtab-secure pinchtab-autoclose pinchtab-medium pinchtab-full fixtures",
+		"E2E_SUMMARY_TITLE=PinchTab E2E API Smoke Suite",
+		"runner-api /bin/bash /e2e/run.sh scenario=tabs-autoclose-smoke.sh",
 		"E2E_SUMMARY_TITLE=PinchTab E2E CLI Smoke Suite",
-		"runner-cli /bin/bash /e2e/run.sh scenario=system-smoke.sh",
+		"runner-cli /bin/bash /e2e/run.sh scenario=system-smoke.sh scenario=tabs-smoke.sh",
+		"docker compose -f tests/e2e/docker-compose-multi.yml restart pinchtab",
 		"E2E_SUMMARY_TITLE=PinchTab E2E Infra Smoke Suite",
 		"runner-api /bin/bash /e2e/run.sh scenario=autosolver-smoke.sh scenario=dashboard-smoke.sh scenario=orchestrator-smoke.sh scenario=security-smoke.sh",
 		"== E2E Docker Smoke tests (host) ==",

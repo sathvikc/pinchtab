@@ -188,7 +188,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "fill: textarea by ref"
 
-navigate_fixture "text-fields.html"
+navigate_fixture "text-fields.html" 0
 fresh_snapshot
 
 require_ref "textbox" "Notes" NOTES_REF && {
@@ -205,7 +205,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "type: textarea by ref"
 
-navigate_fixture "text-fields.html"
+navigate_fixture "text-fields.html" 0
 fresh_snapshot
 
 require_ref "textbox" "Notes" NOTES_REF && {
@@ -221,7 +221,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: snapshot refs support fill and click inside iframe"
 
-navigate_fixture "iframe.html"
+navigate_fixture "iframe.html" 0
 fresh_snapshot
 
 assert_json_exists "$RESULT" '.nodes[] | select(.name == "payment-frame")' "snapshot includes iframe owner"
@@ -244,7 +244,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: frame-scoped selectors support focus hover select check scroll and click"
 
-navigate_fixture "iframe.html"
+navigate_fixture "iframe.html" 0
 fresh_snapshot
 
 pt_get "/snapshot?filter=interactive&selector=%23card-number"
@@ -320,7 +320,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: nested frames require explicit frame hops"
 
-navigate_fixture "nested-iframe.html"
+navigate_fixture "nested-iframe.html" 0
 fresh_snapshot
 
 pt_get "/snapshot?filter=interactive&selector=%23nested-code"
@@ -358,7 +358,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: srcdoc frame-scoped selectors work"
 
-navigate_fixture "srcdoc-iframe.html"
+navigate_fixture "srcdoc-iframe.html" 0
 fresh_snapshot
 
 pt_post /frame -d '{"target":"#srcdoc-payment-frame"}'
@@ -392,14 +392,14 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: stale refs after rerender require a fresh snapshot"
 
-navigate_fixture "iframe-rerender.html"
+navigate_fixture "iframe-rerender.html" 0
 fresh_snapshot
 
 require_ref "textbox" "Legacy field" LEGACY_REF && {
   pt_post /evaluate -d '{"expression":"window.replaceTestFrame()"}'
   assert_ok "trigger iframe rerender"
 
-  sleep 1
+  assert_eval_poll '(() => { const frame = document.getElementById("live-frame"); const doc = frame && frame.contentDocument; return !!(doc && doc.getElementById("fresh-field")); })()' "true" "fresh iframe loaded after rerender" 10 0.05
 
   pt_post /action -d "{\"kind\":\"fill\",\"ref\":\"${LEGACY_REF}\",\"text\":\"stale\"}"
   assert_not_ok "stale iframe ref rejected after rerender"
@@ -426,7 +426,7 @@ end_test
 # ─────────────────────────────────────────────────────────────────
 start_test "iframe: cross-origin selector scope is not claimed as supported"
 
-navigate_fixture "cross-origin-iframe.html"
+navigate_fixture "cross-origin-iframe.html" 0
 fresh_snapshot
 
 pt_post /frame -d '{"target":"#cross-origin-frame"}'

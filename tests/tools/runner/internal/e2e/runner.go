@@ -295,9 +295,14 @@ func (r *Runner) runSmoke() int {
 			return code
 		}
 
-		for _, plan := range plans {
+		for i, plan := range plans {
 			if code := r.runSinglePlanWithCompose(plan, stack); code != 0 {
 				failed = true
+			}
+			if plan.def.Name == "cli-smoke" && i < len(plans)-1 {
+				if code := r.restartSharedStack(stack, []string{"pinchtab"}); code != 0 {
+					failed = true
+				}
 			}
 			_, _ = fmt.Fprintln(r.stdout, "")
 		}

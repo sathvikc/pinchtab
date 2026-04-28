@@ -1,5 +1,5 @@
 #!/bin/bash
-# tabs-autoclose-extended.sh — verifies the auto-close-after-use lifecycle policy.
+# tabs-autoclose-smoke.sh — verifies the auto-close-after-use lifecycle policy.
 #
 # Requires the server to be started with tests/e2e/config/pinchtab-autoclose.json
 # (lifecycle=close_idle, closeDelaySec=1). The default e2e config uses the
