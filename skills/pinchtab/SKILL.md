@@ -157,7 +157,7 @@ Use for async DOM settling (spinners, toasts, XHR).
 pinchtab wait <selector>                            # default: visible; --state hidden to wait for disappear
 pinchtab wait --text "..." | --not-text "..."       # text appear / disappear
 pinchtab wait --url "**/dashboard"                  # glob: **, *, ?
-pinchtab wait --load load|domcontentloaded|networkidle
+pinchtab wait --load ready-state|content-loaded|network-idle
 pinchtab wait --fn "window.dataReady === true"      # requires security.allowEvaluate
 pinchtab wait 500                                   # fixed ms delay (last resort, max 30000ms)
 ```
