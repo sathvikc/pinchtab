@@ -81,16 +81,7 @@ func New(b bridge.BridgeAPI, cfg *config.RuntimeConfig, p bridge.ProfileService,
 		// DescriptorBuilder
 		func(tabID string) []semantic.ElementDescriptor {
 			nodes := h.resolveSnapshotNodes(tabID)
-			descs := make([]semantic.ElementDescriptor, len(nodes))
-			for i, n := range nodes {
-				descs[i] = semantic.ElementDescriptor{
-					Ref:   n.Ref,
-					Role:  n.Role,
-					Name:  n.Name,
-					Value: n.Value,
-				}
-			}
-			return descs
+			return semanticDescriptorsFromNodes(nodes)
 		},
 	)
 

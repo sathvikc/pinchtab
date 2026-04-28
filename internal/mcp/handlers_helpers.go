@@ -65,6 +65,16 @@ func hasKnownSelectorPrefix(v string) bool {
 		strings.HasPrefix(lower, "xpath:") ||
 		strings.HasPrefix(lower, "text:") ||
 		strings.HasPrefix(lower, "find:") ||
+		strings.HasPrefix(lower, "semantic:") ||
+		strings.HasPrefix(lower, "role:") ||
+		strings.HasPrefix(lower, "label:") ||
+		strings.HasPrefix(lower, "placeholder:") ||
+		strings.HasPrefix(lower, "alt:") ||
+		strings.HasPrefix(lower, "title:") ||
+		strings.HasPrefix(lower, "testid:") ||
+		strings.HasPrefix(lower, "first:") ||
+		strings.HasPrefix(lower, "last:") ||
+		strings.HasPrefix(lower, "nth:") ||
 		strings.HasPrefix(lower, "ref:")
 }
 

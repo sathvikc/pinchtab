@@ -188,7 +188,7 @@ pt_ok nav "${FIXTURES_URL}/index.html"
 # -i keeps the interactive filter; --compact=false forces JSON for jq parsing
 pt_ok snap -i --compact=false
 # Extract a ref from the snapshot (first link)
-REF=$(echo "$PT_OUT" | safe_jq -r '.nodes[] | select(.role == "link") | .ref' | head -1)
+REF=$(echo "$PT_OUT" | safe_jq -r '[.nodes[] | select(.role == "link") | .ref] | first // empty' 2>/dev/null || true)
 if [ -n "$REF" ] && [ "$REF" != "null" ]; then
   pt_ok text "$REF"
   # Default output is plain text

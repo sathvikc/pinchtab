@@ -41,6 +41,7 @@ func TestMouseCommandGroupRegistered(t *testing.T) {
 	m := findCommand(rootCmd, "mouse")
 	if m == nil {
 		t.Fatal("expected mouse command to be registered")
+		return
 	}
 	if m.GroupID != "browser" {
 		t.Fatalf("expected mouse command group browser, got %q", m.GroupID)
@@ -51,6 +52,7 @@ func TestMouseSubCommandsRegistered(t *testing.T) {
 	m := findCommand(rootCmd, "mouse")
 	if m == nil {
 		t.Fatal("expected mouse command to be registered")
+		return
 	}
 	for _, name := range []string{"move", "down", "up", "wheel"} {
 		if findCommand(m, name) == nil {
@@ -75,6 +77,7 @@ func TestTabHandoffCommandsRegistered(t *testing.T) {
 	tabCmd := findCommand(rootCmd, "tab [id]")
 	if tabCmd == nil {
 		t.Fatal("expected tab command to be registered")
+		return
 	}
 	for _, name := range []string{"handoff [id]", "resume [id]", "handoff-status [id]"} {
 		if findCommand(tabCmd, name) == nil {

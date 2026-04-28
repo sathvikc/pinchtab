@@ -14,6 +14,7 @@ import (
 	"github.com/chromedp/cdproto/target"
 	"github.com/pinchtab/pinchtab/internal/bridge"
 	"github.com/pinchtab/pinchtab/internal/config"
+	"github.com/pinchtab/pinchtab/internal/selector"
 	"github.com/pinchtab/semantic"
 )
 
@@ -344,6 +345,102 @@ func TestHandleFind_VisualQuery_BottomButton(t *testing.T) {
 
 	if resp.BestRef != "e2" {
 		t.Errorf("expected best_ref=e2 (last in document order) for 'bottom button', got %s", resp.BestRef)
+	}
+}
+
+func TestHandleFind_OrdinalQuery_LastButton(t *testing.T) {
+	cache := &bridge.RefCache{
+		Nodes: []bridge.A11yNode{
+			{Ref: "e0", Role: "button", Name: "Action"},
+			{Ref: "e1", Role: "button", Name: "Action"},
+			{Ref: "e2", Role: "button", Name: "Action"},
+		},
+		Refs: map[string]int64{"e0": 1, "e1": 2, "e2": 3},
+	}
+
+	mb := &findMockBridge{refCache: cache}
+	h := New(mb, &config.RuntimeConfig{ActionTimeout: 10 * time.Second}, nil, nil, nil)
+	h.Matcher = semantic.NewCombinedMatcher(semantic.NewHashingEmbedder(128))
+
+	body := `{"query": "last button", "threshold": 0.0, "topK": 3}`
+	req := httptest.NewRequest("POST", "/find", bytes.NewReader([]byte(body)))
+	w := httptest.NewRecorder()
+	h.HandleFind(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp findResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if resp.BestRef != "e2" {
+		t.Errorf("expected best_ref=e2 for 'last button', got %s", resp.BestRef)
+	}
+}
+
+func TestSemanticDescriptorsFromNodes_EnrichesContext(t *testing.T) {
+	nodes := []bridge.A11yNode{
+		{Ref: "e0", Role: "form", Name: "Login", Depth: 0},
+		{Ref: "e1", Role: "textbox", Name: "Email", Depth: 1, Label: "Work Email", Placeholder: "Email address", TestID: "email-input", Text: "Email", Tag: "input"},
+		{Ref: "e2", Role: "button", Name: "Submit", Depth: 1},
+	}
+
+	descs := semanticDescriptorsFromNodes(nodes)
+	if len(descs) != 3 {
+		t.Fatalf("expected 3 descriptors, got %d", len(descs))
+	}
+	if !descs[1].Interactive {
+		t.Error("expected textbox descriptor to be interactive")
+	}
+	if descs[1].DocumentIdx != 1 {
+		t.Errorf("DocumentIdx = %d, want 1", descs[1].DocumentIdx)
+	}
+	if descs[1].Parent != "form: Login" {
+		t.Errorf("Parent = %q, want form context", descs[1].Parent)
+	}
+	if descs[1].Section != "form: Login" {
+		t.Errorf("Section = %q, want form context", descs[1].Section)
+	}
+	if descs[1].Positional.Depth != 1 {
+		t.Errorf("Positional.Depth = %d, want 1", descs[1].Positional.Depth)
+	}
+	if descs[1].Positional.SiblingIndex != 0 || descs[1].Positional.SiblingCount != 2 {
+		t.Errorf("sibling metadata = %d/%d, want 0/2", descs[1].Positional.SiblingIndex, descs[1].Positional.SiblingCount)
+	}
+	if descs[1].Positional.LabelledBy != "Login" {
+		t.Errorf("LabelledBy = %q, want Login", descs[1].Positional.LabelledBy)
+	}
+	if descs[1].Label != "Work Email" || descs[1].Placeholder != "Email address" || descs[1].TestID != "email-input" || descs[1].Text != "Email" || descs[1].Tag != "input" {
+		t.Errorf("DOM-backed fields were not copied into semantic descriptor: %+v", descs[1])
+	}
+}
+
+func TestApplySemanticActionSelector_UsesStructuredLocator(t *testing.T) {
+	cache := &bridge.RefCache{
+		Nodes: []bridge.A11yNode{
+			{Ref: "e0", Role: "textbox", Name: "Input", Label: "Work Email", NodeID: 42},
+		},
+		Targets: map[string]bridge.RefTarget{
+			"e0": {BackendNodeID: 42},
+		},
+	}
+	mb := &findMockBridge{refCache: cache}
+	h := New(mb, &config.RuntimeConfig{ActionTimeout: 10 * time.Second}, nil, nil, nil)
+	h.Matcher = semantic.NewCombinedMatcher(semantic.NewHashingEmbedder(128))
+
+	req := bridge.ActionRequest{Selector: "label:Work Email"}
+	handled, err := h.applySemanticActionSelector(context.Background(), "tab1", selector.Parse(req.Selector), &req)
+	if err != nil {
+		t.Fatalf("applySemanticActionSelector returned error: %v", err)
+	}
+	if !handled {
+		t.Fatal("expected structured locator to be handled by semantic")
+	}
+	if req.Ref != "e0" || req.NodeID != 42 || req.Selector != "" {
+		t.Fatalf("resolved request = %+v, want ref e0 node 42 and cleared selector", req)
 	}
 }
 

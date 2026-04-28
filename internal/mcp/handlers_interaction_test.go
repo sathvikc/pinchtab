@@ -96,6 +96,21 @@ func TestHandleClickQueryAliasNumericTextUsesSemanticSelector(t *testing.T) {
 	}
 }
 
+func TestHandleClickQueryAliasPreservesStructuredLocator(t *testing.T) {
+	srv := mockPinchTab()
+	defer srv.Close()
+
+	r := callTool(t, "pinchtab_click", map[string]any{
+		"query": "label:Email",
+	}, srv)
+
+	resp := resultJSON(t, r)
+	body, _ := resp["body"].(map[string]any)
+	if got, _ := body["selector"].(string); got != "label:Email" {
+		t.Fatalf("selector = %q, want label:Email", got)
+	}
+}
+
 func TestHandleClickDialogActionPassThrough(t *testing.T) {
 	srv := mockPinchTab()
 	defer srv.Close()

@@ -67,6 +67,10 @@ func (h *Handlers) resolveSelectorNodeIDInFrame(ctx context.Context, tabID, raw,
 	if frameID == "" {
 		frameID = h.selectorFrameID(tabID)
 	}
+	req := bridge.ActionRequest{}
+	if handled, err := h.applySemanticActionSelectorInFrame(ctx, tabID, frameID, sel, &req); handled {
+		return req.NodeID, err
+	}
 	return bridge.ResolveUnifiedSelectorInFrame(ctx, sel, cache, frameID)
 }
 
@@ -290,7 +294,10 @@ func (h *Handlers) resolveFrameScope(ctx context.Context, tabID, target string) 
 	}
 
 	switch sel.Kind {
-	case selector.KindCSS, selector.KindXPath, selector.KindText:
+	case selector.KindCSS, selector.KindXPath, selector.KindText,
+		selector.KindRole, selector.KindLabel, selector.KindPlaceholder,
+		selector.KindAlt, selector.KindTitle, selector.KindTestID,
+		selector.KindFirst, selector.KindLast, selector.KindNth:
 		nodeID, err := h.resolveSelectorNodeID(ctx, tabID, target)
 		if err != nil {
 			return bridge.FrameScope{}, false, err

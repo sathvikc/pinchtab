@@ -73,7 +73,19 @@ When `explain` is enabled, each match may also include lexical and embedding sco
 
 ## Query Syntax
 
-Beyond plain natural-language descriptions, the matcher understands two query modifiers:
+Beyond plain natural-language descriptions, the matcher understands three query modifiers:
+
+### Ordinal Queries
+
+Use ordinal words to pick a position from otherwise similar matches:
+
+```bash
+pinchtab find "first button"
+pinchtab find "second search result"
+pinchtab find "last link"
+```
+
+Ordinal matching is applied after semantic scoring. When the snapshot has no coordinates, document order is used as the stable order.
 
 ### Negative Queries
 
@@ -146,6 +158,8 @@ curl -X POST http://localhost:9867/tabs/<tabId>/action \
 ## Operational Notes
 
 - `/find` uses the tab's accessibility snapshot, not raw DOM selectors.
+- Structured `/find` queries such as `role:button Save`, `text:Submit`, `label:Email`, `placeholder:Search`, `alt:Logo`, `title:Close`, `testid:submit`, `first:role:button`, `last:text:Submit`, and `nth:2:label:Email` are matched by the semantic engine against enriched descriptors.
+- In action commands, `role:`, `label:`, `placeholder:`, `alt:`, `title:`, `testid:`, and wrappers around those forms use semantic matching. CSS, XPath, refs, the existing `text:` action selector, and bare CSS/text wrappers such as `first:button` remain browser-side selector resolution.
 - If there is no cached snapshot, PinchTab tries to refresh it automatically before matching.
 - Successful matches are useful inputs to `/action`, `/actions`, and higher-level recovery logic.
 - A `200` response can still return an empty `best_ref` if nothing met the threshold.

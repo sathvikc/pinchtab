@@ -17,6 +17,7 @@ The implementation is designed to stay:
 
 ```text
 accessibility snapshot
+  -> DOM metadata enrichment
   -> element descriptors
   -> lexical matcher
   -> embedding matcher
@@ -33,8 +34,22 @@ Each accessibility node is converted into a descriptor with:
 - `role`
 - `name`
 - `value`
+- `label`
+- `placeholder`
+- `alt`
+- `title`
+- `testid`
+- `text`
+- `tag`
+- `interactive`
+- `parent`
+- `section`
+- `documentIdx`
+- positional hints: `depth`, `siblingIndex`, `siblingCount`, `labelledBy`
 
-Those fields are also combined into a composite string used for matching.
+PinchTab owns extraction of DOM-only metadata from backend node ids. The `semantic` package owns structured locator parsing and matching for `role:`, `text:`, `label:`, `placeholder:`, `alt:`, `title:`, `testid:`, `first:`, `last:`, and `nth:` forms.
+
+CSS, XPath, refs, frame scoping, converting a matched ref back to a backend node, and the existing DOM-backed action `text:` selector remain PinchTab responsibilities.
 
 ## Matchers
 

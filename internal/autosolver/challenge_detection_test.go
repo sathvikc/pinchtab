@@ -10,6 +10,7 @@ func TestDetectChallengeIntent_Turnstile(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected challenge intent")
+		return
 	}
 	if intent.Type != IntentCaptcha {
 		t.Fatalf("expected captcha intent, got %q", intent.Type)
@@ -28,6 +29,7 @@ func TestDetectChallengeIntent_RecaptchaV2(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected challenge intent")
+		return
 	}
 	if intent.ChallengeType != "recaptcha-v2" {
 		t.Fatalf("expected recaptcha-v2 challenge type, got %q", intent.ChallengeType)
@@ -43,6 +45,7 @@ func TestDetectChallengeIntent_RecaptchaV3(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected challenge intent")
+		return
 	}
 	if intent.ChallengeType != "recaptcha-v3" {
 		t.Fatalf("expected recaptcha-v3 challenge type, got %q", intent.ChallengeType)
@@ -58,6 +61,7 @@ func TestDetectChallengeIntent_HCaptcha(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected challenge intent")
+		return
 	}
 	if intent.ChallengeType != "hcaptcha" {
 		t.Fatalf("expected hcaptcha challenge type, got %q", intent.ChallengeType)
@@ -72,6 +76,7 @@ func TestDetectChallengeIntent_CustomJS(t *testing.T) {
 	)
 	if intent == nil {
 		t.Fatal("expected challenge intent")
+		return
 	}
 	if intent.ChallengeType != "custom-js" {
 		t.Fatalf("expected custom-js challenge type, got %q", intent.ChallengeType)

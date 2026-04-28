@@ -10,6 +10,10 @@
 //	"xpath://div"     → XPath
 //	"text:Submit"     → Text  (match by visible text)
 //	"find:login btn"  → Semantic (natural-language query)
+//	"role:button Save" → Role/name locator
+//	"label:Email"     → Form control by label text
+//	"testid:submit"   → Test id locator
+//	"last:button"     → Positional selector wrapper
 //
 // Bare strings that look like CSS selectors (start with ., #, [,
 // or contain tag-like patterns) are treated as CSS. Everything else
@@ -19,6 +23,7 @@ package selector
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -26,12 +31,21 @@ import (
 type Kind string
 
 const (
-	KindNone     Kind = ""
-	KindRef      Kind = "ref"
-	KindCSS      Kind = "css"
-	KindXPath    Kind = "xpath"
-	KindText     Kind = "text"
-	KindSemantic Kind = "semantic"
+	KindNone        Kind = ""
+	KindRef         Kind = "ref"
+	KindCSS         Kind = "css"
+	KindXPath       Kind = "xpath"
+	KindText        Kind = "text"
+	KindSemantic    Kind = "semantic"
+	KindRole        Kind = "role"
+	KindLabel       Kind = "label"
+	KindPlaceholder Kind = "placeholder"
+	KindAlt         Kind = "alt"
+	KindTitle       Kind = "title"
+	KindTestID      Kind = "testid"
+	KindFirst       Kind = "first"
+	KindLast        Kind = "last"
+	KindNth         Kind = "nth"
 )
 
 // Selector is a parsed, unified element selector.
@@ -53,6 +67,24 @@ func (s Selector) String() string {
 		return "text:" + s.Value
 	case KindSemantic:
 		return "find:" + s.Value
+	case KindRole:
+		return "role:" + s.Value
+	case KindLabel:
+		return "label:" + s.Value
+	case KindPlaceholder:
+		return "placeholder:" + s.Value
+	case KindAlt:
+		return "alt:" + s.Value
+	case KindTitle:
+		return "title:" + s.Value
+	case KindTestID:
+		return "testid:" + s.Value
+	case KindFirst:
+		return "first:" + s.Value
+	case KindLast:
+		return "last:" + s.Value
+	case KindNth:
+		return "nth:" + s.Value
 	default:
 		return s.Value
 	}
@@ -71,6 +103,16 @@ func (s Selector) IsEmpty() bool {
 //	"xpath:..."  → XPath
 //	"text:..."   → Text
 //	"find:..."   → Semantic
+//	"semantic:..." → Semantic
+//	"role:..."   → Role/name locator
+//	"label:..."  → Label locator
+//	"placeholder:..." → Placeholder locator
+//	"alt:..."    → Alt-text locator
+//	"title:..."  → Title attribute locator
+//	"testid:..." → Test id locator
+//	"first:..."  → First match of nested selector
+//	"last:..."   → Last match of nested selector
+//	"nth:N:..."  → Nth match of nested selector
 //	"ref:..."    → Ref (optional explicit prefix)
 //
 // Without a prefix, auto-detection applies:
@@ -100,6 +142,36 @@ func Parse(s string) Selector {
 	}
 	if after, ok := cutPrefix(s, "find:"); ok {
 		return Selector{Kind: KindSemantic, Value: after}
+	}
+	if after, ok := cutPrefix(s, "semantic:"); ok {
+		return Selector{Kind: KindSemantic, Value: after}
+	}
+	if after, ok := cutPrefix(s, "role:"); ok {
+		return Selector{Kind: KindRole, Value: after}
+	}
+	if after, ok := cutPrefix(s, "label:"); ok {
+		return Selector{Kind: KindLabel, Value: after}
+	}
+	if after, ok := cutPrefix(s, "placeholder:"); ok {
+		return Selector{Kind: KindPlaceholder, Value: after}
+	}
+	if after, ok := cutPrefix(s, "alt:"); ok {
+		return Selector{Kind: KindAlt, Value: after}
+	}
+	if after, ok := cutPrefix(s, "title:"); ok {
+		return Selector{Kind: KindTitle, Value: after}
+	}
+	if after, ok := cutPrefix(s, "testid:"); ok {
+		return Selector{Kind: KindTestID, Value: after}
+	}
+	if after, ok := cutPrefix(s, "first:"); ok {
+		return Selector{Kind: KindFirst, Value: after}
+	}
+	if after, ok := cutPrefix(s, "last:"); ok {
+		return Selector{Kind: KindLast, Value: after}
+	}
+	if after, ok := cutPrefix(s, "nth:"); ok {
+		return Selector{Kind: KindNth, Value: after}
 	}
 	if after, ok := cutPrefix(s, "ref:"); ok {
 		return Selector{Kind: KindRef, Value: after}
@@ -178,11 +250,64 @@ func (s Selector) Validate() error {
 		return fmt.Errorf("empty selector")
 	}
 	switch s.Kind {
-	case KindRef, KindCSS, KindXPath, KindText, KindSemantic:
+	case KindRef, KindCSS, KindXPath, KindText, KindSemantic,
+		KindRole, KindLabel, KindPlaceholder, KindAlt, KindTitle, KindTestID,
+		KindFirst, KindLast, KindNth:
 		return nil
 	default:
 		return fmt.Errorf("unknown selector kind: %q", s.Kind)
 	}
+}
+
+// SemanticQuery returns the query string to send to the semantic matcher for
+// selector-resolution paths. The existing text selector intentionally stays
+// browser-side for backward-compatible action targeting.
+func (s Selector) SemanticQuery() (string, bool) {
+	if s.IsEmpty() {
+		return "", false
+	}
+	switch s.Kind {
+	case KindSemantic:
+		return s.Value, strings.TrimSpace(s.Value) != ""
+	case KindRole, KindLabel, KindPlaceholder, KindAlt, KindTitle, KindTestID:
+		return s.String(), strings.TrimSpace(s.Value) != ""
+	case KindFirst, KindLast:
+		if rawSelectorCanUseSemantic(s.Value) {
+			return s.String(), true
+		}
+	case KindNth:
+		_, raw, ok := splitNthSelectorValue(s.Value)
+		if ok && rawSelectorCanUseSemantic(raw) {
+			return s.String(), true
+		}
+	}
+	return "", false
+}
+
+func rawSelectorCanUseSemantic(raw string) bool {
+	sel := Parse(raw)
+	switch sel.Kind {
+	case KindRole, KindLabel, KindPlaceholder, KindAlt, KindTitle, KindTestID:
+		return strings.TrimSpace(sel.Value) != ""
+	default:
+		return false
+	}
+}
+
+func splitNthSelectorValue(value string) (int, string, bool) {
+	rawIndex, rawSelector, ok := strings.Cut(value, ":")
+	if !ok {
+		return 0, "", false
+	}
+	rawSelector = strings.TrimSpace(rawSelector)
+	if rawSelector == "" {
+		return 0, "", false
+	}
+	index, err := strconv.Atoi(strings.TrimSpace(rawIndex))
+	if err != nil || index < 0 {
+		return 0, "", false
+	}
+	return index, rawSelector, true
 }
 
 // cutPrefix is a helper for strings.CutPrefix (available in Go 1.20+).

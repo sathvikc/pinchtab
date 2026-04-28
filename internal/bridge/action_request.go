@@ -21,6 +21,10 @@ type ActionFunc func(ctx context.Context, req ActionRequest) (map[string]any, er
 //	"xpath://div"     → XPath expression
 //	"text:Submit"     → text content match
 //	"find:login btn"  → semantic / natural-language query
+//	"role:button Save" → role/name locator
+//	"label:Email"     → form control by label
+//	"testid:submit"   → test id locator
+//	"last:button"     → positional selector wrapper
 //
 // For backward compatibility, the legacy Ref and Selector (CSS) fields
 // are still accepted. Call NormalizeSelector() to merge them into the

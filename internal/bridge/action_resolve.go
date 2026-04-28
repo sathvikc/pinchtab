@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -398,6 +399,146 @@ func ResolveTextToNodeIDInFrame(ctx context.Context, frameID, text string) (int6
 	return backendNodeID, err
 }
 
+const resolveSelectorAtFn = `function(kind, value, index, fromEnd) {
+	const root = this;
+	const normalize = (input) => String(input || "")
+		.toLowerCase()
+		.replace(/\s+/g, " ")
+		.trim();
+	const needle = normalize(value);
+	const unique = (items) => {
+		const seen = new Set();
+		const out = [];
+		for (const item of items) {
+			if (!item || seen.has(item)) continue;
+			seen.add(item);
+			out.push(item);
+		}
+		return out;
+	};
+	const pick = (items) => {
+		items = unique(items);
+		if (!items.length) return null;
+		const idx = fromEnd ? items.length - 1 : index;
+		if (idx < 0 || idx >= items.length) return null;
+		return items[idx];
+	};
+	const textCandidates = (query) => {
+		const elements = Array.from((root.body || root.documentElement || root).querySelectorAll("*"));
+		const exact = [];
+		for (const el of elements) {
+			const text = normalize(el.textContent || "");
+			if (!query || !text || !(text === query || text.includes(query))) continue;
+			exact.push({ el, size: el.getElementsByTagName("*").length });
+		}
+		if (exact.length) {
+			const minSize = Math.min(...exact.map((item) => item.size));
+			return exact.filter((item) => item.size === minSize).map((item) => item.el);
+		}
+		const tokens = query.split(" ").filter(Boolean);
+		if (!tokens.length) return [];
+		const fuzzy = [];
+		for (const el of elements) {
+			const text = normalize(el.textContent || "");
+			if (!text) continue;
+			let hits = 0;
+			for (const token of tokens) if (text.includes(token)) hits++;
+			if (hits / tokens.length >= 0.7) {
+				fuzzy.push({ el, size: el.getElementsByTagName("*").length });
+			}
+		}
+		if (!fuzzy.length) return [];
+		const minSize = Math.min(...fuzzy.map((item) => item.size));
+		return fuzzy.filter((item) => item.size === minSize).map((item) => item.el);
+	};
+
+	try {
+		switch (kind) {
+		case "css":
+			return pick(Array.from(root.querySelectorAll(value)));
+		case "xpath": {
+			const result = root.evaluate(value, root, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+			const items = [];
+			for (let i = 0; i < result.snapshotLength; i++) items.push(result.snapshotItem(i));
+			return pick(items);
+		}
+		case "text":
+			return pick(textCandidates(needle));
+		default:
+			return null;
+		}
+	} catch (e) {
+		return null;
+	}
+}`
+
+func resolveSelectorAtInFrame(ctx context.Context, frameID string, sel selector.Selector, index int, fromEnd bool) (int64, error) {
+	kind := string(sel.Kind)
+	switch sel.Kind {
+	case selector.KindCSS, selector.KindXPath, selector.KindText:
+	default:
+		return 0, fmt.Errorf("%s selector cannot be used with first/last/nth", sel.Kind)
+	}
+
+	var backendNodeID int64
+	err := chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+		nid, err := resolveNodeInFrame(ctx, frameID, resolveSelectorAtFn, []map[string]any{
+			{"value": kind},
+			{"value": sel.Value},
+			{"value": index},
+			{"value": fromEnd},
+		})
+		if err != nil {
+			return fmt.Errorf("%s %q: no element found", sel.Kind, sel.Value)
+		}
+		backendNodeID = nid
+		return nil
+	}))
+	return backendNodeID, err
+}
+
+func parseNthSelectorValue(value string) (int, string, error) {
+	rawIndex, rawSelector, ok := strings.Cut(value, ":")
+	if !ok {
+		return 0, "", fmt.Errorf("nth selector requires nth:<index>:<selector>")
+	}
+	rawIndex = strings.TrimSpace(rawIndex)
+	rawSelector = strings.TrimSpace(rawSelector)
+	if rawSelector == "" {
+		return 0, "", fmt.Errorf("nth selector requires a nested selector")
+	}
+	index, err := strconv.Atoi(rawIndex)
+	if err != nil || index < 0 {
+		return 0, "", fmt.Errorf("nth selector index must be a zero-based non-negative integer")
+	}
+	return index, rawSelector, nil
+}
+
+func resolveNestedSelectorAtInFrame(ctx context.Context, frameID string, raw string, refCache *RefCache, index int, fromEnd bool) (int64, error) {
+	inner := selector.Parse(raw)
+	switch inner.Kind {
+	case selector.KindFirst:
+		return resolveNestedSelectorAtInFrame(ctx, frameID, inner.Value, refCache, 0, false)
+	case selector.KindLast:
+		return resolveNestedSelectorAtInFrame(ctx, frameID, inner.Value, refCache, 0, true)
+	case selector.KindNth:
+		nth, nestedRaw, err := parseNthSelectorValue(inner.Value)
+		if err != nil {
+			return 0, err
+		}
+		return resolveNestedSelectorAtInFrame(ctx, frameID, nestedRaw, refCache, nth, false)
+	case selector.KindRef:
+		if fromEnd || index != 0 {
+			return 0, fmt.Errorf("ref selector cannot be used with last/nth")
+		}
+		return ResolveUnifiedSelectorInFrame(ctx, inner, refCache, frameID)
+	case selector.KindSemantic:
+		return 0, fmt.Errorf("semantic selectors must be resolved at the handler layer via /find")
+	default:
+		return resolveSelectorAtInFrame(ctx, frameID, inner, index, fromEnd)
+	}
+}
+
 // ResolveCSSToNodeID resolves a CSS selector to a backend node ID.
 func ResolveCSSToNodeID(ctx context.Context, css string) (int64, error) {
 	return ResolveCSSToNodeIDInFrame(ctx, "", css)
@@ -548,6 +689,23 @@ func ResolveUnifiedSelectorInFrame(ctx context.Context, sel selector.Selector, r
 	case selector.KindSemantic:
 		return 0, fmt.Errorf("semantic selectors must be resolved at the handler layer via /find")
 
+	case selector.KindRole, selector.KindLabel, selector.KindPlaceholder,
+		selector.KindAlt, selector.KindTitle, selector.KindTestID:
+		return 0, fmt.Errorf("%s selectors must be resolved at the handler layer via semantic", sel.Kind)
+
+	case selector.KindFirst:
+		return resolveNestedSelectorAtInFrame(ctx, frameID, sel.Value, refCache, 0, false)
+
+	case selector.KindLast:
+		return resolveNestedSelectorAtInFrame(ctx, frameID, sel.Value, refCache, 0, true)
+
+	case selector.KindNth:
+		index, rawSelector, err := parseNthSelectorValue(sel.Value)
+		if err != nil {
+			return 0, err
+		}
+		return resolveNestedSelectorAtInFrame(ctx, frameID, rawSelector, refCache, index, false)
+
 	default:
 		return 0, fmt.Errorf("unknown selector kind: %q", sel.Kind)
 	}
@@ -555,8 +713,8 @@ func ResolveUnifiedSelectorInFrame(ctx context.Context, sel selector.Selector, r
 
 // ResolveUnifiedSelector resolves a parsed selector to a backend node ID.
 // For ref selectors, the refCache is consulted. For CSS, XPath, and text
-// selectors, CDP is used directly. Semantic selectors are not resolved here
-// (they require the semantic matcher at a higher layer).
+// selectors, CDP is used directly. Semantic and structured semantic locators
+// are not resolved here; they require the semantic matcher at a higher layer.
 func ResolveUnifiedSelector(ctx context.Context, sel selector.Selector, refCache *RefCache) (int64, error) {
 	return ResolveUnifiedSelectorInFrame(ctx, sel, refCache, "")
 }

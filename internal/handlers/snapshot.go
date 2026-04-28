@@ -162,6 +162,7 @@ func (h *Handlers) HandleSnapshot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	flat, refs := bridge.BuildSnapshot(treeResp.Nodes, filter, maxDepth)
+	_ = bridge.EnrichA11yNodesWithDOMMetadata(tCtx, flat)
 
 	// Check if scoped snapshot returned 0 nodes but element exists in DOM
 	var scopedEmptyHint string

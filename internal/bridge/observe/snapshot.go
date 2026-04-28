@@ -17,6 +17,13 @@ type A11yNode struct {
 	Name           string `json:"name"`
 	Depth          int    `json:"depth"`
 	Value          string `json:"value,omitempty"`
+	Label          string `json:"label,omitempty"`
+	Placeholder    string `json:"placeholder,omitempty"`
+	Alt            string `json:"alt,omitempty"`
+	Title          string `json:"title,omitempty"`
+	TestID         string `json:"testid,omitempty"`
+	Text           string `json:"text,omitempty"`
+	Tag            string `json:"tag,omitempty"`
 	Disabled       bool   `json:"disabled,omitempty"`
 	Focused        bool   `json:"focused,omitempty"`
 	Hidden         bool   `json:"hidden,omitempty"`

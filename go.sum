@@ -52,8 +52,8 @@ github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde h1:x0TT0RDC7UhA
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
 github.com/pinchtab/idpishield v0.1.4 h1:zuIofkQ6c9tzdrYsaNWA10w78OuMcgiBlsCOz4Zk34E=
 github.com/pinchtab/idpishield v0.1.4/go.mod h1:i6MNCo1Y03KvpqblGAsGviox1WKpsn11gwOSeIlzYm0=
-github.com/pinchtab/semantic v0.1.2 h1:aSSwNwFb+laEBW1/x44dhnGmqUn5xdWJsweLgbqu8WM=
-github.com/pinchtab/semantic v0.1.2/go.mod h1:SPKIra6m26faxTxn4dxa1ex1TbGkZDKbJ2r5rCngWoQ=
+github.com/pinchtab/semantic v0.1.3 h1:4nzJby6CZlqag5tfmeZux8mjB2xKgS4uWUi9GMtSqSM=
+github.com/pinchtab/semantic v0.1.3/go.mod h1:SPKIra6m26faxTxn4dxa1ex1TbGkZDKbJ2r5rCngWoQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=

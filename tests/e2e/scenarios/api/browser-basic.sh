@@ -361,6 +361,38 @@ assert_json_length_gte "$RESULT" ".matches" 1 "has matches"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
+start_test "pinchtab find (structured semantic locators)"
+
+pt_post /find -d '{"query":"role:button Log In"}'
+assert_ok "find role locator"
+assert_json_contains "$RESULT" '.strategy' 'structured' "role locator uses structured matcher"
+assert_json_eq "$RESULT" '.matches[0].name' 'Log In' "role locator matched login button"
+
+pt_post /find -d '{"query":"placeholder:Email address"}'
+assert_ok "find placeholder locator"
+assert_json_contains "$RESULT" '.strategy' 'structured' "placeholder locator uses structured matcher"
+assert_json_eq "$RESULT" '.matches[0].role' 'textbox' "placeholder locator matched textbox"
+
+pt_post /find -d '{"query":"first:role:button"}'
+assert_ok "find first role locator"
+assert_json_contains "$RESULT" '.strategy' 'structured' "wrapper locator uses structured matcher"
+assert_json_eq "$RESULT" '.matches[0].name' 'Log In' "first role locator uses document order"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
+start_test "pinchtab action (semantic label selector)"
+
+pt_post /action -d '{"kind":"type","selector":"label:Email","text":"structured@example.test","fast":true}'
+assert_ok "type by semantic label selector"
+
+pt_post /evaluate -d '{"expression":"document.querySelector(\"input[type=email]\").value"}'
+assert_ok "evaluate email value"
+assert_json_eq "$RESULT" '.result' 'structured@example.test' "semantic label selector typed into email input"
+
+end_test
+
+# ─────────────────────────────────────────────────────────────────
 start_test "pinchtab find --tab <id>"
 
 pt_post /navigate -d "{\"url\":\"${FIXTURES_URL}/find.html\",\"newTab\":true}"

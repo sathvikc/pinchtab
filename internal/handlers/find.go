@@ -109,17 +109,10 @@ func (h *Handlers) HandleFind(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, 500, fmt.Errorf("no elements found in snapshot for tab %s — navigate first", resolvedTabID))
 		return
 	}
+	_ = bridge.EnrichA11yNodesWithDOMMetadata(ctxTab, nodes)
 
 	// Build descriptors from A11yNodes.
-	descs := make([]semantic.ElementDescriptor, len(nodes))
-	for i, n := range nodes {
-		descs[i] = semantic.ElementDescriptor{
-			Ref:   n.Ref,
-			Role:  n.Role,
-			Name:  n.Name,
-			Value: n.Value,
-		}
-	}
+	descs := semanticDescriptorsFromNodes(nodes)
 
 	// IDPI: scan AX-node text corpus and full page body text for injection
 	// patterns before semantic matching. The interactive AX filter omits

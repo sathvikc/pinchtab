@@ -13,6 +13,11 @@ Selector forms include:
 - `xpath://button`
 - `text:Submit`
 - `find:login button`
+- `role:button Save`
+- `label:Email`, `placeholder:Search`, `alt:Logo`, `title:Close`, `testid:submit`
+- `first:button`, `last:button`, `nth:2:button`
+
+Structured semantic locators are matched by the semantic engine; CSS, XPath, refs, the existing `text:` action selector, and bare CSS/text wrappers stay browser-side.
 
 ## Navigation
 

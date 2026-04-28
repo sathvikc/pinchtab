@@ -34,8 +34,20 @@ func TestParse_ExplicitPrefixes(t *testing.T) {
 
 		// Semantic / find
 		{"find:login button", KindSemantic, "login button"},
+		{"semantic:login button", KindSemantic, "login button"},
 		{"find:the search input field", KindSemantic, "the search input field"},
 		{"find:", KindSemantic, ""},
+
+		// Locator prefixes
+		{"role:button Save", KindRole, "button Save"},
+		{"label:Email", KindLabel, "Email"},
+		{"placeholder:Search", KindPlaceholder, "Search"},
+		{"alt:Product photo", KindAlt, "Product photo"},
+		{"title:Close", KindTitle, "Close"},
+		{"testid:submit-button", KindTestID, "submit-button"},
+		{"first:button", KindFirst, "button"},
+		{"last:text:Submit", KindLast, "text:Submit"},
+		{"nth:2:role:button Save", KindNth, "2:role:button Save"},
 
 		// Ref (explicit prefix)
 		{"ref:e5", KindRef, "e5"},
@@ -309,6 +321,15 @@ func TestSelector_String(t *testing.T) {
 		{Selector{KindText, "Submit"}, "text:Submit"},
 		{Selector{KindText, "with:colon"}, "text:with:colon"},
 		{Selector{KindSemantic, "login button"}, "find:login button"},
+		{Selector{KindRole, "button Save"}, "role:button Save"},
+		{Selector{KindLabel, "Email"}, "label:Email"},
+		{Selector{KindPlaceholder, "Search"}, "placeholder:Search"},
+		{Selector{KindAlt, "Logo"}, "alt:Logo"},
+		{Selector{KindTitle, "Close"}, "title:Close"},
+		{Selector{KindTestID, "submit"}, "testid:submit"},
+		{Selector{KindFirst, "button"}, "first:button"},
+		{Selector{KindLast, "text:Submit"}, "last:text:Submit"},
+		{Selector{KindNth, "1:button"}, "nth:1:button"},
 		{Selector{KindNone, ""}, ""},
 		{Selector{KindNone, "something"}, "something"},
 	}
@@ -346,6 +367,15 @@ func TestSelector_Validate(t *testing.T) {
 		{KindXPath, "//div"},
 		{KindText, "Submit"},
 		{KindSemantic, "login button"},
+		{KindRole, "button Save"},
+		{KindLabel, "Email"},
+		{KindPlaceholder, "Search"},
+		{KindAlt, "Logo"},
+		{KindTitle, "Close"},
+		{KindTestID, "submit"},
+		{KindFirst, "button"},
+		{KindLast, "button"},
+		{KindNth, "1:button"},
 	}
 	for _, s := range valid {
 		if err := s.Validate(); err != nil {
@@ -367,6 +397,41 @@ func TestSelector_Validate(t *testing.T) {
 	}
 	if err := (Selector{Kind: Kind("unknown"), Value: "x"}).Validate(); err == nil {
 		t.Error("Validate(unknown kind) should fail")
+	}
+}
+
+func TestSelector_SemanticQuery(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+		ok    bool
+	}{
+		{"find:login button", "login button", true},
+		{"semantic:login button", "login button", true},
+		{"text:Submit", "", false},
+		{"role:button Save", "role:button Save", true},
+		{"label:Email", "label:Email", true},
+		{"placeholder:Search", "placeholder:Search", true},
+		{"alt:Logo", "alt:Logo", true},
+		{"title:Close", "title:Close", true},
+		{"testid:submit", "testid:submit", true},
+		{"first:text:Submit", "", false},
+		{"last:role:button Save", "last:role:button Save", true},
+		{"nth:2:label:Email", "nth:2:label:Email", true},
+		{"first:button", "", false},
+		{"last:css:button", "", false},
+		{"nth:2:button", "", false},
+		{"nth:-1:text:Submit", "", false},
+		{"css:button", "", false},
+		{"e1", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, ok := Parse(tt.input).SemanticQuery()
+			if ok != tt.ok || got != tt.want {
+				t.Fatalf("SemanticQuery() = %q, %v; want %q, %v", got, ok, tt.want, tt.ok)
+			}
+		})
 	}
 }
 
@@ -427,6 +492,16 @@ func TestParse_Roundtrip(t *testing.T) {
 		"text:Submit Order",
 		"text:with:colon:in:value",
 		"find:the big red button",
+		"semantic:the big red button",
+		"role:button Save",
+		"label:Email",
+		"placeholder:Search",
+		"alt:Logo",
+		"title:Close",
+		"testid:submit",
+		"first:button",
+		"last:text:Submit",
+		"nth:1:role:button Save",
 	}
 	for _, input := range inputs {
 		s := Parse(input)
