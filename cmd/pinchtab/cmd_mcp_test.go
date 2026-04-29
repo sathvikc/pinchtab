@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -119,6 +120,43 @@ func TestEnsureServerStartsAndWaits(t *testing.T) {
 	}
 	if healthChecks < 2 {
 		t.Fatalf("expected health to be checked before and after start, got %d checks", healthChecks)
+	}
+}
+
+func TestEnsureServerDoesNotStartWhenAutoStartDisabled(t *testing.T) {
+	started := false
+
+	err := ensureServerWithAutoStart(
+		"http://127.0.0.1:9999",
+		"",
+		"test",
+		false,
+		func() error {
+			started = true
+			return nil
+		},
+		func(baseURL, token string) bool {
+			return false
+		},
+		time.Second,
+	)
+
+	if err == nil || !strings.Contains(err.Error(), "auto-start is only supported") {
+		t.Fatalf("ensureServerWithAutoStart() error = %v, want auto-start disabled error", err)
+	}
+	if started {
+		t.Fatal("expected auto-start function not to run")
+	}
+}
+
+func TestAutoStartServerArgsIgnoreClientServerURL(t *testing.T) {
+	oldServerURL := serverURL
+	serverURL = "http://127.0.0.1:9999"
+	defer func() { serverURL = oldServerURL }()
+
+	args := autoStartServerArgs()
+	if len(args) != 1 || args[0] != "server" {
+		t.Fatalf("autoStartServerArgs() = %v, want [server]", args)
 	}
 }
 

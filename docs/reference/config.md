@@ -39,11 +39,14 @@ pinchtab config init
 
 `config init` respects `PINCHTAB_CONFIG`. If that environment variable is set, the file is created there.
 
-Generated config files include a versioned `$schema` URL for IDE completion and validation.
+Generated config files include a `$schema` URL for IDE completion and validation.
 
 ### `pinchtab config schema`
 
-Prints the versioned JSON Schema URL for this PinchTab build.
+Prints the JSON Schema URL for this PinchTab build. Source builds, development
+builds, and versions without a published schema use the `main` schema URL.
+When a matching release schema is known, PinchTab uses that release tag; when a
+newer matching schema is known, PinchTab uses the closest newer tag.
 
 ```bash
 pinchtab config schema
@@ -160,7 +163,7 @@ Current nested file-config shape:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/pinchtab/pinchtab/v0.8.0/schema/config.json",
+  "$schema": "https://raw.githubusercontent.com/pinchtab/pinchtab/main/schema/config.json",
   "configVersion": "0.8.0",
   "server": {
     "port": "9867",

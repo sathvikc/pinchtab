@@ -105,6 +105,8 @@ var serverURL string
 var cliAgentID string
 
 func init() {
+	config.SetConfigSchemaVersion(version)
+
 	rootCmd.Version = version
 	rootCmd.SetVersionTemplate("pinchtab {{.Version}}\n")
 

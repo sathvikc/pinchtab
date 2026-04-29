@@ -61,17 +61,18 @@ func registerBrowserCommands() {
 		cacheCmd,
 		storageCmd,
 		stateCmd,
+		closeCmd,
 		tabCloseCmd,
+		handoffCmd,
 		tabHandoffCmd,
+		resumeCmd,
 		tabResumeCmd,
+		handoffStatusCmd,
 		tabHandoffStatusCmd,
 	)
 
-	// Register close/handoff/resume/handoff-status as subcommands of `tab` too
-	// so `pinchtab tab handoff <id>` keeps working alongside the top-level
-	// `pinchtab handoff`. The commands carry GroupID="browser" (set by
-	// setCommandGroup above) — add the same group to tabsCmd so cobra accepts
-	// them without panicking.
+	// These commands carry GroupID="browser" (set by setCommandGroup above).
+	// Add the same group to tabsCmd so cobra accepts grouped tab subcommands.
 	tabsCmd.AddGroup(&cobra.Group{ID: "browser", Title: "Browser"})
 	tabsCmd.AddCommand(tabCloseCmd, tabHandoffCmd, tabResumeCmd, tabHandoffStatusCmd)
 	clipboardCmd.AddCommand(clipboardReadCmd, clipboardWriteCmd, clipboardCopyCmd, clipboardPasteCmd)
@@ -127,9 +128,10 @@ func registerBrowserCommands() {
 		cacheCmd,
 		storageCmd,
 		stateCmd,
-		tabHandoffCmd,
-		tabResumeCmd,
-		tabHandoffStatusCmd,
+		closeCmd,
+		handoffCmd,
+		resumeCmd,
+		handoffStatusCmd,
 	)
 }
 
@@ -318,9 +320,13 @@ func configureBrowserFlags() {
 
 	evalCmd.Flags().Bool("await-promise", false, "Resolve a returned Promise before responding")
 	navCmd.Flags().Bool("print-tab-id", false, "Print only the tab ID on stdout (also triggered automatically when stdout is a pipe)")
-	tabHandoffCmd.Flags().String("reason", "", "Reason for human handoff (default: manual_handoff)")
-	tabHandoffCmd.Flags().Int("timeout-ms", 0, "Optional auto-resume timeout in milliseconds")
-	tabResumeCmd.Flags().String("status", "", "Optional resume status note (e.g. completed, failed)")
+	for _, cmd := range []*cobra.Command{handoffCmd, tabHandoffCmd} {
+		cmd.Flags().String("reason", "", "Reason for human handoff (default: manual_handoff)")
+		cmd.Flags().Int("timeout-ms", 0, "Optional auto-resume timeout in milliseconds")
+	}
+	for _, cmd := range []*cobra.Command{resumeCmd, tabResumeCmd} {
+		cmd.Flags().String("status", "", "Optional resume status note (e.g. completed, failed)")
+	}
 
 	// Add --json flag to action commands (default is terse output)
 	addJSONFlag(
@@ -351,9 +357,13 @@ func configureBrowserFlags() {
 		findCmd,
 		evalCmd,
 		tabsCmd,
+		closeCmd,
 		tabCloseCmd,
+		handoffCmd,
 		tabHandoffCmd,
+		resumeCmd,
 		tabResumeCmd,
+		handoffStatusCmd,
 		tabHandoffStatusCmd,
 		healthCmd,
 		cacheClearCmd,

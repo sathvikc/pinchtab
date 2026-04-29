@@ -99,10 +99,10 @@ start_test "config schema prints bundled schema"
 
 pt_ok config schema
 SCHEMA_URL=$(echo "$PT_OUT" | tr -d '[:space:]')
-if [[ "$SCHEMA_URL" =~ ^https://raw\.githubusercontent\.com/pinchtab/pinchtab/v[0-9]+\.[0-9]+\.[0-9]+/schema/config\.json$ ]]; then
-  pass_assert "prints versioned GitHub schema URL"
+if [[ "$SCHEMA_URL" =~ ^https://raw\.githubusercontent\.com/pinchtab/pinchtab/(main|v[0-9]+\.[0-9]+\.[0-9]+)/schema/config\.json$ ]]; then
+  pass_assert "prints GitHub schema URL"
 else
-  fail_assert "prints versioned GitHub schema URL (got $SCHEMA_URL)"
+  fail_assert "prints GitHub schema URL (got $SCHEMA_URL)"
 fi
 
 pt_ok config schema --print

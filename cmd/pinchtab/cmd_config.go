@@ -435,16 +435,19 @@ func handleConfigValidate() {
 }
 
 func handleConfigSchema(printSchema bool) {
+	schemaURL := config.CurrentConfigSchemaURL()
 	if printSchema {
-		if _, err := os.Stdout.Write(configschema.ConfigJSON); err != nil {
-			fmt.Printf("Error writing schema: %v\n", err)
+		schemaJSON, err := configschema.ConfigJSONForURL(schemaURL)
+		if err != nil {
+			fmt.Printf("Error rendering schema: %v\n", err)
 			os.Exit(1)
 		}
-		if len(configschema.ConfigJSON) == 0 || configschema.ConfigJSON[len(configschema.ConfigJSON)-1] != '\n' {
-			fmt.Println()
+		if _, err := os.Stdout.Write(schemaJSON); err != nil {
+			fmt.Printf("Error writing schema: %v\n", err)
+			os.Exit(1)
 		}
 		return
 	}
 
-	fmt.Println(config.ConfigSchemaURL)
+	fmt.Println(schemaURL)
 }

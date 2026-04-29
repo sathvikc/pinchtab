@@ -50,7 +50,7 @@ Fallback observation (when `--snap` wasn't used):
 - `pinchtab snap --full` — all nodes as JSON (for debugging).
 - `pinchtab text` — content only (use when snap is missing prose you need).
 
-Rules: only `nav <url>` auto-starts the local server; `snap`, `text`, `html`, `find`, and action commands operate on an already-running server/current tab. Never act on stale refs; screenshots only for visual/debug; choose the instance/profile up front for parallel or multi-site work.
+Rules: only `nav <url>` auto-starts the default local server; `snap`, `text`, `html`, `find`, and action commands operate on an already-running server/current tab. Explicit `--server` targets are never auto-started. Never act on stale refs; screenshots only for visual/debug; choose the instance/profile up front for parallel or multi-site work.
 
 ## Selectors
 
@@ -89,7 +89,7 @@ pinchtab --server http://localhost:9868 snap -i -c  # target a specific instance
 ### Navigation and tabs
 
 ```bash
-pinchtab nav <url>                                  # auto-starts local server; flags: --snap, --new-tab, --tab <id>, --block-images, --block-ads, --print-tab-id
+pinchtab nav <url>                                  # auto-starts default local server; flags: --snap, --new-tab, --tab <id>, --block-images, --block-ads, --print-tab-id
 pinchtab back | forward | reload                    # all support --snap, --snap-diff, --text
 pinchtab tab                                        # list tabs
 pinchtab tab <tab-id>                               # focus tab

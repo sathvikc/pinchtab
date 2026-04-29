@@ -35,7 +35,7 @@ For Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.
 }
 ```
 
-`pinchtab mcp` auto-starts the local PinchTab server if needed, then proxies requests to the HTTP API at `localhost:9867` by default.
+`pinchtab mcp` auto-starts the local PinchTab server if needed, then proxies requests to the HTTP API at `localhost:9867` by default. Explicit `--server` targets are used as-is and are not auto-started.
 
 > [!CAUTION]
 > Widening MCP browsing beyond local or explicitly trusted domains is a security-reducing choice. If IDPI allowlists or strict protections are relaxed, `pinchtab_snapshot` and `pinchtab_get_text` may surface hostile instructions from untrusted pages.

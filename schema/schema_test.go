@@ -32,3 +32,26 @@ func TestConfigSchemaMetadata(t *testing.T) {
 		t.Fatalf("config $schema default = %q, want %q", schemaProp["default"], config.ConfigSchemaURL)
 	}
 }
+
+func TestConfigJSONForURL(t *testing.T) {
+	const schemaURL = "https://raw.githubusercontent.com/pinchtab/pinchtab/v1.2.3/schema/config.json"
+
+	data, err := ConfigJSONForURL(schemaURL)
+	if err != nil {
+		t.Fatalf("ConfigJSONForURL() error = %v", err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("rendered schema is not valid JSON: %v", err)
+	}
+	if raw["$id"] != schemaURL {
+		t.Fatalf("schema $id = %q, want %q", raw["$id"], schemaURL)
+	}
+
+	properties := raw["properties"].(map[string]any)
+	schemaProp := properties["$schema"].(map[string]any)
+	if schemaProp["default"] != schemaURL {
+		t.Fatalf("config $schema default = %q, want %q", schemaProp["default"], schemaURL)
+	}
+}

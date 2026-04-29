@@ -25,7 +25,7 @@ func TestInitDefaultConfigIncludesSchema(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("config JSON is invalid: %v", err)
 	}
-	if raw["$schema"] != config.ConfigSchemaURL {
-		t.Fatalf("$schema = %q, want %q", raw["$schema"], config.ConfigSchemaURL)
+	if raw["$schema"] != config.CurrentConfigSchemaURL() {
+		t.Fatalf("$schema = %q, want %q", raw["$schema"], config.CurrentConfigSchemaURL())
 	}
 }

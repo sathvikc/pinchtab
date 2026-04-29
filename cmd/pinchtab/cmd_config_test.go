@@ -238,8 +238,8 @@ func TestConfigSchemaSubcommandPrintsURL(t *testing.T) {
 		}
 	})
 
-	if got := strings.TrimSpace(output); got != config.ConfigSchemaURL {
-		t.Fatalf("config schema output = %q, want %q", got, config.ConfigSchemaURL)
+	if got := strings.TrimSpace(output); got != config.CurrentConfigSchemaURL() {
+		t.Fatalf("config schema output = %q, want %q", got, config.CurrentConfigSchemaURL())
 	}
 }
 
@@ -261,8 +261,8 @@ func TestConfigSchemaSubcommandPrintsBundledSchema(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &raw); err != nil {
 		t.Fatalf("schema output is not valid JSON: %v\n%s", err, output)
 	}
-	if raw["$id"] != config.ConfigSchemaURL {
-		t.Fatalf("schema $id = %q, want %q", raw["$id"], config.ConfigSchemaURL)
+	if raw["$id"] != config.CurrentConfigSchemaURL() {
+		t.Fatalf("schema $id = %q, want %q", raw["$id"], config.CurrentConfigSchemaURL())
 	}
 }
 

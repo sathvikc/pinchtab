@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/pinchtab/pinchtab/v0.8.0/schema/config.json",
+  "$id": "https://raw.githubusercontent.com/pinchtab/pinchtab/main/schema/config.json",
   "title": "PinchTab configuration",
   "description": "Configuration file for PinchTab. The CLI's Go validation remains authoritative for cross-field checks.",
   "type": "object",
@@ -9,7 +9,7 @@
     "$schema": {
       "type": "string",
       "format": "uri",
-      "default": "https://raw.githubusercontent.com/pinchtab/pinchtab/v0.8.0/schema/config.json",
+      "default": "https://raw.githubusercontent.com/pinchtab/pinchtab/main/schema/config.json",
       "description": "JSON Schema URL for IDE validation."
     },
     "configVersion": {

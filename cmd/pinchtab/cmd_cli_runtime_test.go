@@ -65,6 +65,33 @@ func TestResolveCLIBase(t *testing.T) {
 	}
 }
 
+func TestCanAutoStartServerForCLIOnlyAllowsDefaultLocalBase(t *testing.T) {
+	oldServerURL := serverURL
+	defer func() { serverURL = oldServerURL }()
+
+	cfg := &config.RuntimeConfig{Port: "9867"}
+	serverURL = ""
+	t.Setenv("PINCHTAB_SERVER", "")
+
+	if !canAutoStartServerForCLI(cfg, "http://127.0.0.1:9867") {
+		t.Fatal("expected default local base to allow auto-start")
+	}
+	if canAutoStartServerForCLI(cfg, "http://127.0.0.1:9999") {
+		t.Fatal("expected mismatched base to disable auto-start")
+	}
+
+	serverURL = "http://127.0.0.1:9999"
+	if canAutoStartServerForCLI(cfg, "http://127.0.0.1:9999") {
+		t.Fatal("expected explicit --server target to disable auto-start")
+	}
+
+	serverURL = ""
+	t.Setenv("PINCHTAB_SERVER", "http://127.0.0.1:9999")
+	if canAutoStartServerForCLI(cfg, "http://127.0.0.1:9999") {
+		t.Fatal("expected PINCHTAB_SERVER target to disable auto-start")
+	}
+}
+
 func TestResolveCLIAgentID(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -29,7 +29,7 @@ func TestSnapshot(t *testing.T) {
 	cmd := newSnapshotCmd()
 	_ = cmd.Flags().Set("interactive", "true")
 	_ = cmd.Flags().Set("compact", "true")
-	Snapshot(client, m.base(), "", cmd)
+	Snapshot(client, m.base(), "", cmd, "")
 	if m.lastMethod != "GET" {
 		t.Errorf("expected GET, got %s", m.lastMethod)
 	}
@@ -54,7 +54,7 @@ func TestSnapshotDiff(t *testing.T) {
 	_ = cmd.Flags().Set("selector", "main")
 	_ = cmd.Flags().Set("max-tokens", "2000")
 	_ = cmd.Flags().Set("depth", "5")
-	Snapshot(client, m.base(), "", cmd)
+	Snapshot(client, m.base(), "", cmd, "")
 	if !strings.Contains(m.lastQuery, "diff=true") {
 		t.Errorf("expected diff=true, got %s", m.lastQuery)
 	}
@@ -76,8 +76,20 @@ func TestSnapshotTabId(t *testing.T) {
 
 	cmd := newSnapshotCmd()
 	_ = cmd.Flags().Set("tab", "ABC123")
-	Snapshot(client, m.base(), "", cmd)
+	Snapshot(client, m.base(), "", cmd, "")
 	if !strings.Contains(m.lastQuery, "tabId=ABC123") {
 		t.Errorf("expected tabId=ABC123, got %s", m.lastQuery)
+	}
+}
+
+func TestSnapshotSelectorOverride(t *testing.T) {
+	m := newMockServer()
+	defer m.close()
+	client := m.server.Client()
+
+	cmd := newSnapshotCmd()
+	Snapshot(client, m.base(), "", cmd, "#main")
+	if !strings.Contains(m.lastQuery, "selector=%23main") {
+		t.Errorf("expected selector override, got %s", m.lastQuery)
 	}
 }

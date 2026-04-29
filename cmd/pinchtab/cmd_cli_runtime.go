@@ -23,12 +23,7 @@ func runCLI(fn func(cliRuntime)) {
 }
 
 func runCLIWith(cfg *config.RuntimeConfig, fn func(cliRuntime)) {
-	rt := cliRuntime{
-		client: newCLIHTTPClient(resolveCLIAgentID()),
-		base:   resolveCLIBase(cfg),
-		token:  resolveCLIToken(cfg),
-	}
-	fn(rt)
+	fn(newCLIRuntime(cfg))
 }
 
 func runCLIEnsuringServer(command string, fn func(cliRuntime)) {
@@ -36,16 +31,20 @@ func runCLIEnsuringServer(command string, fn func(cliRuntime)) {
 }
 
 func runCLIWithServerCheck(cfg *config.RuntimeConfig, command string, fn func(cliRuntime)) {
-	rt := cliRuntime{
-		client: newCLIHTTPClient(resolveCLIAgentID()),
-		base:   resolveCLIBase(cfg),
-		token:  resolveCLIToken(cfg),
-	}
-	if err := ensureServer(rt.base, rt.token, command); err != nil {
+	rt := newCLIRuntime(cfg)
+	if err := ensureServerForCLI(cfg, rt.base, rt.token, command); err != nil {
 		fmt.Fprintf(os.Stderr, "pinchtab: %v\n", err)
 		os.Exit(1)
 	}
 	fn(rt)
+}
+
+func newCLIRuntime(cfg *config.RuntimeConfig) cliRuntime {
+	return cliRuntime{
+		client: newCLIHTTPClient(resolveCLIAgentID()),
+		base:   resolveCLIBase(cfg),
+		token:  resolveCLIToken(cfg),
+	}
 }
 
 func newCLIHTTPClient(agentID string) *http.Client {
@@ -69,7 +68,18 @@ func resolveCLIBase(cfg *config.RuntimeConfig) string {
 	// Default to the main server port so requests go through the
 	// orchestrator. This ensures activity is recorded in the shared
 	// store and visible in the dashboard.
+	return resolveDefaultCLIBase(cfg)
+}
+
+func resolveDefaultCLIBase(cfg *config.RuntimeConfig) string {
 	return fmt.Sprintf("http://127.0.0.1:%s", cfg.Port)
+}
+
+func canAutoStartServerForCLI(cfg *config.RuntimeConfig, baseURL string) bool {
+	if serverURL != "" || os.Getenv("PINCHTAB_SERVER") != "" {
+		return false
+	}
+	return strings.TrimRight(baseURL, "/") == resolveDefaultCLIBase(cfg)
 }
 
 func resolveCLIToken(cfg *config.RuntimeConfig) string {

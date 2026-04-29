@@ -85,8 +85,21 @@ func DoPostQuiet(client *http.Client, base, token, path string, body map[string]
 	return DoPostQuietWithHeaders(client, base, token, path, body, nil)
 }
 
+func DoPostQuietWithStatus(client *http.Client, base, token, path string, body map[string]any) (int, []byte, map[string]any) {
+	return doPostQuietWithStatus(client, base, token, path, body, nil)
+}
+
 // DoPostQuietWithHeaders is like DoPostQuiet but allows custom headers.
 func DoPostQuietWithHeaders(client *http.Client, base, token, path string, body map[string]any, headers map[string]string) map[string]any {
+	statusCode, respBody, result := doPostQuietWithStatus(client, base, token, path, body, headers)
+	if statusCode >= 400 {
+		handleAPIError(statusCode, respBody)
+		os.Exit(1)
+	}
+	return result
+}
+
+func doPostQuietWithStatus(client *http.Client, base, token, path string, body map[string]any, headers map[string]string) (int, []byte, map[string]any) {
 	data, _ := json.Marshal(body)
 	req, _ := http.NewRequest("POST", base+path, bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
@@ -101,16 +114,22 @@ func DoPostQuietWithHeaders(client *http.Client, base, token, path string, body 
 	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 
-	if resp.StatusCode >= 400 {
-		handleAPIError(resp.StatusCode, respBody)
-		os.Exit(1)
-	}
-
 	var result map[string]any
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		log.Printf("warning: error unmarshaling response: %v", err)
+	if resp.StatusCode < 400 {
+		if err := json.Unmarshal(respBody, &result); err != nil {
+			log.Printf("warning: error unmarshaling response: %v", err)
+		}
 	}
-	return result
+	return resp.StatusCode, respBody, result
+}
+
+func PrintAndDecode(body []byte) map[string]any {
+	return printAndDecode(body)
+}
+
+func ExitWithAPIError(statusCode int, body []byte) {
+	handleAPIError(statusCode, body)
+	os.Exit(1)
 }
 
 func DoPostWithHeaders(client *http.Client, base, token, path string, body map[string]any, headers map[string]string) map[string]any {

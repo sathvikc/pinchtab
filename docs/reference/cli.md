@@ -49,7 +49,7 @@ pinchtab find "login button"
 pinchtab network --limit 20
 ```
 
-`pinchtab nav <url>` auto-starts the local PinchTab server when it is not already running. To navigate and snapshot in one command after install, run:
+`pinchtab nav <url>` auto-starts the local PinchTab server when it is not already running. Explicit `--server` and `PINCHTAB_SERVER` targets are used as-is and are not auto-started. To navigate and snapshot in one command after install, run:
 
 ```bash
 pinchtab nav https://pinchtab.com --snap
@@ -124,13 +124,13 @@ pinchtab server -e ./my-extension   # load extension
 
 ## Browser Commands
 
-The browser control surface is top-level. `tab` is only for list/focus/new/close.
+The browser control surface is top-level. `tab` is only for list/focus/close.
 
 Common commands:
 
 | Command | Purpose |
 | --- | --- |
-| `pinchtab nav <url>` | Open a new tab and navigate it |
+| `pinchtab nav <url>` | Navigate current tracked tab, or create one if needed |
 | `pinchtab nav <url> --snap` | Navigate and output an interactive compact snapshot |
 | `pinchtab snap [selector]` | Accessibility snapshot for the current tab, optionally scoped |
 | `pinchtab frame [target\|main]` | Show or set selector frame scope |

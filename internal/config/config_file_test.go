@@ -9,8 +9,8 @@ import (
 
 func TestDefaultFileConfig(t *testing.T) {
 	fc := DefaultFileConfig()
-	if fc.Schema != ConfigSchemaURL {
-		t.Errorf("DefaultFileConfig.Schema = %q, want %q", fc.Schema, ConfigSchemaURL)
+	if fc.Schema != CurrentConfigSchemaURL() {
+		t.Errorf("DefaultFileConfig.Schema = %q, want %q", fc.Schema, CurrentConfigSchemaURL())
 	}
 	if fc.Server.Port != "9867" {
 		t.Errorf("DefaultFileConfig.Server.Port = %v, want 9867", fc.Server.Port)
@@ -129,6 +129,65 @@ func TestDefaultFileConfig(t *testing.T) {
 	}
 	if fc.Observability.Activity.Events.Bridge == nil || *fc.Observability.Activity.Events.Bridge {
 		t.Errorf("DefaultFileConfig.Observability.Activity.Events.Bridge = %v, want explicit false", formatBoolPtr(fc.Observability.Activity.Events.Bridge))
+	}
+}
+
+func TestConfigSchemaURLFallsBackToLatestWhenNoPublishedSchemaMatches(t *testing.T) {
+	originalPublished := publishedConfigSchemaVersions
+	t.Cleanup(func() {
+		publishedConfigSchemaVersions = originalPublished
+		SetConfigSchemaVersion("dev")
+	})
+
+	publishedConfigSchemaVersions = nil
+
+	SetConfigSchemaVersion("1.2.3")
+	if got := CurrentConfigSchemaURL(); got != ConfigSchemaURL {
+		t.Fatalf("unpublished CurrentConfigSchemaURL() = %q, want latest %q", got, ConfigSchemaURL)
+	}
+	if fc := DefaultFileConfig(); fc.Schema != ConfigSchemaURL {
+		t.Fatalf("DefaultFileConfig().Schema = %q, want latest %q", fc.Schema, ConfigSchemaURL)
+	}
+
+	SetConfigSchemaVersion("dev")
+	if got := CurrentConfigSchemaURL(); got != ConfigSchemaURL {
+		t.Fatalf("dev CurrentConfigSchemaURL() = %q, want %q", got, ConfigSchemaURL)
+	}
+}
+
+func TestConfigSchemaURLUsesClosestOlderOrEqualPublishedSchema(t *testing.T) {
+	originalPublished := publishedConfigSchemaVersions
+	t.Cleanup(func() {
+		publishedConfigSchemaVersions = originalPublished
+		SetConfigSchemaVersion("dev")
+	})
+
+	publishedConfigSchemaVersions = []string{"1.2.3", "1.4.0", "2.0.0"}
+
+	SetConfigSchemaVersion("1.2.3")
+	wantReleaseURL := "https://raw.githubusercontent.com/pinchtab/pinchtab/v1.2.3/schema/config.json"
+	if got := CurrentConfigSchemaURL(); got != wantReleaseURL {
+		t.Fatalf("CurrentConfigSchemaURL() = %q, want %q", got, wantReleaseURL)
+	}
+	if fc := DefaultFileConfig(); fc.Schema != wantReleaseURL {
+		t.Fatalf("DefaultFileConfig().Schema = %q, want %q", fc.Schema, wantReleaseURL)
+	}
+
+	SetConfigSchemaVersion("1.3.0")
+	wantClosestOlderURL := "https://raw.githubusercontent.com/pinchtab/pinchtab/v1.2.3/schema/config.json"
+	if got := CurrentConfigSchemaURL(); got != wantClosestOlderURL {
+		t.Fatalf("closest older CurrentConfigSchemaURL() = %q, want %q", got, wantClosestOlderURL)
+	}
+
+	SetConfigSchemaVersion("1.1.0")
+	if got := CurrentConfigSchemaURL(); got != ConfigSchemaURL {
+		t.Fatalf("older than first published CurrentConfigSchemaURL() = %q, want latest %q", got, ConfigSchemaURL)
+	}
+
+	SetConfigSchemaVersion("2.1.0")
+	wantLatestPublishedURL := "https://raw.githubusercontent.com/pinchtab/pinchtab/v2.0.0/schema/config.json"
+	if got := CurrentConfigSchemaURL(); got != wantLatestPublishedURL {
+		t.Fatalf("newer than published CurrentConfigSchemaURL() = %q, want %q", got, wantLatestPublishedURL)
 	}
 }
 
@@ -263,8 +322,8 @@ func TestDefaultFileConfigJSON(t *testing.T) {
 	if !strings.HasPrefix(string(data), "{\n  \"$schema\": ") {
 		t.Fatalf("DefaultFileConfig JSON should start with $schema, got:\n%s", data)
 	}
-	if parsed.Schema != ConfigSchemaURL {
-		t.Errorf("round-trip Schema = %q, want %q", parsed.Schema, ConfigSchemaURL)
+	if parsed.Schema != CurrentConfigSchemaURL() {
+		t.Errorf("round-trip Schema = %q, want %q", parsed.Schema, CurrentConfigSchemaURL())
 	}
 	if parsed.Server.Port != "9867" {
 		t.Errorf("round-trip Server.Port = %v, want 9867", parsed.Server.Port)

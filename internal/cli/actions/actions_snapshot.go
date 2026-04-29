@@ -1,13 +1,14 @@
 package actions
 
 import (
-	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
-	"github.com/spf13/cobra"
 	"net/http"
 	"net/url"
+
+	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
+	"github.com/spf13/cobra"
 )
 
-func Snapshot(client *http.Client, base, token string, cmd *cobra.Command) {
+func Snapshot(client *http.Client, base, token string, cmd *cobra.Command, selectorOverride string) {
 	params := url.Values{}
 	full, _ := cmd.Flags().GetBool("full")
 	if !full {
@@ -26,6 +27,8 @@ func Snapshot(client *http.Client, base, token string, cmd *cobra.Command) {
 	}
 	if v, _ := cmd.Flags().GetString("selector"); v != "" {
 		params.Set("selector", v)
+	} else if selectorOverride != "" {
+		params.Set("selector", selectorOverride)
 	}
 	if v, _ := cmd.Flags().GetString("max-tokens"); v != "" {
 		params.Set("maxTokens", v)

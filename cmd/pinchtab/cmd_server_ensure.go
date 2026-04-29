@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/pinchtab/pinchtab/internal/config"
 )
 
 const ensureServerTimeout = 30 * time.Second
@@ -14,13 +16,21 @@ const ensureServerTimeout = 30 * time.Second
 type serverStartFunc func() error
 type serverHealthFunc func(baseURL, token string) bool
 
-func ensureServer(baseURL, token, command string) error {
-	return ensureServerWith(baseURL, token, command, autoStartServer, isServerHealthy, ensureServerTimeout)
+func ensureServerForCLI(cfg *config.RuntimeConfig, baseURL, token, command string) error {
+	return ensureServerWithAutoStart(baseURL, token, command, canAutoStartServerForCLI(cfg, baseURL), autoStartServer, isServerHealthy, ensureServerTimeout)
 }
 
 func ensureServerWith(baseURL, token, command string, start serverStartFunc, healthy serverHealthFunc, timeout time.Duration) error {
+	return ensureServerWithAutoStart(baseURL, token, command, true, start, healthy, timeout)
+}
+
+func ensureServerWithAutoStart(baseURL, token, command string, allowAutoStart bool, start serverStartFunc, healthy serverHealthFunc, timeout time.Duration) error {
 	if healthy(baseURL, token) {
 		return nil
+	}
+
+	if !allowAutoStart {
+		return fmt.Errorf("server at %s is not running; auto-start is only supported for the default local server", baseURL)
 	}
 
 	slog.Info("server not running, starting automatically", "url", baseURL, "command", command)
@@ -60,12 +70,7 @@ func autoStartServer() error {
 		return fmt.Errorf("resolve executable: %w", err)
 	}
 
-	args := []string{"server"}
-	if serverURL != "" {
-		args = []string{"--server", serverURL, "server"}
-	}
-
-	cmd := exec.Command(binary, args...) // #nosec G204 -- binary is our own executable from os.Executable(), args are hardcoded subcommands
+	cmd := exec.Command(binary, autoStartServerArgs()...) // #nosec G204 -- binary is our own executable from os.Executable(), args are hardcoded subcommands
 	cmd.Stdin = nil
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -80,6 +85,10 @@ func autoStartServer() error {
 	}
 
 	return nil
+}
+
+func autoStartServerArgs() []string {
+	return []string{"server"}
 }
 
 func waitForServer(baseURL, token string, timeout time.Duration) bool {

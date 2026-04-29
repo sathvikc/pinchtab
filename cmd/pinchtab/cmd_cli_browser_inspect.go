@@ -11,13 +11,12 @@ var snapCmd = &cobra.Command{
 	Short: "Snapshot accessibility tree",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) > 0 {
-			if stringFlag(cmd, "selector") == "" {
-				_ = cmd.Flags().Set("selector", args[0])
-			}
+		selector := ""
+		if len(args) > 0 && stringFlag(cmd, "selector") == "" {
+			selector = args[0]
 		}
 		runCLI(func(rt cliRuntime) {
-			browseractions.Snapshot(rt.client, rt.base, rt.token, cmd)
+			browseractions.Snapshot(rt.client, rt.base, rt.token, cmd, selector)
 		})
 	},
 }

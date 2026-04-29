@@ -28,7 +28,7 @@ func runMCP(cfg *config.RuntimeConfig) {
 	baseURL := resolveCLIBase(cfg)
 	token := resolveCLIToken(cfg)
 
-	if err := ensureServer(baseURL, token, "mcp"); err != nil {
+	if err := ensureServerForCLI(cfg, baseURL, token, "mcp"); err != nil {
 		fmt.Fprintf(os.Stderr, "mcp: %v\n", err)
 		os.Exit(1)
 	}

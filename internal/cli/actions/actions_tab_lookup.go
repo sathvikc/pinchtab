@@ -9,22 +9,6 @@ import (
 	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
 )
 
-func tabExists(client *http.Client, base, token, tabID string) bool {
-	if tabID == "" {
-		return false
-	}
-	tabIDs, err := listTabIDs(client, base, token)
-	if err != nil {
-		return false
-	}
-	for _, id := range tabIDs {
-		if id == tabID {
-			return true
-		}
-	}
-	return false
-}
-
 func resolveTabReference(client *http.Client, base, token, ref string) (string, error) {
 	index, err := strconv.Atoi(ref)
 	if err != nil {

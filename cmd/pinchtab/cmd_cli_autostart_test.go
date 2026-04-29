@@ -87,6 +87,9 @@ func TestSnapDoesNotAutoStartAndTreatsArgAsSelector(t *testing.T) {
 	if selector != "#main" {
 		t.Fatalf("snapshot selector = %q, want #main", selector)
 	}
+	if got, _ := flags.GetString("selector"); got != "" {
+		t.Fatalf("snap selector flag = %q, want unchanged empty flag", got)
+	}
 	if len(paths) != 1 || paths[0] != "/snapshot" {
 		t.Fatalf("request paths = %v, want only /snapshot", paths)
 	}

@@ -305,7 +305,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 	}
 
 	fc := FileConfig{
-		Schema: ConfigSchemaURL,
+		Schema: CurrentConfigSchemaURL(),
 		Server: ServerConfig{
 			Port:              cfg.Port,
 			Bind:              cfg.Bind,

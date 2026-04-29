@@ -25,10 +25,16 @@ type mockServer struct {
 	requests    []capturedRequest
 	response    string
 	statusCode  int
+	responses   map[string]mockResponse
+}
+
+type mockResponse struct {
+	statusCode int
+	body       string
 }
 
 func newMockServer() *mockServer {
-	m := &mockServer{statusCode: 200, response: `{"status":"ok"}`}
+	m := &mockServer{statusCode: 200, response: `{"status":"ok"}`, responses: map[string]mockResponse{}}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		m.lastMethod = r.Method
 		m.lastPath = r.URL.Path
@@ -45,8 +51,9 @@ func newMockServer() *mockServer {
 			Body:    m.lastBody,
 			Headers: m.lastHeaders.Clone(),
 		})
-		w.WriteHeader(m.statusCode)
-		_, _ = w.Write([]byte(m.response))
+		resp := m.responseFor(r.Method, r.URL.Path)
+		w.WriteHeader(resp.statusCode)
+		_, _ = w.Write([]byte(resp.body))
 	})
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -63,3 +70,14 @@ func newMockServer() *mockServer {
 
 func (m *mockServer) close()       { m.server.Close() }
 func (m *mockServer) base() string { return m.server.URL }
+
+func (m *mockServer) setResponse(method, path string, statusCode int, body string) {
+	m.responses[method+" "+path] = mockResponse{statusCode: statusCode, body: body}
+}
+
+func (m *mockServer) responseFor(method, path string) mockResponse {
+	if resp, ok := m.responses[method+" "+path]; ok {
+		return resp
+	}
+	return mockResponse{statusCode: m.statusCode, body: m.response}
+}
