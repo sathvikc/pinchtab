@@ -125,7 +125,7 @@ assert_json_length_gte "$RESULT" '.' 1 "has at least one tab"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "plugin: tab new"
+start_test "plugin: /tab action=new"
 
 pt_post /tab -d '{"action":"new"}'
 assert_ok "new tab"

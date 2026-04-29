@@ -60,10 +60,10 @@ assert_output_contains "true" "user agent version remains coherent"
 end_test
 
 # ─────────────────────────────────────────────────────────────────────────────
-start_test "stealth-cli: created tab keeps stealth capability contract"
+start_test "stealth-cli: new navigation keeps stealth capability contract"
 
-pt_ok tab new --json
-assert_output_json "tab new returns JSON"
+pt_ok nav "${FIXTURES_URL}/bot-detect.html" --new-tab --json
+assert_output_json "nav --new-tab returns JSON"
 TAB_ID=$(echo "$PT_OUT" | jq -r '.tabId // empty')
 
 if [ -n "$TAB_ID" ]; then

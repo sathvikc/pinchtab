@@ -2,12 +2,16 @@ package config
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestDefaultFileConfig(t *testing.T) {
 	fc := DefaultFileConfig()
+	if fc.Schema != ConfigSchemaURL {
+		t.Errorf("DefaultFileConfig.Schema = %q, want %q", fc.Schema, ConfigSchemaURL)
+	}
 	if fc.Server.Port != "9867" {
 		t.Errorf("DefaultFileConfig.Server.Port = %v, want 9867", fc.Server.Port)
 	}
@@ -219,18 +223,18 @@ func TestConvertLegacyConfig(t *testing.T) {
 
 func TestTabPolicyDefaultsFromRuntime(t *testing.T) {
 	if got := tabPolicyDefaultsFromRuntime(&RuntimeConfig{
-		TabLifecyclePolicy: "close_idle",
+		TabLifecyclePolicy: "keep",
 		TabCloseDelay:      5 * time.Minute,
 	}); got != nil {
-		t.Fatalf("default close_idle/5m policy should not be emitted; got %#v", got)
+		t.Fatalf("default keep policy should not be emitted; got %#v", got)
 	}
 
 	got := tabPolicyDefaultsFromRuntime(&RuntimeConfig{
-		TabLifecyclePolicy: "keep",
+		TabLifecyclePolicy: "close_idle",
 		TabCloseDelay:      5 * time.Minute,
 	})
-	if got == nil || got.Lifecycle != "keep" || got.CloseDelaySec != nil {
-		t.Fatalf("keep policy = %#v, want lifecycle=keep without delay", got)
+	if got == nil || got.Lifecycle != "close_idle" || got.CloseDelaySec != nil {
+		t.Fatalf("close_idle implicit-delay policy = %#v, want lifecycle=close_idle without delay", got)
 	}
 
 	got = tabPolicyDefaultsFromRuntime(&RuntimeConfig{
@@ -256,6 +260,12 @@ func TestDefaultFileConfigJSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal DefaultFileConfig output: %v", err)
 	}
 
+	if !strings.HasPrefix(string(data), "{\n  \"$schema\": ") {
+		t.Fatalf("DefaultFileConfig JSON should start with $schema, got:\n%s", data)
+	}
+	if parsed.Schema != ConfigSchemaURL {
+		t.Errorf("round-trip Schema = %q, want %q", parsed.Schema, ConfigSchemaURL)
+	}
 	if parsed.Server.Port != "9867" {
 		t.Errorf("round-trip Server.Port = %v, want 9867", parsed.Server.Port)
 	}

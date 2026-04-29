@@ -7,9 +7,15 @@ import (
 )
 
 var snapCmd = &cobra.Command{
-	Use:   "snap",
+	Use:   "snap [selector]",
 	Short: "Snapshot accessibility tree",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 {
+			if stringFlag(cmd, "selector") == "" {
+				_ = cmd.Flags().Set("selector", args[0])
+			}
+		}
 		runCLI(func(rt cliRuntime) {
 			browseractions.Snapshot(rt.client, rt.base, rt.token, cmd)
 		})

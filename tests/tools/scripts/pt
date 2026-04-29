@@ -10,7 +10,7 @@
 #
 # The only abstraction this script provides is the Docker exec boundary:
 #   - container selection via $PINCHTAB_CONTAINER
-#   - auth + endpoint + tab + session env forwarded into the container
+#   - auth + endpoint + session env forwarded into the container
 #   - stdin forwarding so pipes, heredocs, and process substitution work
 #     (needed for e.g. uploads, piped eval expressions)
 #
@@ -19,7 +19,6 @@
 #   PINCHTAB_SERVER     Pinchtab server URL         (default: http://localhost:9867)
 #   PINCHTAB_TOKEN      Bearer token                (default: benchmark-token;
 #                                                    set to "" for no auth header)
-#   PINCHTAB_TAB        Tab ID to target            (default: active tab)
 #   PINCHTAB_SESSION    Agent session token         (default: unset)
 #
 # Usage examples:
@@ -29,12 +28,6 @@
 #   ./scripts/pt --tab "$TAB" click e5
 #   ./scripts/pt eval 'document.title'
 #
-# NOTE on shell-isolated callers (e.g. agent Bash tool calls where each
-# invocation is a fresh shell): `export PINCHTAB_TAB=$(./scripts/pt nav URL
-# --print-tab-id)` will NOT carry into the next call. Use `--tab "$TAB_ID"`
-# explicitly on every call that must pin to a specific tab, or rely on the
-# active-tab default for single-tab workflows.
-
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -72,11 +65,6 @@ args=(docker exec
   -e "PINCHTAB_SERVER=${PINCHTAB_SERVER}"
 )
 
-# Forward optional env vars only when set, so an empty value in the host doesn't
-# clobber a default inside the container.
-if [[ -n "${PINCHTAB_TAB:-}" ]]; then
-  args+=(-e "PINCHTAB_TAB=${PINCHTAB_TAB}")
-fi
 if [[ -n "${PINCHTAB_SESSION:-}" ]]; then
   args+=(-e "PINCHTAB_SESSION=${PINCHTAB_SESSION}")
 fi

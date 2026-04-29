@@ -60,7 +60,7 @@ func Load() *RuntimeConfig {
 		Humanize:           false,
 		StealthLevel:       "light",
 		TabEvictionPolicy:  "close_lru",
-		TabLifecyclePolicy: "close_idle",
+		TabLifecyclePolicy: "keep",
 		TabCloseDelay:      5 * time.Minute,
 		TabRestore:         false,
 

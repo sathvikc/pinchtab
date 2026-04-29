@@ -35,7 +35,7 @@ For Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.
 }
 ```
 
-PinchTab must be running (`pinchtab start`) before the MCP server can proxy requests. The MCP server communicates with the PinchTab HTTP API at `localhost:9867` by default.
+`pinchtab mcp` auto-starts the local PinchTab server if needed, then proxies requests to the HTTP API at `localhost:9867` by default.
 
 > [!CAUTION]
 > Widening MCP browsing beyond local or explicitly trusted domains is a security-reducing choice. If IDPI allowlists or strict protections are relaxed, `pinchtab_snapshot` and `pinchtab_get_text` may surface hostile instructions from untrusted pages.
@@ -131,11 +131,11 @@ The MCP surface is intentionally scoped to browser automation. The following are
 
 | Capability | Status | Alternative |
 |------------|--------|-------------|
-| Create/edit/delete profiles | ❌ Not available | Use `pinchtab profile` CLI or HTTP API |
-| Configure the scheduler | ❌ Not available | Use `pinchtab schedule` CLI |
+| Create/edit/delete profiles | ❌ Not available | Use `pinchtab profiles`, `pinchtab instance start --profile <name>`, or the HTTP API |
+| Configure the scheduler | ❌ Not available | Use the HTTP API/configuration surface |
 | Solve challenges (Cloudflare, etc.) | ❌ Not available | Use `POST /solve` HTTP API |
 | Modify stealth / fingerprint settings | ❌ Not available | Edit config file directly |
-| Start or stop the PinchTab server | ❌ Not available | Use `pinchtab start` / `pinchtab stop` CLI |
+| Start or stop the PinchTab server | ❌ Not available | Use `pinchtab server` or `pinchtab daemon` CLI |
 | Manage fleet instances | ❌ Not available | Use `pinchtab instances` CLI |
 | Read/write PinchTab config | ❌ Not available | Edit `~/.pinchtab/config.json` directly |
 
@@ -166,7 +166,7 @@ MCP tools surface errors as tool errors (not protocol-level errors). Common case
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| Connection refused | PinchTab not running | `pinchtab start` |
+| Connection refused | PinchTab not running | Run `pinchtab mcp` locally, or start with `pinchtab server` / `pinchtab daemon start` |
 | `ref not found` | Stale element ref | Re-run `pinchtab_snapshot` |
 | `evaluate not allowed` (403) | `security.allowEvaluate` is false | Enable in config or use `find`/`snap` instead |
 | `invalid URL` | Missing `http://` or `https://` | Include full scheme in URL |

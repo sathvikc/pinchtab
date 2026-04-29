@@ -105,7 +105,7 @@ Typical examples:
 - when to use `text` vs `snap -i -c`
 - when to re-snapshot
 - how to handle navigation `409`
-- how to reuse `PINCHTAB_TAB`
+- how to rely on the current-tab state file or use `--tab <id>`
 
 ### Make a benchmark/task change when:
 

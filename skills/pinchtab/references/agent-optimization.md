@@ -14,7 +14,7 @@ Need to check page state?
 ├─ Need to find interactive elements? → snap -i -c  (cheapest)
 ├─ Need to read text/data only? → pinchtab text  (no tree overhead)
 ├─ Need to find a specific element? → pinchtab find "<text>"
-├─ Need full page structure? → snap -c  (compact tree)
+├─ Need full page structure? → snap --full
 ├─ Need to debug visually? → screenshot  (use sparingly, large output)
 └─ Need to run a JS check? → eval  (precise, zero visual overhead)
 ```
@@ -23,11 +23,9 @@ Need to check page state?
 1. `eval` — single value, no DOM traversal output
 2. `find` — targeted element list only
 3. `text` — readable text only
-4. `snap -i -c` — interactive elements, compact format
-5. `snap -c` — full tree, compact
-6. `snap -i` — interactive elements, verbose
-7. `snap` — full tree, verbose
-8. `screenshot` — image payload, highest token cost
+4. `snap` / `snap -i -c` — interactive elements, compact format
+5. `snap --full` — full JSON tree
+6. `screenshot` — image payload, highest token cost
 
 **Rule of thumb:** Reach for `snap -i -c` as your default snapshot. Only escalate to `screenshot` when visual layout matters (CAPTCHA, canvas, complex CSS).
 
@@ -65,27 +63,15 @@ e12:textbox val="updated" [~]    # changed
 
 ---
 
-## Lite Engine
+## Faster Page Loads
 
-Start PinchTab with `--engine lite` for minimal rendering overhead.
+Use `--block-images` on navigation for read-heavy tasks where images are not needed.
 
 ```bash
-pinchtab start --engine lite
+pinchtab nav <url> --block-images --snap
 ```
 
-**Lite engine capabilities:**
-- Faster page loads (no CSS animations, reduced JS execution)
-- Lower memory footprint — useful for multi-tab fleet workflows
-- Accessibility tree (`snap`) works fully
-- `text`, `find`, `eval` all work as normal
-
-**Lite engine limitations:**
-- `screenshot` output may not reflect full visual styling
-- Pages that depend on CSS transitions for state changes may behave differently
-- Some canvas/WebGL content will not render
-- Not suitable for visual regression testing
-
-**Best for:** Form automation, data extraction, API-heavy SPAs, scraping workflows where visual fidelity is not required.
+**Best for:** Form automation, data extraction, API-heavy SPAs, and scraping workflows where image content is not required.
 
 ---
 
@@ -109,7 +95,7 @@ pinchtab find "target text"   # avoids eval entirely
 **Recovery:**
 1. `pinchtab screenshot` — confirm login page is showing
 2. Re-authenticate: `pinchtab nav <login-url>`, then fill credentials
-3. If using a profile: `pinchtab profile use <name>` may restore the session
+3. If using a profile, start or target that profile explicitly: `pinchtab instance start --profile <name>`
 
 ---
 
@@ -119,7 +105,7 @@ pinchtab find "target text"   # avoids eval entirely
 **Recovery:**
 ```bash
 pinchtab health          # confirm down
-pinchtab start           # restart
+pinchtab server          # restart in the foreground, or use `pinchtab nav <url>` to auto-start for a new navigation
 pinchtab health          # confirm up before continuing
 ```
 
@@ -152,7 +138,7 @@ pinchtab snap -i -c      # fresh snapshot → new refs
      -H 'Content-Type: application/json' -d '{"maxAttempts": 3}'
    ```
 2. If solve returns `solved: false`, try with more attempts or check `challengeType`
-3. Slow down: add `pinchtab wait --ms 1500` between interactions
+3. Slow down: add `pinchtab wait 1500` between interactions
 4. Switch to a profile with existing session cookies (CF cookies persist)
 5. If unsupported CAPTCHA (not Cloudflare): report to user for manual intervention
 6. Check `GET /solvers` to see which solver types are available
@@ -164,13 +150,9 @@ pinchtab snap -i -c      # fresh snapshot → new refs
 **Cause:** Page load exceeded default timeout (usually 30s).
 
 **Recovery:**
-```bash
-pinchtab nav <url> --timeout 90   # extend timeout
-```
-
 If the page consistently times out, consider `--block-images` to speed up load:
 ```bash
-pinchtab nav <url> --block-images --timeout 60
+pinchtab nav <url> --block-images --snap
 ```
 
 ---
@@ -184,4 +166,4 @@ pinchtab nav <url> --block-images --timeout 60
 - **Scope snapshots.** Use `snap -s <selector>` to target a specific section of the page when you know where the element is.
 - **Prefer `fill` over `type` for framework forms.** Saves retries caused by React/Vue not detecting raw keystroke events.
 - **Check health before long workflows.** Run `pinchtab health` at the start of a multi-step task to fail fast if the server is down.
-- **Export network traces after sessions.** `pinchtab network-export -o session.har` captures every request. For live capture: `pinchtab network-export --stream -o live.har`.
+- **Inspect network activity when needed.** `pinchtab network --limit 20` lists recent requests; use `pinchtab network <requestId> --body` for details.

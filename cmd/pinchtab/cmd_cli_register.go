@@ -61,18 +61,19 @@ func registerBrowserCommands() {
 		cacheCmd,
 		storageCmd,
 		stateCmd,
+		tabCloseCmd,
 		tabHandoffCmd,
 		tabResumeCmd,
 		tabHandoffStatusCmd,
 	)
 
-	// Register handoff/resume/handoff-status as subcommands of `tab` too so
-	// `pinchtab tab handoff <id>` keeps working alongside the top-level
+	// Register close/handoff/resume/handoff-status as subcommands of `tab` too
+	// so `pinchtab tab handoff <id>` keeps working alongside the top-level
 	// `pinchtab handoff`. The commands carry GroupID="browser" (set by
-	// setCommandGroup above) — add the same group to tabsCmd so cobra
-	// accepts them without panicking.
+	// setCommandGroup above) — add the same group to tabsCmd so cobra accepts
+	// them without panicking.
 	tabsCmd.AddGroup(&cobra.Group{ID: "browser", Title: "Browser"})
-	tabsCmd.AddCommand(tabNewCmd, tabCloseCmd, tabHandoffCmd, tabResumeCmd, tabHandoffStatusCmd)
+	tabsCmd.AddCommand(tabCloseCmd, tabHandoffCmd, tabResumeCmd, tabHandoffStatusCmd)
 	clipboardCmd.AddCommand(clipboardReadCmd, clipboardWriteCmd, clipboardCopyCmd, clipboardPasteCmd)
 	keyboardCmd.AddCommand(keyboardTypeCmd, keyboardInsertTextCmd)
 	dialogCmd.AddCommand(dialogAcceptCmd, dialogDismissCmd)
@@ -350,7 +351,6 @@ func configureBrowserFlags() {
 		findCmd,
 		evalCmd,
 		tabsCmd,
-		tabNewCmd,
 		tabCloseCmd,
 		tabHandoffCmd,
 		tabResumeCmd,
@@ -414,35 +414,28 @@ func addRootCommands(cmds ...*cobra.Command) {
 	rootCmd.AddCommand(cmds...)
 }
 
-// addTabFlag wires a --tab flag onto the given commands and defaults its
-// value from (in priority order): $PINCHTAB_TAB env var, or the state file
-// written by `nav`. This lets agents avoid threading `--tab "$TAB"` through
-// every command:
+// addTabFlag wires a --tab flag onto the given commands and defaults its value
+// from the state file written by `nav`. This lets agents avoid threading
+// `--tab "$TAB"` through every command:
 //
 //	pinchtab nav http://example.com   # writes tab ID to state file
 //	pinchtab snap -i -c               # auto-reads from state file
 //
-// Explicit --tab still wins (cobra flag precedence). If neither env var nor
-// state file is set, the server picks the active tab as before.
-// resolveTabArg returns the tab ID from args[0] when present, otherwise falls
-// back to $PINCHTAB_TAB then the persisted state file written by `nav`.
+// Explicit --tab still wins (cobra flag precedence). If no state file is set,
+// the server picks the active tab as before.
+// resolveTabArg returns the tab ID from args[0] when present, otherwise it
+// falls back to the persisted state file written by `nav`.
 func resolveTabArg(args []string) string {
 	if len(args) > 0 && args[0] != "" {
 		return args[0]
-	}
-	if env := os.Getenv("PINCHTAB_TAB"); env != "" {
-		return env
 	}
 	return readTabStateFile()
 }
 
 func addTabFlag(cmds ...*cobra.Command) {
-	defaultTab := os.Getenv("PINCHTAB_TAB")
-	if defaultTab == "" {
-		defaultTab = readTabStateFile()
-	}
+	defaultTab := readTabStateFile()
 	for _, cmd := range cmds {
-		cmd.Flags().String("tab", defaultTab, "Tab ID (env: PINCHTAB_TAB)")
+		cmd.Flags().String("tab", defaultTab, "Tab ID")
 	}
 }
 
@@ -474,6 +467,15 @@ func WriteTabStateFile(tabID string) {
 	path := tabStateFile()
 	_ = os.MkdirAll(filepath.Dir(path), 0755)
 	_ = os.WriteFile(path, []byte(tabID+"\n"), 0644)
+}
+
+// ClearTabStateFileIfCurrent clears the current-tab state when the saved tab is
+// known to have been closed.
+func ClearTabStateFileIfCurrent(tabID string) {
+	if tabID == "" || readTabStateFile() != tabID {
+		return
+	}
+	_ = os.Remove(tabStateFile())
 }
 
 func addJSONFlag(cmds ...*cobra.Command) {

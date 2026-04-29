@@ -788,8 +788,8 @@ func TestLoadConfig_TabLifecycleDefaults(t *testing.T) {
 	defer func() { _ = os.Unsetenv("PINCHTAB_CONFIG") }()
 
 	cfg := Load()
-	if cfg.TabLifecyclePolicy != "close_idle" {
-		t.Errorf("default TabLifecyclePolicy = %q, want close_idle", cfg.TabLifecyclePolicy)
+	if cfg.TabLifecyclePolicy != "keep" {
+		t.Errorf("default TabLifecyclePolicy = %q, want keep", cfg.TabLifecyclePolicy)
 	}
 	if cfg.TabCloseDelay != 5*time.Minute {
 		t.Errorf("default TabCloseDelay = %v, want 5m", cfg.TabCloseDelay)
@@ -832,9 +832,9 @@ func TestLoadConfig_LegacyTabEvictionPolicyStillHonored(t *testing.T) {
 	if cfg.TabEvictionPolicy != "close_oldest" {
 		t.Errorf("legacy tabEvictionPolicy not honored; got %q", cfg.TabEvictionPolicy)
 	}
-	// Lifecycle defaults preserved (default is close_idle).
-	if cfg.TabLifecyclePolicy != "close_idle" {
-		t.Errorf("legacy-only config should leave lifecycle at default close_idle; got %q", cfg.TabLifecyclePolicy)
+	// Lifecycle defaults preserved (default is keep).
+	if cfg.TabLifecyclePolicy != "keep" {
+		t.Errorf("legacy-only config should leave lifecycle at default keep; got %q", cfg.TabLifecyclePolicy)
 	}
 }
 

@@ -319,7 +319,7 @@ Set `awaitPromise: true` when the expression returns a promise and you want the 
 ## Tab management
 
 ```bash
-# CLI: pinchtab tabs / pinchtab tabs new <url> / pinchtab tabs close <id>
+# CLI: pinchtab tabs / pinchtab nav <url> --new-tab / pinchtab tabs close <id>
 # List tabs
 curl /tabs
 

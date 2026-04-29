@@ -39,6 +39,22 @@ pinchtab config init
 
 `config init` respects `PINCHTAB_CONFIG`. If that environment variable is set, the file is created there.
 
+Generated config files include a versioned `$schema` URL for IDE completion and validation.
+
+### `pinchtab config schema`
+
+Prints the versioned JSON Schema URL for this PinchTab build.
+
+```bash
+pinchtab config schema
+```
+
+Print the bundled schema JSON:
+
+```bash
+pinchtab config schema --print
+```
+
 ### `pinchtab config show`
 
 Shows the effective runtime configuration.
@@ -144,6 +160,7 @@ Current nested file-config shape:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/pinchtab/pinchtab/v0.8.0/schema/config.json",
   "configVersion": "0.8.0",
   "server": {
     "port": "9867",
@@ -176,7 +193,7 @@ Current nested file-config shape:
     "stealthLevel": "light",
     "tabEvictionPolicy": "close_lru",
     "tabPolicy": {
-      "lifecycle": "close_idle",
+      "lifecycle": "keep",
       "closeDelaySec": 300,
       "restore": false
     },
@@ -354,7 +371,7 @@ You can change or clear that default with `browser.extensionPaths`.
   "instanceDefaults": {
     "tabPolicy": {
       "eviction": "close_lru",
-      "lifecycle": "close_idle",
+      "lifecycle": "keep",
       "closeDelaySec": 300,
       "restore": false
     }
@@ -363,8 +380,8 @@ You can change or clear that default with `browser.extensionPaths`.
 ```
 
 - `eviction` controls what happens when `maxTabs` is reached: `close_lru`, `close_oldest`, or `reject`.
-- `lifecycle` controls idle lifecycle behavior: `close_idle` auto-closes a tab after it handles an authorized `/text`, `/snapshot`, or `/action` request; `keep` disables lifecycle auto-close.
-- `closeDelaySec` is the idle delay for `close_idle`. The default is `300` seconds.
+- `lifecycle` controls idle lifecycle behavior: `keep` disables lifecycle auto-close and is the default; `close_idle` auto-closes a tab after it handles an authorized `/text`, `/snapshot`, or `/action` request.
+- `closeDelaySec` is the idle delay for `close_idle`. The default is `300` seconds when auto-close is enabled.
 - `restore` controls whether session tabs are restored on startup. The default is `false`.
 
 `instanceDefaults.tabEvictionPolicy` is still accepted for compatibility. New configs should use `instanceDefaults.tabPolicy.eviction`.

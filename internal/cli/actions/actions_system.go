@@ -145,12 +145,6 @@ func getInstances(client *http.Client, base, token string) []map[string]any {
 	return instances
 }
 
-// launchInstance launches a managed instance for the requested profile.
-func launchInstance(client *http.Client, base, token string, profile string) {
-	body := map[string]any{"profileId": profile}
-	apiclient.DoPost(client, base, token, "/instances/start", body)
-}
-
 func decodeInstancesResponse(body []byte) ([]map[string]any, error) {
 	var instances []map[string]any
 	if err := json.Unmarshal(body, &instances); err == nil {

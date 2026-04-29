@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/pinchtab/pinchtab/internal/cli"
 	"github.com/pinchtab/pinchtab/internal/cli/apiclient"
@@ -40,30 +39,6 @@ func TabList(client *http.Client, base, token string, cmd *cobra.Command) {
 	}
 }
 
-// TabNew opens a new tab (exported for cobra subcommand).
-func TabNew(client *http.Client, base, token string, body map[string]any, cmd *cobra.Command) {
-	// Check if any instances are running
-	instances := getInstances(client, base, token)
-	if len(instances) == 0 {
-		fmt.Fprintln(os.Stderr, cli.StyleStderr(cli.WarningStyle, "No instances running, launching default..."))
-		launchInstance(client, base, token, "default")
-		fmt.Fprintln(os.Stderr, cli.StyleStderr(cli.SuccessStyle, "Instance launched"))
-	}
-
-	jsonOutput, _ := cmd.Flags().GetBool("json")
-	if jsonOutput {
-		apiclient.DoPost(client, base, token, "/tab", body)
-		return
-	}
-
-	result := apiclient.DoPostQuiet(client, base, token, "/tab", body)
-	if tabID, ok := result["tabId"].(string); ok {
-		output.Value(tabID)
-	} else {
-		output.Success()
-	}
-}
-
 // TabClose closes a tab by ID.
 func TabClose(client *http.Client, base, token string, tabID string, cmd *cobra.Command) {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -78,21 +53,34 @@ func TabClose(client *http.Client, base, token string, tabID string, cmd *cobra.
 
 // TabFocus switches to a tab by ID, making it the active tab
 // for subsequent commands.
-func TabFocus(client *http.Client, base, token string, tabID string, cmd *cobra.Command) {
-	jsonOutput, _ := cmd.Flags().GetBool("json")
-	if jsonOutput {
-		apiclient.DoPost(client, base, token, "/tab", map[string]any{
-			"action": "focus",
-			"tabId":  tabID,
-		})
-		return
+func TabFocus(client *http.Client, base, token string, tabID string, cmd *cobra.Command) string {
+	resolvedTabID, err := resolveTabReference(client, base, token, tabID)
+	if err != nil {
+		cli.Fatal("%v", err)
 	}
 
-	apiclient.DoPostQuiet(client, base, token, "/tab", map[string]any{
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		result := apiclient.DoPost(client, base, token, "/tab", map[string]any{
+			"action": "focus",
+			"tabId":  resolvedTabID,
+		})
+		if tid, ok := result["tabId"].(string); ok && tid != "" {
+			return tid
+		}
+		return resolvedTabID
+	}
+
+	result := apiclient.DoPostQuiet(client, base, token, "/tab", map[string]any{
 		"action": "focus",
-		"tabId":  tabID,
+		"tabId":  resolvedTabID,
 	})
-	output.Value(tabID)
+	if tid, ok := result["tabId"].(string); ok && tid != "" {
+		output.Value(tid)
+		return tid
+	}
+	output.Value(resolvedTabID)
+	return resolvedTabID
 }
 
 // TabHandoff pauses automation on a tab for manual operator intervention.

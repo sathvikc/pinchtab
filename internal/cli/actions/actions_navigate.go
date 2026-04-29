@@ -102,6 +102,32 @@ func Reload(client *http.Client, base, token string, cmd *cobra.Command) {
 }
 
 func Navigate(client *http.Client, base, token string, url string, cmd *cobra.Command) string {
+	path, body := buildNavigateRequest(client, base, token, url, cmd)
+
+	// JSON output mode
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		result := apiclient.DoPost(client, base, token, path, body)
+		apiclient.SuggestNextAction("navigate", result)
+		return tabIDFromNavigateResult(result)
+	}
+
+	resultTabID := postNavigateQuiet(client, base, token, path, body)
+	if resultTabID != "" {
+		fmt.Println(resultTabID)
+	}
+
+	// If --snap or --snap-diff flag is set, fetch and output snapshot
+	snap, _ := cmd.Flags().GetBool("snap")
+	snapDiff, _ := cmd.Flags().GetBool("snap-diff")
+	if snap || snapDiff {
+		fetchAndPrintSnapshot(client, base, token, resultTabID, snapDiff)
+	}
+
+	return resultTabID
+}
+
+func buildNavigateRequest(client *http.Client, base, token, url string, cmd *cobra.Command) (string, map[string]any) {
 	body := map[string]any{"url": url}
 	newTab, _ := cmd.Flags().GetBool("new-tab")
 	if newTab {
@@ -115,33 +141,25 @@ func Navigate(client *http.Client, base, token string, url string, cmd *cobra.Co
 	}
 	tabID, _ := cmd.Flags().GetString("tab")
 	path := "/navigate"
-	// Don't use tab-specific path when creating a new tab
-	if tabID != "" && !newTab {
+	explicitTab := cmd.Flags().Changed("tab")
+	// Don't use tab-specific path when creating a new tab. If the tab came from
+	// the saved current-tab state file and no longer exists, treat it as no
+	// current tab and let /navigate create one.
+	if tabID != "" && !newTab && (explicitTab || tabExists(client, base, token, tabID)) {
 		path = "/tabs/" + tabID + "/navigate"
 	}
 
-	// JSON output mode
-	jsonOutput, _ := cmd.Flags().GetBool("json")
-	if jsonOutput {
-		result := apiclient.DoPost(client, base, token, path, body)
-		apiclient.SuggestNextAction("navigate", result)
-		return ""
-	}
+	return path, body
+}
 
-	// Terse mode: emit only the tabId (default, or when --print-tab-id / pipe)
+func postNavigateQuiet(client *http.Client, base, token, path string, body map[string]any) string {
 	result := apiclient.DoPostQuiet(client, base, token, path, body)
-	resultTabID := ""
+	return tabIDFromNavigateResult(result)
+}
+
+func tabIDFromNavigateResult(result map[string]any) string {
 	if tid, ok := result["tabId"].(string); ok && tid != "" {
-		resultTabID = tid
-		fmt.Println(tid)
+		return tid
 	}
-
-	// If --snap or --snap-diff flag is set, fetch and output snapshot
-	snap, _ := cmd.Flags().GetBool("snap")
-	snapDiff, _ := cmd.Flags().GetBool("snap-diff")
-	if snap || snapDiff {
-		fetchAndPrintSnapshot(client, base, token, resultTabID, snapDiff)
-	}
-
-	return resultTabID
+	return ""
 }

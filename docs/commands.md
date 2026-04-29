@@ -17,10 +17,8 @@ pinchtab completion <shell>             # Generate shell completions
 
 ## Navigation
 
-`pinchtab nav <url>` uses `/navigate`. When you do not pass `--tab`, PinchTab opens a new tab and navigates it.
-
 ```bash
-pinchtab nav <url>                      # Open a new tab and navigate it
+pinchtab nav <url>                      # Navigate current tab, or create one if needed
 pinchtab nav <url> --tab <id>           # Reuse a specific tab
 pinchtab nav <url> --new-tab            # Explicitly force a new tab
 pinchtab nav <url> --block-images       # Block images for this navigation
@@ -32,19 +30,14 @@ pinchtab forward                        # Go forward in the active tab
 pinchtab reload                         # Reload the active tab
 ```
 
-Use `--tab <id>` when you intend to replace an existing tab's URL. Unscoped reads and actions use the current tracked tab, but unscoped `nav` intentionally opens a new tab to avoid replacing active work by accident.
-
-Hidden aliases: `goto`, `navigate`, `open`
-
 ## Tabs
 
-The `tab` command only lists, focuses, creates, and closes tabs. It does not proxy the rest of the browser command set.
+The `tab` command only lists, focuses, and closes tabs. It does not proxy the rest of the browser command set.
 
 ```bash
 pinchtab tab                            # List tabs
 pinchtab tab <id>                       # Focus a tab by ID or 1-based index
-pinchtab tab new                        # Open a blank tab
-pinchtab tab new <url>                  # Open a tab and navigate it
+pinchtab nav <url> --new-tab            # Open a new tab and navigate it
 pinchtab tab close <id>                 # Close a tab
 ```
 
@@ -116,7 +109,7 @@ pinchtab drag e5 400,320
 ## Page Analysis
 
 ```bash
-pinchtab snap                           # Accessibility snapshot
+pinchtab snap [selector]                # Accessibility snapshot, optionally scoped
 pinchtab snap -i -c                     # Interactive + compact
 pinchtab snap -d                        # Diff from previous snapshot
 pinchtab snap --selector <css>          # Scope snapshot

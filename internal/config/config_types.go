@@ -63,8 +63,8 @@ type RuntimeConfig struct {
 	Humanize           bool // when true, mouse moves and clicks use a humanized bezier path with per-step jitter and pre-press delays; default false (raw, fast input)
 	StealthLevel       string
 	TabEvictionPolicy  string        // "close_lru" (default), "reject", "close_oldest" — fires on MaxTabs pressure
-	TabLifecyclePolicy string        // "close_idle" (default), "keep" — fires on idle after read/action
-	TabCloseDelay      time.Duration // applies when TabLifecyclePolicy == "close_idle" (default 5m)
+	TabLifecyclePolicy string        // "keep" (default), "close_idle" — fires on idle after read/action
+	TabCloseDelay      time.Duration // applies when TabLifecyclePolicy == "close_idle" (default 5m when enabled)
 	TabRestore         bool          // restore previously open tabs from sessions.json on startup (default false)
 
 	// Timeout settings
@@ -227,6 +227,7 @@ type ActivityEventsConfig struct {
 
 // FileConfig is the persistent configuration written to disk.
 type FileConfig struct {
+	Schema           string                  `json:"$schema,omitempty"`
 	ConfigVersion    string                  `json:"configVersion,omitempty"`
 	Server           ServerConfig            `json:"server,omitempty"`
 	Browser          BrowserConfig           `json:"browser,omitempty"`
@@ -304,7 +305,7 @@ type InstanceDefaultsConfig struct {
 type TabPolicyDefaults struct {
 	Eviction      string `json:"eviction,omitempty"`      // "close_lru" | "reject" | "close_oldest"
 	Lifecycle     string `json:"lifecycle,omitempty"`     // "keep" | "close_idle"
-	CloseDelaySec *int   `json:"closeDelaySec,omitempty"` // applies to close_idle; default 300
+	CloseDelaySec *int   `json:"closeDelaySec,omitempty"` // applies to close_idle; default 300 when enabled
 	Restore       *bool  `json:"restore,omitempty"`       // restore tabs from sessions.json on startup; default false
 }
 

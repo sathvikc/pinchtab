@@ -10,7 +10,6 @@ For agent workflows, most runtime behavior should be configured through `config.
 |---|---|---|
 | `PINCHTAB_TOKEN` | Authenticate CLI or MCP requests to a protected server | Sent as `Authorization: Bearer ...` |
 | `PINCHTAB_CONFIG` | Override the config file path | Prefer this over ad hoc env overrides when automating |
-| `PINCHTAB_TAB` | Default tab ID for tab-scoped commands (`snap`, `eval`, `click`, `fill`, `drag`, etc.) | Used when `--tab` isn't passed explicitly. Lets agents `export PINCHTAB_TAB=$(pinchtab nav URL)` once and drop `--tab "$TAB"` from every subsequent command. |
 
 ## Targeting remote servers
 
@@ -34,16 +33,9 @@ For most agent tasks, the only variable you need is:
 PINCHTAB_TOKEN=...
 ```
 
-For multi-step flows on a specific tab, also set `PINCHTAB_TAB` once after
-navigating so you don't have to thread `--tab` through every command:
-
-```bash
-export PINCHTAB_TOKEN=...
-export PINCHTAB_TAB=$(pinchtab nav http://example.com)   # pipe → tabId only
-pinchtab snap -i -c                                      # auto-targets $PINCHTAB_TAB
-pinchtab eval --await-promise "window.fetchPayload()"
-pinchtab click "#submit"
-```
+For multi-step flows on the same tab, run `pinchtab nav URL` once and then use
+unscoped commands. PinchTab remembers the current tab in its state file. Use
+`--tab <id>` only when you need to target a specific tab explicitly.
 
 Or use agent sessions for per-agent identity and revocability:
 

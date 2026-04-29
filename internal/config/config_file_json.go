@@ -1,6 +1,7 @@
 package config
 
 type fileConfigJSON struct {
+	Schema           string                      `json:"$schema,omitempty"`
 	ConfigVersion    string                      `json:"configVersion,omitempty"`
 	Server           serverConfigJSON            `json:"server"`
 	Browser          browserConfigJSON           `json:"browser"`

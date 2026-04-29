@@ -7,6 +7,9 @@ import (
 // CurrentConfigVersion is bumped when config schema changes require migration or wizard re-run.
 const CurrentConfigVersion = "0.8.0"
 
+// ConfigSchemaURL is the immutable JSON Schema URL for the current config line.
+const ConfigSchemaURL = "https://raw.githubusercontent.com/pinchtab/pinchtab/v" + CurrentConfigVersion + "/schema/config.json"
+
 // DefaultFileConfig returns a FileConfig with sensible defaults (nested format).
 func DefaultFileConfig() FileConfig {
 	start := 9868
@@ -57,6 +60,7 @@ func DefaultFileConfig() FileConfig {
 	autoSolverRetryMaxDelayMs := 10000
 	autoSolverLLMFallback := false
 	return FileConfig{
+		Schema:        ConfigSchemaURL,
 		ConfigVersion: CurrentConfigVersion,
 		Server: ServerConfig{
 			Port:     defaultPort,

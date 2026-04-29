@@ -101,22 +101,21 @@ curl http://localhost:9867/instances/tabs
 
 Use `GET /instances/tabs` when you need the orchestrator-wide view.
 
-## Focus, Create, And Close From The CLI
+## Focus And Close From The CLI
 
 ```bash
 pinchtab tab                           # list tabs
 pinchtab tab 2                         # focus tab by 1-based index
 pinchtab tab 8f9c7d4e1234...           # focus tab by tab ID
-pinchtab tab new                       # open blank tab
-pinchtab tab new https://pinchtab.com   # open and navigate
+pinchtab nav https://pinchtab.com --new-tab  # open a new tab and navigate it
 pinchtab tab close 8f9c7d4e1234...     # close tab
 ```
 
 Numeric arguments are resolved as 1-based indices against `GET /tabs`. Non-numeric arguments are treated as tab IDs.
 
-Focusing, creating, navigating, or otherwise accessing a tracked tab marks it as the current tab. Unscoped commands use that current tab; if the recorded current tab has gone stale, PinchTab falls back to the most recently used tracked tab.
+Focusing, navigating, or otherwise accessing a tracked tab marks it as the current tab. Unscoped commands use that current tab; if the recorded current tab has gone stale, PinchTab falls back to the most recently used tracked tab.
 
-Top-level navigation is intentionally different from unscoped reads/actions: `pinchtab nav <url>` opens a new tab unless you pass `--tab <id>`. This keeps new navigations from replacing an existing work surface by accident.
+Top-level navigation uses the current tab when one is available. Use `pinchtab nav <url> --new-tab` when you explicitly want another tab.
 
 ## Operate On An Existing Tab
 

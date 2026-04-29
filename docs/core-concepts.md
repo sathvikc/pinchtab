@@ -190,12 +190,11 @@ curl -X POST http://localhost:9867/close \
   -d "{\"tabId\":\"$TAB\"}"
 ```
 
-By default, tabs also use the `close_idle` lifecycle policy: after an authorized
-`/text`, `/snapshot`, or `/action` request finishes, the tab is auto-closed
-after 300 seconds unless it is touched again first. Set
-`instanceDefaults.tabPolicy.lifecycle` to `keep` to disable lifecycle
-auto-close, or change `instanceDefaults.tabPolicy.closeDelaySec` to adjust the
-delay.
+By default, tabs use the `keep` lifecycle policy and are not auto-closed after
+reads or actions. Set `instanceDefaults.tabPolicy.lifecycle` to `close_idle` to
+auto-close a tab after an authorized `/text`, `/snapshot`, or `/action` request
+finishes. `instanceDefaults.tabPolicy.closeDelaySec` adjusts the idle delay
+when `close_idle` is enabled.
 
 ### Are tabs persistent?
 

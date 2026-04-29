@@ -67,9 +67,9 @@ assert_output_contains "tabs" "response contains tabs field"
 end_test
 
 # ─────────────────────────────────────────────────────────────────
-start_test "pinchtab tab new + close roundtrip"
+start_test "pinchtab nav --new-tab + close roundtrip"
 
-pt_ok nav "${FIXTURES_URL}/index.html"
+pt_ok nav "${FIXTURES_URL}/index.html" --new-tab
 TAB_ID=$(echo "$PT_OUT" | tr -d '[:space:]')
 
 pt_ok tab close "$TAB_ID"

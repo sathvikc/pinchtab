@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -223,6 +224,48 @@ func TestConfigTokenSubcommandCopiesToClipboard(t *testing.T) {
 	}
 }
 
+func TestConfigSchemaSubcommandPrintsURL(t *testing.T) {
+	resetConfigSchemaPrintFlag(t)
+	t.Cleanup(func() {
+		rootCmd.SetArgs(nil)
+		resetConfigSchemaPrintFlag(t)
+	})
+
+	output := captureStdout(t, func() {
+		rootCmd.SetArgs([]string{"config", "schema"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+	})
+
+	if got := strings.TrimSpace(output); got != config.ConfigSchemaURL {
+		t.Fatalf("config schema output = %q, want %q", got, config.ConfigSchemaURL)
+	}
+}
+
+func TestConfigSchemaSubcommandPrintsBundledSchema(t *testing.T) {
+	resetConfigSchemaPrintFlag(t)
+	t.Cleanup(func() {
+		rootCmd.SetArgs(nil)
+		resetConfigSchemaPrintFlag(t)
+	})
+
+	output := captureStdout(t, func() {
+		rootCmd.SetArgs([]string{"config", "schema", "--print"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("Execute() error = %v", err)
+		}
+	})
+
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(output), &raw); err != nil {
+		t.Fatalf("schema output is not valid JSON: %v\n%s", err, output)
+	}
+	if raw["$id"] != config.ConfigSchemaURL {
+		t.Fatalf("schema $id = %q, want %q", raw["$id"], config.ConfigSchemaURL)
+	}
+}
+
 func TestCopyConfigTokenReturnsErrorWhenEmpty(t *testing.T) {
 	err := copyConfigToken("")
 	if err == nil {
@@ -230,6 +273,18 @@ func TestCopyConfigTokenReturnsErrorWhenEmpty(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "empty") {
 		t.Fatalf("expected empty token error, got %q", err.Error())
+	}
+}
+
+func resetConfigSchemaPrintFlag(t *testing.T) {
+	t.Helper()
+
+	cmd, _, err := rootCmd.Find([]string{"config", "schema"})
+	if err != nil {
+		t.Fatalf("find config schema command: %v", err)
+	}
+	if err := cmd.Flags().Set("print", "false"); err != nil {
+		t.Fatalf("reset schema print flag: %v", err)
 	}
 }
 

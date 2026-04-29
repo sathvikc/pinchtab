@@ -23,11 +23,29 @@ func runCLI(fn func(cliRuntime)) {
 }
 
 func runCLIWith(cfg *config.RuntimeConfig, fn func(cliRuntime)) {
-	fn(cliRuntime{
+	rt := cliRuntime{
 		client: newCLIHTTPClient(resolveCLIAgentID()),
 		base:   resolveCLIBase(cfg),
 		token:  resolveCLIToken(cfg),
-	})
+	}
+	fn(rt)
+}
+
+func runCLIEnsuringServer(command string, fn func(cliRuntime)) {
+	runCLIWithServerCheck(loadConfig(), command, fn)
+}
+
+func runCLIWithServerCheck(cfg *config.RuntimeConfig, command string, fn func(cliRuntime)) {
+	rt := cliRuntime{
+		client: newCLIHTTPClient(resolveCLIAgentID()),
+		base:   resolveCLIBase(cfg),
+		token:  resolveCLIToken(cfg),
+	}
+	if err := ensureServer(rt.base, rt.token, command); err != nil {
+		fmt.Fprintf(os.Stderr, "pinchtab: %v\n", err)
+		os.Exit(1)
+	}
+	fn(rt)
 }
 
 func newCLIHTTPClient(agentID string) *http.Client {

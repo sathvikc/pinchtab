@@ -11,6 +11,7 @@ import (
 	"github.com/pinchtab/pinchtab/internal/config"
 	"github.com/pinchtab/pinchtab/internal/config/workflow"
 	"github.com/pinchtab/pinchtab/internal/server"
+	configschema "github.com/pinchtab/pinchtab/schema"
 	"github.com/spf13/cobra"
 )
 
@@ -55,6 +56,16 @@ func init() {
 			handleConfigValidate()
 		},
 	})
+	configSchemaCmd := &cobra.Command{
+		Use:   "schema",
+		Short: "Print config JSON Schema information",
+		Run: func(cmd *cobra.Command, args []string) {
+			printSchema, _ := cmd.Flags().GetBool("print")
+			handleConfigSchema(printSchema)
+		},
+	}
+	configSchemaCmd.Flags().Bool("print", false, "Print the bundled schema JSON instead of the schema URL")
+	configCmd.AddCommand(configSchemaCmd)
 	configCmd.AddCommand(&cobra.Command{
 		Use:   "token",
 		Short: "Copy the API token to clipboard",
@@ -421,4 +432,19 @@ func handleConfigValidate() {
 	}
 
 	fmt.Printf("Config file is valid: %s\n", configPath)
+}
+
+func handleConfigSchema(printSchema bool) {
+	if printSchema {
+		if _, err := os.Stdout.Write(configschema.ConfigJSON); err != nil {
+			fmt.Printf("Error writing schema: %v\n", err)
+			os.Exit(1)
+		}
+		if len(configschema.ConfigJSON) == 0 || configschema.ConfigJSON[len(configschema.ConfigJSON)-1] != '\n' {
+			fmt.Println()
+		}
+		return
+	}
+
+	fmt.Println(config.ConfigSchemaURL)
 }

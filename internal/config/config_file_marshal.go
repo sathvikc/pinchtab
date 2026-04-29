@@ -32,7 +32,7 @@ func tabPolicyDefaultsFromRuntime(cfg *RuntimeConfig) *TabPolicyDefaults {
 		return nil
 	}
 	hasLifecycle := cfg.TabLifecyclePolicy != "" &&
-		(cfg.TabLifecyclePolicy != "close_idle" || cfg.TabCloseDelay != 5*time.Minute)
+		(cfg.TabLifecyclePolicy != "keep" || cfg.TabCloseDelay != 5*time.Minute)
 	hasRestore := cfg.TabRestore
 	if !hasLifecycle && !hasRestore {
 		return nil
@@ -40,7 +40,7 @@ func tabPolicyDefaultsFromRuntime(cfg *RuntimeConfig) *TabPolicyDefaults {
 	out := &TabPolicyDefaults{}
 	if hasLifecycle {
 		out.Lifecycle = cfg.TabLifecyclePolicy
-		if cfg.TabLifecyclePolicy == "close_idle" && cfg.TabCloseDelay > 0 {
+		if cfg.TabLifecyclePolicy == "close_idle" && cfg.TabCloseDelay > 0 && cfg.TabCloseDelay != 5*time.Minute {
 			sec := int(cfg.TabCloseDelay / time.Second)
 			out.CloseDelaySec = &sec
 		}
@@ -54,6 +54,7 @@ func tabPolicyDefaultsFromRuntime(cfg *RuntimeConfig) *TabPolicyDefaults {
 
 func (fc FileConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fileConfigJSON{
+		Schema:        fc.Schema,
 		ConfigVersion: fc.ConfigVersion,
 		Server: serverConfigJSON{
 			Port:              fc.Server.Port,
@@ -304,6 +305,7 @@ func FileConfigFromRuntime(cfg *RuntimeConfig) FileConfig {
 	}
 
 	fc := FileConfig{
+		Schema: ConfigSchemaURL,
 		Server: ServerConfig{
 			Port:              cfg.Port,
 			Bind:              cfg.Bind,

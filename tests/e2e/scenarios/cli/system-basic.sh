@@ -95,6 +95,23 @@ assert_output_contains "$EXPECTED_PATH" "path matches expected"
 config_cleanup
 end_test
 
+start_test "config schema prints bundled schema"
+
+pt_ok config schema
+SCHEMA_URL=$(echo "$PT_OUT" | tr -d '[:space:]')
+if [[ "$SCHEMA_URL" =~ ^https://raw\.githubusercontent\.com/pinchtab/pinchtab/v[0-9]+\.[0-9]+\.[0-9]+/schema/config\.json$ ]]; then
+  pass_assert "prints versioned GitHub schema URL"
+else
+  fail_assert "prints versioned GitHub schema URL (got $SCHEMA_URL)"
+fi
+
+pt_ok config schema --print
+assert_output_json "schema output is valid JSON"
+assert_json_field '."$id"' "$SCHEMA_URL" 'schema $id matches URL'
+assert_json_field '."$schema"' "http://json-schema.org/draft-07/schema#" 'schema $schema is draft-07'
+
+end_test
+
 start_test "config set updates a value"
 
 config_setup

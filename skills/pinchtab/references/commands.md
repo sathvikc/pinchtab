@@ -1,4 +1,4 @@
-# CLI Commands Reference — Pinchtab 0.8.x
+# CLI Commands Reference — PinchTab
 
 > **Quick tip:** Use `pinchtab help` or `pinchtab <command> --help` for full flag lists.
 
@@ -25,10 +25,18 @@ pinchtab server -e ./ext        # load browser extension
 
 > **Note:** Use `--headed` only when you need visual feedback (debugging, watching automation). Headless mode is more resource-efficient.
 
-### `pinchtab stop`
-Stop the running server.
+### `pinchtab daemon`
+Manage the user-level background service.
 
-### `pinchtab status` / `pinchtab health`
+```bash
+pinchtab daemon
+pinchtab daemon install
+pinchtab daemon start
+pinchtab daemon stop
+pinchtab daemon restart
+```
+
+### `pinchtab health`
 Check if the server is running and healthy.
 
 ---
@@ -36,36 +44,34 @@ Check if the server is running and healthy.
 ## Browser Commands
 
 ### `pinchtab nav <url>`
-Navigate the current tab to a URL.
+Open a new tab and navigate to a URL by default. This is the browser command that auto-starts the local server when it is not already running.
 
 ```bash
 pinchtab nav https://pinchtab.com
 pinchtab nav https://pinchtab.com --new-tab
 pinchtab nav https://pinchtab.com --snap
 pinchtab nav https://pinchtab.com --block-images
-pinchtab nav https://pinchtab.com --timeout 60
+pinchtab nav https://pinchtab.com --tab <tabId>
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--new-tab` | Open in a new tab instead of current |
+| `--new-tab` | Explicitly force a new tab |
+| `--tab <id>` | Reuse a specific tab |
 | `--snap` | Navigate and print an interactive compact snapshot |
 | `--block-images` | Block image loading (faster, fewer tokens) |
-| `--timeout <s>` | Navigation timeout in seconds |
-| `--profile <name>` | Target a named profile |
-
-> ⚠️ **Quirk:** Use `--profile`, not `--profileId`. The long-form flag is required.
+| `--block-ads` | Block ads for this navigation |
+| `--print-tab-id` | Print only the tab ID |
 
 ### `pinchtab tab` (not `tabs`)
 Manage browser tabs.
 
 ```bash
-pinchtab tab list            # List all open tabs
-pinchtab tab close           # Close current tab
+pinchtab tab                 # List all open tabs
+pinchtab tab <tabId>         # Focus a tab by ID or 1-based index
+pinchtab nav <url> --new-tab # Open a new tab and navigate it
 pinchtab tab close <tabId>   # Close specific tab
 ```
-
-> ⚠️ **Quirk:** The command is `tab` (singular), not `tabs`.
 
 ---
 
@@ -150,12 +156,11 @@ pinchtab select e8 "value" --snap-diff    # select + return only changed element
 Get the accessibility tree of the current page. **Primary tool for understanding page state.**
 
 ```bash
-pinchtab snap                   # full tree
-pinchtab snap -i                # interactive elements only (smaller)
-pinchtab snap -c                # compact format (fewer tokens)
-pinchtab snap -i -c             # both: cheapest snapshot
+pinchtab snap                   # compact interactive snapshot (default)
+pinchtab snap "#main"           # scoped positional selector
+pinchtab snap -s main           # scoped with --selector
+pinchtab snap --full            # full JSON tree
 pinchtab snap -d                # diff: only changes since last snap (prefer --snap-diff on actions)
-pinchtab snap -s main           # scoped to CSS selector
 pinchtab snap --max-tokens 2000 # token budget cap
 ```
 
@@ -177,6 +182,7 @@ Extract readable text from the page.
 ```bash
 pinchtab text
 pinchtab text --raw    # no formatting cleanup
+pinchtab text "#main"  # text from one element
 ```
 
 ### `pinchtab find <query>`
@@ -197,31 +203,26 @@ pinchtab eval "document.querySelectorAll('a').length"
 
 > Requires `security.allowEvaluate: true` in config. Returns 403 by default.
 
-### `pinchtab network-export`
-Export captured network data in standard formats.
+### `pinchtab network`
+Inspect captured network requests for the current tab.
 
 ```bash
-pinchtab network-export                           # HAR 1.2 to exports/
-pinchtab network-export -o session.har            # HAR to specific file
-pinchtab network-export --format ndjson -o s.ndjson # NDJSON (one JSON per line)
-pinchtab network-export --body                    # Include response bodies
-pinchtab network-export --stream -o live.har      # Live capture while browsing
+pinchtab network
+pinchtab network --limit 20
+pinchtab network --filter api
+pinchtab network <requestId> --body
 ```
-
-Formats: `har` (Chrome DevTools compatible), `ndjson` (streamable). Sensitive headers redacted by default.
 
 ---
 
 ## Fleet / Multi-Profile Commands
 
-### `pinchtab profile list`
-List all available profiles.
-
-### `pinchtab profile use <name>`
-Switch the active profile.
+### `pinchtab profiles`
+List available profiles.
 
 ```bash
-pinchtab profile use work
+pinchtab profiles
+pinchtab instance start --profile work
 ```
 
 ### `pinchtab instances`
@@ -235,5 +236,3 @@ List running PinchTab instances across profiles.
 |-------|-------|------|
 | `pinchtab ss` | `pinchtab screenshot` | No `ss` alias |
 | `pinchtab snapshot` | `pinchtab snap` | Use short form |
-| `--profileId` | `--profile` | Long-form flag name |
-| `pinchtab tabs` | `pinchtab tab` | Singular subcommand |

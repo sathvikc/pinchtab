@@ -142,12 +142,10 @@ export function DefaultsSettingsSection({
       </SettingRow>
       <SettingRow
         label="Tab lifecycle"
-        description="Auto-close idle tabs after a /text, /snapshot, or /action response. The timer resets on each subsequent request and is cancelled by /navigate."
+        description="Optionally auto-close idle tabs after a /text, /snapshot, or /action response. The timer resets on each subsequent request and is cancelled by /navigate."
       >
         <Select
-          value={
-            backendConfig.instanceDefaults.tabPolicy?.lifecycle ?? "close_idle"
-          }
+          value={backendConfig.instanceDefaults.tabPolicy?.lifecycle ?? "keep"}
           onChange={(e) =>
             updateBackendSection("instanceDefaults", {
               tabPolicy: {
@@ -180,8 +178,8 @@ export function DefaultsSettingsSection({
             })
           }
           disabled={
-            (backendConfig.instanceDefaults.tabPolicy?.lifecycle ??
-              "close_idle") !== "close_idle"
+            (backendConfig.instanceDefaults.tabPolicy?.lifecycle ?? "keep") !==
+            "close_idle"
           }
           className={fieldClass}
         />

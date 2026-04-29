@@ -230,7 +230,12 @@ docker run -d \
 
 ### Use It
 
-**Terminal 1 — Start the server:**
+**First useful command — auto-starts the local server if needed:**
+```bash
+pinchtab nav https://pinchtab.com --snap
+```
+
+**Or start the server explicitly when you want foreground logs:**
 ```bash
 pinchtab server
 ```
@@ -245,7 +250,7 @@ That keeps PinchTab running in the background so your agent tools can reuse it w
 
 **Terminal 2 — Control the browser:**
 ```bash
-# Navigate
+# Navigate; starts the server automatically if needed
 pinchtab nav https://pinchtab.com
 
 # Get page structure

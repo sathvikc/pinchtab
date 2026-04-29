@@ -1,6 +1,6 @@
 # Navigate
 
-Open a new tab and navigate it to a URL, or reuse a tab when a tab ID is provided.
+Navigate the current tracked tab to a URL, or create a tab when no current tab is available.
 
 ```bash
 curl -X POST http://localhost:9867/navigate \
@@ -13,6 +13,9 @@ pinchtab nav https://pinchtab.com
 ```
 
 ## CLI Flags
+
+`pinchtab nav <url>` auto-starts the local server when it is not already running.
+Hidden aliases: `goto`, `navigate`, `open`.
 
 | Flag | Description |
 |------|-------------|
@@ -28,10 +31,11 @@ pinchtab nav https://pinchtab.com
 ## Examples
 
 ```bash
-pinchtab nav https://example.com              # Navigate, print tab ID
+pinchtab nav https://example.com              # Navigate current tab, or create one
 pinchtab nav https://example.com --snap       # Navigate and snapshot
 TAB=$(pinchtab nav https://example.com)       # Capture tab ID for reuse
 pinchtab nav https://other.com --tab "$TAB"   # Reuse tab
+pinchtab nav https://example.com --new-tab    # Force another tab
 pinchtab nav https://example.com --block-images  # Skip images
 ```
 
@@ -50,12 +54,13 @@ pinchtab nav https://example.com --block-images  # Skip images
 
 ## Behavior
 
-- Top-level `POST /navigate` and `pinchtab nav <url>` open a new tab when no `tabId` or `--tab` is provided.
+- Top-level `POST /navigate` opens a new tab when no `tabId` is provided.
+- `pinchtab nav <url>` uses the current tracked tab when one is available; otherwise it opens a new tab.
 - `POST /tabs/{id}/navigate`, `POST /navigate` with `tabId`, and `pinchtab nav <url> --tab <id>` reuse the specified tab and make it the current tab for later unscoped operations.
 - `--new-tab` and `newTab:true` force a new tab even if another tab is current.
 - Commands that operate without `--tab` use the current tracked tab. Focusing or using a tab updates that current-tab pointer; if the pointer is stale, PinchTab falls back to the most recently used tracked tab.
 
-Rationale: unscoped navigation should not accidentally replace the user or agent's active work surface. Reuse is explicit through `--tab`/`tabId`, while later unscoped read/action commands still have predictable current-tab behavior.
+Rationale: the CLI keeps one obvious work surface by default. Use `--new-tab` when you intentionally want another tab, or `--tab`/`tabId` when you need a specific tab.
 
 ## Related Pages
 

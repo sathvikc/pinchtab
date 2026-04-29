@@ -2,8 +2,8 @@
 # tabs-autoclose-smoke.sh — verifies the auto-close-after-use lifecycle policy.
 #
 # Requires the server to be started with tests/e2e/config/pinchtab-autoclose.json
-# (lifecycle=close_idle, closeDelaySec=1). The default e2e config uses the
-# production 5-minute auto-close delay, which is too slow for these assertions.
+# (lifecycle=close_idle, closeDelaySec=1). The default e2e config keeps tabs
+# open, so this scenario uses an explicit auto-close server.
 #
 # Behaviour under test:
 #   1. /text on a tab arms an auto-close timer; the tab disappears after the delay.

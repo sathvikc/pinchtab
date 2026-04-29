@@ -250,7 +250,7 @@ export const defaultBackendConfig: BackendConfig = {
     stealthLevel: "light",
     tabEvictionPolicy: "close_lru",
     tabPolicy: {
-      lifecycle: "close_idle",
+      lifecycle: "keep",
       closeDelaySec: 300,
       restore: false,
     },
