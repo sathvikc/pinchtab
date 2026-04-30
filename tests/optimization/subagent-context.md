@@ -25,25 +25,49 @@ Always use `./scripts/pt ...` — never call `pinchtab` directly.
 
 The wrapper executes pinchtab inside the Docker service and forwards `PINCHTAB_TOKEN` and `PINCHTAB_SERVER` automatically.
 
-Tab state is automatic — `nav` persists the tab ID to a state file, and subsequent commands read it. No need to manage tab IDs manually.
+### Tab isolation (critical for parallel agents)
+
+Multiple subagents run in parallel against the same browser instance. The default tab state file is shared, so if you rely on it another agent's `nav` will overwrite your tab ID and your subsequent commands will hit the wrong tab or fail with "tab not found".
+
+**You must manage tab IDs explicitly:**
+
+1. On your first `nav`, use `--new-tab` to get a dedicated tab. Capture the tab ID from the output.
+2. Pass `--tab <your-tab-id>` on **every** subsequent command (`snap`, `click`, `fill`, `text`, `eval`, `press`, `scroll`, `frame`, etc.).
+3. Never rely on the automatic state file — always be explicit.
+
+Example:
+```bash
+# First navigation — open a new tab and capture the ID
+./scripts/pt nav "http://fixtures/wiki.html" --new-tab --snap
+# Output includes tab ID, e.g. A1B2C3D4...
+
+# All subsequent commands use --tab explicitly
+./scripts/pt click e3 --tab A1B2C3D4... --snap-diff
+./scripts/pt text --tab A1B2C3D4...
+```
+
+If you lose your tab (404 error), re-navigate with `--new-tab` and update your tab ID.
 
 ## Recording
+
+Each agent writes to its own report file to avoid concurrent-write corruption. Your report file path will be provided as `REPORT_FILE` when you are launched. Pass it on every `step-end` call with `--report-file`.
 
 Record every step result immediately after completion:
 
 ```bash
-./scripts/runner step-end <group> <step> answer "<what you observed>" <pass|fail|skip> "verification notes"
+./scripts/runner step-end --report-file "$REPORT_FILE" <group> <step> answer "<what you observed>" <pass|fail|skip> "verification notes"
 ```
 
 For failures:
 
 ```bash
-./scripts/runner step-end <group> <step> fail "<what went wrong>" skip ""
+./scripts/runner step-end --report-file "$REPORT_FILE" <group> <step> fail "<what went wrong>" skip ""
 ```
 
 - `<group>` is the group number (e.g., `0`, `15`, `38`)
 - `<step>` is the step number within the group (e.g., `1`, `2`, `3`)
 - Keep answers factual — do not self-grade in the answer payload.
+- **Quote actual output, don't paraphrase.** The answer field must include the literal text or marker from the tool output. For example, if the server returns `status: ok`, write `status: ok` in the answer — not "Server responded with ok". Verification patterns match against exact substrings, so paraphrasing causes false failures.
 
 ## Execution approach
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/pinchtab/pinchtab/tests/tools/runner/internal/bench"
 	"github.com/pinchtab/pinchtab/tests/tools/runner/internal/e2e"
+	"github.com/pinchtab/pinchtab/tests/tools/runner/internal/opt"
 )
 
 func main() {
@@ -25,6 +26,10 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		return bench.Run(argv[1:], stdout, stderr)
 	case "verify-step", "record-step", "step-end":
 		return bench.Run(argv, stdout, stderr)
+	case "opt":
+		return opt.Run(argv[1:], stdout, stderr)
+	case "merge-reports", "verify-answers", "inject-usage":
+		return opt.Run(argv, stdout, stderr)
 	default:
 		if argv[0] == "--lane" || argv[0] == "--help" || argv[0] == "-h" {
 			return bench.Run(argv, stdout, stderr)
@@ -38,6 +43,8 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "  runner bench --lane pinchtab")
 		_, _ = fmt.Fprintln(stderr, "  runner --lane pinchtab")
 		_, _ = fmt.Fprintln(stderr, "  runner step-end ...")
+		_, _ = fmt.Fprintln(stderr, "  runner opt merge-reports ...")
+		_, _ = fmt.Fprintln(stderr, "  runner opt verify-answers ...")
 		return 1
 	}
 }

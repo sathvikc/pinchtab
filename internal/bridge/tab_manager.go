@@ -134,7 +134,7 @@ func (tm *TabManager) CreateTab(url string) (string, context.Context, context.Ca
 	// Use target.CreateTarget CDP protocol call to create a new tab.
 	// This works for both local and remote (CDP_URL) allocators.
 	var targetID target.ID
-	createCtx, createCancel := context.WithTimeout(tm.browserCtx, 10*time.Second)
+	createCtx, createCancel := context.WithTimeout(tm.browserCtx, 30*time.Second)
 	if err := chromedp.Run(createCtx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error

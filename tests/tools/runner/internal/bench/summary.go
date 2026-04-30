@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -142,9 +141,7 @@ type reportSummary struct {
 	} `json:"steps"`
 }
 
-// PrintEndBanner prints a compact pass/fail table at end-of-run — independent
-// of finalize-report.sh, so the user always sees it even if finalize is
-// skipped or its markdown summary is piped elsewhere.
+// PrintEndBanner prints a compact pass/fail table at end-of-run.
 func PrintEndBanner(w io.Writer, reportFile string) {
 	data, err := os.ReadFile(reportFile)
 	if err != nil {
@@ -206,16 +203,4 @@ func trimOneLine(s string, max int) string {
 		return s[:max-3] + "..."
 	}
 	return s
-}
-
-// runFinalizeReport invokes finalize-report.sh and streams its stdout/stderr
-// through the provided writers. Previously loop.go::finalizeReport used
-// cmd.Run() which silently discarded the summary output — this is the fix.
-func runFinalizeReport(toolsDir, reportFile string, stdout, stderr io.Writer) {
-	script := filepath.Join(toolsDir, "scripts", "finalize-report.sh")
-	cmd := exec.Command(script, reportFile) // #nosec G204 -- script path is constructed from known toolsDir
-	cmd.Dir = toolsDir
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	_ = cmd.Run()
 }

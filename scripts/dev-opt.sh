@@ -39,7 +39,12 @@ case "${mode}" in
     ./scripts/run-optimization.sh
     ./scripts/baseline.sh
     BASELINE_REPORT="$(resolve_current_report "${RESULTS_DIR}/current_baseline_report.txt")"
-    ./scripts/finalize-report.sh "${BASELINE_REPORT}"
+    if [[ -n "${BASELINE_REPORT}" && -f "${BASELINE_REPORT}" ]]; then
+      echo ""
+      echo "Baseline complete:"
+      jq -r '"  steps: \(.totals.steps_answered // .totals.steps_passed // 0)/87  verified: \(.totals.steps_verified_passed // 0)/87  elapsed: \(.totals.elapsed_ms // 0)ms"' "${BASELINE_REPORT}"
+      echo "  report: ${BASELINE_REPORT}"
+    fi
     ;;
   -h|--help|help)
     usage

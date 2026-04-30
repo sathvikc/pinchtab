@@ -100,6 +100,8 @@ pinchtab instance navigate <instance-id> <url>
 
 Tab state is automatic: `nav` persists the tab ID to a state file, and subsequent commands read it. Just run `pinchtab nav URL` then `pinchtab snap -i -c` — the tab is remembered. For explicit control, use `--tab <id>`.
 
+**Parallel agents**: when multiple agents share the same browser instance, the automatic tab state file becomes a race condition — one agent's `nav` overwrites another's tab ID. Each agent must manage its own tab ID explicitly: open with `nav <url> --new-tab`, capture the tab ID from the output, and pass `--tab <id>` on every subsequent command (`snap`, `click`, `fill`, `text`, `eval`, `press`, `scroll`, `frame`, etc.).
+
 ### Observation
 
 ```bash

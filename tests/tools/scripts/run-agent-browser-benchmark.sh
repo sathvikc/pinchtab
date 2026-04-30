@@ -96,4 +96,4 @@ echo "  2. The agent-browser skill is refreshed by runner (DownloadAgentBrowserS
 echo "  3. Use ./scripts/ab ... to drive agent-browser inside Docker"
 echo "  4. Record and verify each completed benchmark step in a single call with:"
 echo "     ./scripts/ab step-end <group> <step> answer \"what you saw\" <pass|fail|skip> \"verification notes\""
-echo "  5. Summarize the report with ./scripts/finalize-report.sh"
+echo "  5. Report is finalized automatically at end of run"

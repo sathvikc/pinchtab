@@ -151,10 +151,7 @@ func RunLoop(cfg LoopConfig, runner Runner, shell *PersistentShell) LoopResult {
 	if _, err := os.Stat(cfg.ReportFile); err == nil {
 		recordUsage(cfg.ToolsDir, cfg.ReportFile, runner)
 		if cfg.Finalize {
-			// Stream finalize-report.sh's output through our stdout/stderr so
-			// the generated markdown summary actually reaches the terminal.
-			// (The old finalizeReport() used cmd.Run() which discards output.)
-			runFinalizeReport(cfg.ToolsDir, cfg.ReportFile, cfg.Stdout, cfg.Stderr)
+			runFinalize(cfg.ReportFile, cfg.Stdout, cfg.Stderr)
 		}
 	}
 
@@ -168,9 +165,8 @@ func RunLoop(cfg LoopConfig, runner Runner, shell *PersistentShell) LoopResult {
 	}
 	out.Summary(runner.Usage(), runner.Provider())
 
-	// Harness-generated end-of-run summary: runs regardless of whether
-	// finalize-report.sh succeeded, reads the JSON report directly so it
-	// always reflects recorded state.
+	// Harness-generated end-of-run summary: reads the JSON report directly
+	// so it always reflects recorded state.
 	if _, err := os.Stat(cfg.ReportFile); err == nil {
 		PrintEndBanner(cfg.Stdout, cfg.ReportFile)
 	}

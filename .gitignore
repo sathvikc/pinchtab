@@ -53,4 +53,5 @@ pinchtab.exe
 plugins/*/.venv/
 tests/e2e/results/*
 /runner
+tests/tools/scripts/runner
 skills/agent-browser
