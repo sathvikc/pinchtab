@@ -46,6 +46,13 @@ func registerBrowserCommands() {
 		urlCmd,
 		htmlCmd,
 		stylesCmd,
+		valueCmd,
+		attrCmd,
+		countCmd,
+		boxCmd,
+		visibleCmd,
+		enabledCmd,
+		checkedCmd,
 		downloadCmd,
 		uploadCmd,
 		findCmd,
@@ -63,6 +70,8 @@ func registerBrowserCommands() {
 		errorsCmd,
 		clipboardCmd,
 		cacheCmd,
+		cookiesCmd,
+		setCmd,
 		storageCmd,
 		stateCmd,
 		closeCmd,
@@ -114,6 +123,13 @@ func registerBrowserCommands() {
 		urlCmd,
 		htmlCmd,
 		stylesCmd,
+		valueCmd,
+		attrCmd,
+		countCmd,
+		boxCmd,
+		visibleCmd,
+		enabledCmd,
+		checkedCmd,
 		downloadCmd,
 		uploadCmd,
 		findCmd,
@@ -131,6 +147,8 @@ func registerBrowserCommands() {
 		errorsCmd,
 		clipboardCmd,
 		cacheCmd,
+		cookiesCmd,
+		setCmd,
 		storageCmd,
 		stateCmd,
 		closeCmd,
@@ -255,6 +273,13 @@ func configureBrowserFlags() {
 	stylesCmd.Flags().StringP("selector", "s", "", "Element selector to extract styles from (ref/CSS/XPath/text). If omitted, returns computed styles for the root element.")
 	stylesCmd.Flags().String("prop", "", "Return only a single computed style property")
 	stylesCmd.Flags().Bool("json", false, "Output full JSON response instead of just styles")
+	valueCmd.Flags().Bool("json", false, "Output full JSON response instead of just value")
+	attrCmd.Flags().Bool("json", false, "Output full JSON response instead of just attribute value")
+	countCmd.Flags().Bool("json", false, "Output full JSON response instead of just count")
+	boxCmd.Flags().Bool("json", false, "Output full JSON response instead of just bounding box")
+	visibleCmd.Flags().Bool("json", false, "Output full JSON response instead of just visibility")
+	enabledCmd.Flags().Bool("json", false, "Output full JSON response instead of just enabled state")
+	checkedCmd.Flags().Bool("json", false, "Output full JSON response instead of just checked state")
 
 	navCmd.Flags().Bool("new-tab", false, "Open in new tab")
 	navCmd.Flags().Bool("block-images", false, "Block image loading")
@@ -295,6 +320,13 @@ func configureBrowserFlags() {
 		urlCmd,
 		htmlCmd,
 		stylesCmd,
+		valueCmd,
+		attrCmd,
+		countCmd,
+		boxCmd,
+		visibleCmd,
+		enabledCmd,
+		checkedCmd,
 		clickCmd,
 		dblclickCmd,
 		hoverCmd,
@@ -321,6 +353,12 @@ func configureBrowserFlags() {
 		waitCmd,
 		dialogAcceptCmd,
 		dialogDismissCmd,
+		setViewportCmd,
+		setGeoCmd,
+		setOfflineCmd,
+		setHeadersCmd,
+		setCredentialsCmd,
+		setMediaCmd,
 	)
 
 	evalCmd.Flags().Bool("await-promise", false, "Resolve a returned Promise before responding")
@@ -373,8 +411,15 @@ func configureBrowserFlags() {
 		healthCmd,
 		cacheClearCmd,
 		cacheStatusCmd,
+		cookiesClearCmd,
 		frameCmd,
 		networkCmd,
+		setViewportCmd,
+		setGeoCmd,
+		setOfflineCmd,
+		setHeadersCmd,
+		setCredentialsCmd,
+		setMediaCmd,
 	)
 
 	scrollintoviewCmd.Flags().String("css", "", "CSS selector instead of ref")

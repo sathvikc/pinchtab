@@ -77,6 +77,9 @@ type BridgeAPI interface {
 	// Cache management
 	ClearCache(ctx context.Context) error
 	CanClearCache(ctx context.Context) (bool, error)
+
+	// Cookie management
+	ClearCookies(ctx context.Context) error
 }
 
 type LockInfo = bridgetabs.LockInfo

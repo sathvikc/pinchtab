@@ -116,6 +116,83 @@ var stylesCmd = &cobra.Command{
 	},
 }
 
+var valueCmd = &cobra.Command{
+	Use:   "value <ref>",
+	Short: "Get the current value of a form element by ref",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Value(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var attrCmd = &cobra.Command{
+	Use:   "attr <ref> <name>",
+	Short: "Get the value of an HTML attribute by ref",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Attr(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var boxCmd = &cobra.Command{
+	Use:   "box <ref>",
+	Short: "Get the bounding box of an element by ref",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Box(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var visibleCmd = &cobra.Command{
+	Use:   "visible <ref>",
+	Short: "Check if an element is visible by ref",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Visible(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var enabledCmd = &cobra.Command{
+	Use:   "enabled <ref>",
+	Short: "Check if an element is enabled by ref",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Enabled(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var checkedCmd = &cobra.Command{
+	Use:   "checked <ref>",
+	Short: "Check if an element is checked by ref",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Checked(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
+var countCmd = &cobra.Command{
+	Use:   "count <selector>",
+	Short: "Count elements matching a CSS selector",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runCLI(func(rt cliRuntime) {
+			browseractions.Count(rt.client, rt.base, rt.token, cmd, args)
+		})
+	},
+}
+
 var downloadCmd = &cobra.Command{
 	Use:   "download <url>",
 	Short: "Download a file via browser session",

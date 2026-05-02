@@ -16,6 +16,7 @@ type nodeDOMMetadata struct {
 	Title       string `json:"title"`
 	TestID      string `json:"testid"`
 	Text        string `json:"text"`
+	InputType   string `json:"inputType"`
 }
 
 // EnrichA11yNodesWithDOMMetadata adds DOM-backed descriptor fields used by the
@@ -110,6 +111,9 @@ func applyNodeDOMMetadata(node *A11yNode, meta nodeDOMMetadata) {
 	node.Title = strings.TrimSpace(meta.Title)
 	node.TestID = strings.TrimSpace(meta.TestID)
 	node.Text = strings.TrimSpace(meta.Text)
+	if strings.EqualFold(strings.TrimSpace(meta.InputType), "password") {
+		node.Value = "••••••••"
+	}
 }
 
 const domMetadataFn = `function() {
@@ -166,6 +170,7 @@ const domMetadataFn = `function() {
 		alt: attr("alt"),
 		title: attr("title"),
 		testid: testID(),
-		text: text.length > 500 ? text.slice(0, 500) : text
+		text: text.length > 500 ? text.slice(0, 500) : text,
+		inputType: (el.tagName && el.tagName.toLowerCase() === "input") ? (el.type || "") : ""
 	};
 }`

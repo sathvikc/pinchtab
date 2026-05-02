@@ -504,6 +504,10 @@ func (m *MockBridge) CanClearCache(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+func (m *MockBridge) ClearCookies(ctx context.Context) error {
+	return nil
+}
+
 type mockBridgeDisconnected struct {
 	mockBridge
 }

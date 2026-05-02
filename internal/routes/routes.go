@@ -61,6 +61,13 @@ var coreEndpoints = []Endpoint{
 	{"GET", "/url", "Read page URL", CapNone, true},
 	{"GET", "/html", "Read page HTML", CapNone, true},
 	{"GET", "/styles", "Read computed styles", CapNone, true},
+	{"GET", "/value", "Read form element value by ref", CapNone, true},
+	{"GET", "/attr", "Read element HTML attribute by ref", CapNone, true},
+	{"GET", "/count", "Count elements matching selector", CapNone, true},
+	{"GET", "/box", "Get element bounding box by ref", CapNone, true},
+	{"GET", "/visible", "Check if element is visible by ref", CapNone, true},
+	{"GET", "/enabled", "Check if element is enabled by ref", CapNone, true},
+	{"GET", "/checked", "Check if element is checked by ref", CapNone, true},
 	{"GET", "/pdf", "Export as PDF (GET)", CapNone, true},
 	{"POST", "/pdf", "Export as PDF (POST)", CapNone, true},
 
@@ -85,6 +92,7 @@ var coreEndpoints = []Endpoint{
 	// Cookies
 	{"GET", "/cookies", "Get cookies", CapNone, true},
 	{"POST", "/cookies", "Set cookies", CapNone, true},
+	{"DELETE", "/cookies", "Clear all cookies", CapNone, true},
 
 	// Metrics
 	{"GET", "/metrics", "Runtime metrics", CapNone, true},
@@ -121,6 +129,14 @@ var coreEndpoints = []Endpoint{
 	{"GET", "/config/autosolver", "Get autosolver runtime config", CapNone, false},
 	{"POST", "/solve", "Run default solver", CapNone, true},
 	{"POST", "/solve/{name}", "Run named solver", CapNone, true},
+
+	// Emulation
+	{"POST", "/emulation/viewport", "Set browser viewport dimensions", CapNone, true},
+	{"POST", "/emulation/geolocation", "Set geolocation", CapNone, true},
+	{"POST", "/emulation/offline", "Enable/disable offline mode", CapNone, true},
+	{"POST", "/emulation/headers", "Set extra HTTP headers", CapNone, true},
+	{"POST", "/emulation/credentials", "Set HTTP auth credentials", CapNone, true},
+	{"POST", "/emulation/media", "Emulate CSS media features", CapNone, true},
 
 	// Cache
 	{"POST", "/cache/clear", "Clear browser cache", CapNone, false},

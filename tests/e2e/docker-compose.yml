@@ -11,7 +11,7 @@ services:
       - ./fixtures/test-extension-api:/extensions/test-extension-api:ro
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab.json /data/e2e-config/pinchtab.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
-      - "9999:9999"
+      - "127.0.0.1:9999:9999"
     shm_size: '2gb'
     healthcheck:
       test: ["CMD-SHELL", "wget --header='Authorization: Bearer e2e-token' -q -O /dev/null http://localhost:9999/health"]

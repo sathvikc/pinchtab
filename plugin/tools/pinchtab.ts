@@ -382,8 +382,22 @@ export async function executePinchtabAction(cfg: PluginConfig, params: any): Pro
     if (normalized.savePath) {
       query.set("output", "file");
       query.set("path", normalized.savePath);
+      return textResult(await pinchtabFetch(cfg, `/download?${query.toString()}`));
     }
-    return textResult(await pinchtabFetch(cfg, `/download?${query.toString()}`));
+    query.set("raw", "true");
+    try {
+      const res = await pinchtabFetch(cfg, `/download?${query.toString()}`, { rawResponse: true });
+      if (res instanceof Response) {
+        if (!res.ok) return textResult({ error: `download failed: ${res.status} ${await res.text()}` });
+        const buf = await res.arrayBuffer();
+        const b64 = Buffer.from(buf).toString("base64");
+        const mimeType = res.headers.get("content-type") || "application/octet-stream";
+        return resourceResult("download://file", mimeType, b64);
+      }
+      return textResult(res);
+    } catch (err: any) {
+      return textResult({ error: `download failed: ${err?.message}` });
+    }
   }
 
   // --- upload ---
