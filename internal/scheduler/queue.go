@@ -13,6 +13,7 @@ type TaskQueue struct {
 	totalCount  int
 	maxTotal    int
 	maxPerAgent int
+	notify      chan struct{}
 }
 
 type agentQueue struct {
@@ -26,6 +27,7 @@ func NewTaskQueue(maxTotal, maxPerAgent int) *TaskQueue {
 		agents:      make(map[string]*agentQueue),
 		maxTotal:    maxTotal,
 		maxPerAgent: maxPerAgent,
+		notify:      make(chan struct{}, 1),
 	}
 }
 
@@ -44,9 +46,9 @@ func (q *TaskQueue) SetLimits(maxTotal, maxPerAgent int) {
 // Enqueue adds a task. Returns the queue position or an error if limits are hit.
 func (q *TaskQueue) Enqueue(t *Task) (int, error) {
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
 	if q.totalCount >= q.maxTotal {
+		q.mu.Unlock()
 		return 0, fmt.Errorf("global queue full (%d/%d)", q.totalCount, q.maxTotal)
 	}
 
@@ -58,12 +60,22 @@ func (q *TaskQueue) Enqueue(t *Task) (int, error) {
 	}
 
 	if aq.tasks.Len() >= q.maxPerAgent {
+		q.mu.Unlock()
 		return 0, fmt.Errorf("agent queue full for %q (%d/%d)", t.AgentID, aq.tasks.Len(), q.maxPerAgent)
 	}
 
 	heap.Push(&aq.tasks, t)
 	q.totalCount++
-	return q.totalCount, nil
+	pos := q.totalCount
+	q.mu.Unlock()
+
+	// Wake a blocked worker.
+	select {
+	case q.notify <- struct{}{}:
+	default:
+	}
+
+	return pos, nil
 }
 
 // Dequeue picks the next task using fair round-robin: the agent with the
@@ -111,13 +123,22 @@ func (q *TaskQueue) Dequeue(maxPerAgentInflight, maxGlobalInflight int) *Task {
 // Complete marks a task as no longer in-flight for its agent.
 func (q *TaskQueue) Complete(agentID string) {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+	hasQueued := false
 	if aq, ok := q.agents[agentID]; ok {
 		if aq.inflight > 0 {
 			aq.inflight--
 		}
-		if aq.inflight == 0 && aq.tasks.Len() == 0 {
+		hasQueued = aq.tasks.Len() > 0
+		if aq.inflight == 0 && !hasQueued {
 			delete(q.agents, agentID)
+		}
+	}
+	q.mu.Unlock()
+
+	if hasQueued {
+		select {
+		case q.notify <- struct{}{}:
+		default:
 		}
 	}
 }
@@ -172,6 +193,11 @@ func (q *TaskQueue) ExpireDeadlined() []*Task {
 		}
 	}
 	return expired
+}
+
+// Ready returns a channel that receives a signal when new work may be available.
+func (q *TaskQueue) Ready() <-chan struct{} {
+	return q.notify
 }
 
 // Stats returns snapshot queue statistics.

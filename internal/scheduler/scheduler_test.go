@@ -44,6 +44,7 @@ func newTestScheduler(t *testing.T) (*Scheduler, *httptest.Server) {
 
 	resolver := &mockResolver{port: port}
 	s := New(cfg, resolver)
+	s.noAutoStart = true
 
 	return s, executor
 }

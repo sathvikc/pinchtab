@@ -71,9 +71,11 @@ type Scheduler struct {
 	cancels   map[string]context.CancelFunc
 	cancelsMu sync.Mutex
 
-	stopOnce sync.Once
-	stopCh   chan struct{}
-	wg       sync.WaitGroup
+	startOnce   sync.Once
+	stopOnce    sync.Once
+	stopCh      chan struct{}
+	wg          sync.WaitGroup
+	noAutoStart bool // testing only: suppress ensureRunning from Submit
 }
 
 // New creates a scheduler with the given config and instance resolver.
@@ -117,19 +119,26 @@ func New(cfg Config, resolver InstanceResolver) *Scheduler {
 	}
 }
 
-// Start launches workers and the deadline reaper.
+// Start launches workers and the deadline reaper. If Start is not called,
+// workers are launched lazily on the first Submit to avoid idle CPU cost.
 func (s *Scheduler) Start() {
-	s.results.StartReaper(10 * time.Second)
+	s.ensureRunning()
+}
 
-	for i := range s.cfg.WorkerCount {
+func (s *Scheduler) ensureRunning() {
+	s.startOnce.Do(func() {
+		s.results.StartReaper(10 * time.Second)
+
+		for i := range s.cfg.WorkerCount {
+			s.wg.Add(1)
+			go s.worker(i)
+		}
+
 		s.wg.Add(1)
-		go s.worker(i)
-	}
+		go s.deadlineReaper()
 
-	s.wg.Add(1)
-	go s.deadlineReaper()
-
-	slog.Info("scheduler started", "workers", s.cfg.WorkerCount, "strategy", s.cfg.Strategy)
+		slog.Info("scheduler started", "workers", s.cfg.WorkerCount)
+	})
 }
 
 // Stop gracefully shuts down the scheduler. Queued tasks are cancelled.
@@ -157,6 +166,10 @@ func (s *Scheduler) Stop() {
 
 // Submit creates a new task from the request and enqueues it.
 func (s *Scheduler) Submit(req SubmitRequest) (*Task, error) {
+	if !s.noAutoStart {
+		s.ensureRunning()
+	}
+
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid task: %w", err)
 	}
@@ -290,18 +303,12 @@ func (s *Scheduler) inflightLimits() (perAgent, global int) {
 func (s *Scheduler) worker(id int) {
 	defer s.wg.Done()
 	for {
-		select {
-		case <-s.stopCh:
-			return
-		default:
-		}
-
 		task := s.queue.Dequeue(s.inflightLimits())
 		if task == nil {
 			select {
 			case <-s.stopCh:
 				return
-			case <-time.After(50 * time.Millisecond):
+			case <-s.queue.Ready():
 				continue
 			}
 		}
@@ -455,7 +462,7 @@ func (s *Scheduler) finishTask(t *Task) {
 
 func (s *Scheduler) deadlineReaper() {
 	defer s.wg.Done()
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {

@@ -149,23 +149,56 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 
 	syncCtx, syncCancel := context.WithCancel(context.Background())
 	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
+		const (
+			minInterval = 1 * time.Second
+			maxInterval = 10 * time.Second
+		)
+		interval := minInterval
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
+
+		// Use tail reader for O(new lines) polling instead of full-file rescan.
+		type tailProvider interface {
+			NewTailReader(source string) *activity.TailReader
+		}
+		var tailReader *activity.TailReader
+		if tp, ok := actStore.(tailProvider); ok {
+			tailReader = tp.NewTailReader("client")
+		}
 
 		lastSync := time.Now().UTC()
 		for {
 			select {
 			case <-syncCtx.Done():
 				return
-			case <-ticker.C:
-				nextSync, err := dash.IngestPersistedAgentActivity(actStore, lastSync)
+			case <-timer.C:
+				var hasNew bool
+				var err error
+
+				if tailReader != nil {
+					var n int
+					n, err = dash.IngestTail(tailReader)
+					hasNew = n > 0
+				} else {
+					var nextSync time.Time
+					nextSync, err = dash.IngestPersistedAgentActivity(actStore, lastSync)
+					if !nextSync.IsZero() && nextSync.After(lastSync) {
+						lastSync = nextSync
+						hasNew = true
+					}
+				}
+
 				if err != nil {
 					slog.Warn("sync dashboard agent activity", "err", err)
+					timer.Reset(interval)
 					continue
 				}
-				if !nextSync.IsZero() {
-					lastSync = nextSync
+				if hasNew {
+					interval = minInterval
+				} else {
+					interval = min(interval*2, maxInterval)
 				}
+				timer.Reset(interval)
 			}
 		}
 	}()
@@ -251,8 +284,7 @@ func RunDashboard(cfg *config.RuntimeConfig, version string) {
 		resolver := &scheduler.ManagerResolver{Mgr: orch.InstanceManager()}
 		sched = scheduler.New(schedCfg, resolver)
 		sched.RegisterHandlers(mux)
-		sched.Start()
-		slog.Info("scheduler enabled", "strategy", schedCfg.Strategy, "workers", schedCfg.WorkerCount)
+		slog.Info("scheduler enabled (on-demand)", "strategy", schedCfg.Strategy, "workers", schedCfg.WorkerCount)
 	}
 
 	mux.HandleFunc("GET /health", configAPI.HandleHealth)
