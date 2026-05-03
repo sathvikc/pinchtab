@@ -9,7 +9,7 @@
 - Extracts the page's accessibility tree (for AI agents)
 - Runs screenshots, PDFs, and JavaScript evaluation
 
-High-risk operations such as JavaScript evaluation, local-file upload, and direct file writes should be treated as explicit opt-in actions for the current task, not the default workflow.
+High-risk operations such as JavaScript evaluation, local-file upload, file downloads, cookie access, and network export should be treated as explicit opt-in actions for the current task, not the default workflow. These are gated by security policy and disabled by default.
 
 **All of this stays local.** No telemetry. No external API calls (except to sites you navigate to).
 
@@ -20,6 +20,22 @@ High-risk operations such as JavaScript evaluation, local-file upload, and direc
 - ❌ Doesn't inject ads, malware, or miners
 - ❌ Doesn't track browsing or send analytics
 - ❌ Doesn't modify system files outside its state directory (`~/.pinchtab`)
+
+## Security Policy (Defaults)
+
+High-impact capabilities are **disabled by default** and require explicit configuration:
+
+| Capability | Default | Config Key |
+|---|---|---|
+| JavaScript evaluation | **Disabled** | `security.allowEvaluate` |
+| File downloads | **Disabled** | `security.allowDownloads` |
+| File uploads | **Disabled** | `security.allowUploads` |
+| Network interception | **Disabled** | `security.allowNetworkIntercept` |
+| Challenge solving / stealth | **Disabled** | Requires explicit `/solve` call with user approval |
+| Navigation domains | **All allowed** | `security.allowedDomains` (restrict with allowlist) |
+| Cookie access | **Available** | Use only when task requires it; do not log or expose session tokens |
+
+Agents reusing authenticated browser sessions should use dedicated low-privilege profiles and confirm with the user before performing account-changing actions.
 
 ## Builds & Verification
 

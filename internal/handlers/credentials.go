@@ -1,0 +1,215 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/chromedp/cdproto/fetch"
+	"github.com/chromedp/chromedp"
+	"github.com/pinchtab/pinchtab/internal/activity"
+	"github.com/pinchtab/pinchtab/internal/httpx"
+)
+
+// credentialPair holds HTTP basic auth credentials for a tab.
+type credentialPair struct {
+	Username string
+	Password string
+}
+
+// credentialStore provides thread-safe per-tab credential storage and tracks
+// which tabs already have a CDP event listener installed to avoid stacking
+// duplicate listeners on repeated calls.
+type credentialStore struct {
+	mu          sync.RWMutex
+	credentials map[string]*credentialPair
+	listeners   map[string]bool
+}
+
+func newCredentialStore() *credentialStore {
+	return &credentialStore{
+		credentials: make(map[string]*credentialPair),
+		listeners:   make(map[string]bool),
+	}
+}
+
+func (cs *credentialStore) Set(tabID string, cred *credentialPair) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.credentials[tabID] = cred
+}
+
+func (cs *credentialStore) Get(tabID string) (*credentialPair, bool) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	cred, ok := cs.credentials[tabID]
+	return cred, ok
+}
+
+func (cs *credentialStore) Delete(tabID string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	delete(cs.credentials, tabID)
+	// Keep listeners[tabID] — the chromedp listener is bound to the tab's
+	// context and survives across clear/re-set cycles. Clearing the flag
+	// here would cause a second listener to be installed on re-set.
+}
+
+// MarkListenerIfAbsent atomically marks a listener as installed for tabID.
+// Returns true if this call was the one that set it (i.e., no listener existed).
+func (cs *credentialStore) MarkListenerIfAbsent(tabID string) bool {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	if cs.listeners[tabID] {
+		return false
+	}
+	cs.listeners[tabID] = true
+	return true
+}
+
+type credentialsRequest struct {
+	TabID    string  `json:"tabId"`
+	Username *string `json:"username"`
+	Password string  `json:"password"`
+}
+
+// HandleSetCredentials sets HTTP auth credentials via CDP Fetch domain.
+// POST /emulation/credentials
+func (h *Handlers) HandleSetCredentials(w http.ResponseWriter, r *http.Request) {
+	var req credentialsRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodySize)).Decode(&req); err != nil {
+		httpx.Error(w, 400, fmt.Errorf("decode: %w", err))
+		return
+	}
+
+	h.setCredentials(w, r, req)
+}
+
+// HandleTabSetCredentials sets HTTP auth credentials for a specific tab.
+// POST /tabs/{id}/emulation/credentials
+func (h *Handlers) HandleTabSetCredentials(w http.ResponseWriter, r *http.Request) {
+	tabID := r.PathValue("id")
+	if tabID == "" {
+		httpx.Error(w, 400, fmt.Errorf("missing tab ID"))
+		return
+	}
+
+	var req credentialsRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodySize)).Decode(&req); err != nil {
+		httpx.Error(w, 400, fmt.Errorf("decode: %w", err))
+		return
+	}
+
+	if req.TabID != "" && req.TabID != tabID {
+		httpx.Error(w, 400, fmt.Errorf("tabId in body %q does not match URL path %q", req.TabID, tabID))
+		return
+	}
+	req.TabID = tabID
+
+	h.setCredentials(w, r, req)
+}
+
+func (h *Handlers) setCredentials(w http.ResponseWriter, r *http.Request, req credentialsRequest) {
+	if req.Username == nil {
+		httpx.Error(w, 400, fmt.Errorf("missing required field: username"))
+		return
+	}
+
+	username := *req.Username
+
+	// Non-empty username requires password field (empty password is allowed).
+	// Empty username means "clear credentials".
+
+	ctx, resolvedTabID, err := h.tabContext(r, req.TabID)
+	if err != nil {
+		WriteTabContextError(w, err, 404)
+		return
+	}
+	if _, ok := h.enforceCurrentTabDomainPolicy(w, r, ctx, resolvedTabID); !ok {
+		return
+	}
+
+	tCtx, tCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer tCancel()
+
+	if username == "" {
+		// Clear credentials: disable fetch domain and remove stored credentials.
+		h.credentialStore.Delete(resolvedTabID)
+
+		if err := chromedp.Run(tCtx,
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				return fetch.Disable().Do(ctx)
+			}),
+		); err != nil {
+			httpx.Error(w, 500, fmt.Errorf("CDP fetch disable: %w", err))
+			return
+		}
+
+		h.recordActivity(r, activity.Update{Action: "emulation.credentials", TabID: resolvedTabID})
+
+		httpx.JSON(w, 200, map[string]any{
+			"status": "cleared",
+		})
+		return
+	}
+
+	// Store credentials for the event listener to reference.
+	h.credentialStore.Set(resolvedTabID, &credentialPair{
+		Username: username,
+		Password: req.Password,
+	})
+
+	// Enable Fetch domain with auth request interception.
+	if err := chromedp.Run(tCtx,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			return fetch.Enable().WithHandleAuthRequests(true).Do(ctx)
+		}),
+	); err != nil {
+		httpx.Error(w, 500, fmt.Errorf("CDP fetch enable: %w", err))
+		return
+	}
+
+	// Install event listener only once per tab. The listener reads credentials
+	// from the store dynamically, so updating creds doesn't need a new listener.
+	if h.credentialStore.MarkListenerIfAbsent(resolvedTabID) {
+		chromedp.ListenTarget(ctx, func(ev interface{}) {
+			switch e := ev.(type) {
+			case *fetch.EventAuthRequired:
+				go func() {
+					cred, ok := h.credentialStore.Get(resolvedTabID)
+					if !ok {
+						return
+					}
+					if err := chromedp.Run(ctx, chromedp.ActionFunc(func(innerCtx context.Context) error {
+						return fetch.ContinueWithAuth(e.RequestID, &fetch.AuthChallengeResponse{
+							Response: fetch.AuthChallengeResponseResponseProvideCredentials,
+							Username: cred.Username,
+							Password: cred.Password,
+						}).Do(innerCtx)
+					})); err != nil {
+						slog.Warn("credentials: ContinueWithAuth failed", "tab", resolvedTabID, "err", err)
+					}
+				}()
+			case *fetch.EventRequestPaused:
+				go func() {
+					if err := chromedp.Run(ctx, chromedp.ActionFunc(func(innerCtx context.Context) error {
+						return fetch.ContinueRequest(e.RequestID).Do(innerCtx)
+					})); err != nil {
+						slog.Warn("credentials: ContinueRequest failed", "tab", resolvedTabID, "err", err)
+					}
+				}()
+			}
+		})
+	}
+
+	h.recordActivity(r, activity.Update{Action: "emulation.credentials", TabID: resolvedTabID})
+
+	httpx.JSON(w, 200, map[string]any{
+		"username": username,
+		"status":   "applied",
+	})
+}

@@ -402,6 +402,12 @@ func BuildSnapshot(nodes []RawAXNode, filter string, maxDepth int) ([]A11yNode, 
 			if prop.Name == "focused" && prop.Value.String() == "true" {
 				entry.Focused = true
 			}
+			if prop.Name == "autocomplete" {
+				v := strings.ToLower(prop.Value.String())
+				if v == "current-password" || v == "new-password" {
+					entry.Value = "••••••••"
+				}
+			}
 		}
 
 		// Tag nodes that are visually hidden but still present in the a11y tree

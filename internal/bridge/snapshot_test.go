@@ -568,3 +568,68 @@ func TestBuildSnapshotInteractiveIncludesIframeOwnerAndChildActions(t *testing.T
 		t.Fatalf("unexpected interactive descendants: %+v", flat)
 	}
 }
+
+func TestBuildSnapshotRedactsPasswordByAutocomplete(t *testing.T) {
+	nodes := []RawAXNode{
+		{
+			NodeID:   "root",
+			Role:     &RawAXValue{Value: json.RawMessage(`"WebArea"`)},
+			Name:     &RawAXValue{Value: json.RawMessage(`"Login"`)},
+			ChildIDs: []string{"user", "pass"},
+		},
+		{
+			NodeID:           "user",
+			Role:             &RawAXValue{Value: json.RawMessage(`"textbox"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Username"`)},
+			Value:            &RawAXValue{Value: json.RawMessage(`"mario"`)},
+			BackendDOMNodeID: 10,
+		},
+		{
+			NodeID:           "pass",
+			Role:             &RawAXValue{Value: json.RawMessage(`"textbox"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"Password"`)},
+			Value:            &RawAXValue{Value: json.RawMessage(`"supersecret"`)},
+			BackendDOMNodeID: 11,
+			Properties: []RawAXProp{
+				{Name: "autocomplete", Value: &RawAXValue{Value: json.RawMessage(`"current-password"`)}},
+			},
+		},
+	}
+
+	flat, _ := BuildSnapshot(nodes, "", -1)
+	if len(flat) != 3 {
+		t.Fatalf("expected 3 nodes, got %d", len(flat))
+	}
+	if flat[1].Value != "mario" {
+		t.Errorf("username value = %q, want mario", flat[1].Value)
+	}
+	if flat[2].Value != "••••••••" {
+		t.Errorf("password value = %q, want redacted", flat[2].Value)
+	}
+}
+
+func TestBuildSnapshotRedactsNewPassword(t *testing.T) {
+	nodes := []RawAXNode{
+		{
+			NodeID:   "root",
+			Role:     &RawAXValue{Value: json.RawMessage(`"WebArea"`)},
+			Name:     &RawAXValue{Value: json.RawMessage(`"Signup"`)},
+			ChildIDs: []string{"pass"},
+		},
+		{
+			NodeID:           "pass",
+			Role:             &RawAXValue{Value: json.RawMessage(`"textbox"`)},
+			Name:             &RawAXValue{Value: json.RawMessage(`"New password"`)},
+			Value:            &RawAXValue{Value: json.RawMessage(`"hunter2"`)},
+			BackendDOMNodeID: 20,
+			Properties: []RawAXProp{
+				{Name: "autocomplete", Value: &RawAXValue{Value: json.RawMessage(`"new-password"`)}},
+			},
+		},
+	}
+
+	flat, _ := BuildSnapshot(nodes, "", -1)
+	if flat[1].Value != "••••••••" {
+		t.Errorf("new-password value = %q, want redacted", flat[1].Value)
+	}
+}

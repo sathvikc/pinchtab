@@ -17,7 +17,7 @@ services:
       - ./config/pinchtab.json:/fixture-config/pinchtab.json:ro
       - ./config/pinchtab-benchmark.json:/fixture-config/pinchtab-benchmark.json:ro
     ports:
-      - "9867:9867"
+      - "127.0.0.1:9867:9867"
     shm_size: '2gb'
     dns:
       - 8.8.8.8
@@ -39,7 +39,7 @@ services:
     volumes:
       - ./fixtures:/usr/share/nginx/html:ro
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:80/"]
       interval: 2s

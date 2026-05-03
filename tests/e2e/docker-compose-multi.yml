@@ -27,7 +27,7 @@ services:
       - ./fixtures/test-extension-api:/extensions/test-extension-api
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab.json /data/e2e-config/pinchtab.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
-      - "9999:9999"
+      - "127.0.0.1:9999:9999"
     healthcheck: *pinchtab-healthcheck
 
   pinchtab-secure:
@@ -38,7 +38,7 @@ services:
       - ./config/pinchtab-secure.json:/fixture-config/pinchtab-secure.json:ro
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-secure.json /data/e2e-config/pinchtab-secure.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
-      - "9998:9999"
+      - "127.0.0.1:9998:9999"
     healthcheck: *pinchtab-healthcheck
 
   pinchtab-autoclose:
@@ -60,7 +60,7 @@ services:
       - ./fixtures/test-extension:/extensions/test-extension
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-medium-permissive.json /data/e2e-config/pinchtab-medium-permissive.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
-      - "9994:9999"
+      - "127.0.0.1:9994:9999"
     healthcheck: *pinchtab-healthcheck
 
   pinchtab-full:
@@ -72,7 +72,7 @@ services:
       - ./fixtures/test-extension:/extensions/test-extension
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-full-permissive.json /data/e2e-config/pinchtab-full-permissive.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab"]
     ports:
-      - "9995:9999"
+      - "127.0.0.1:9995:9999"
     healthcheck: *pinchtab-healthcheck
 
   pinchtab-lite:
@@ -82,7 +82,7 @@ services:
     volumes:
       - ./config/pinchtab-lite.json:/fixture-config/pinchtab-lite.json:ro
     ports:
-      - "9997:9999"
+      - "127.0.0.1:9997:9999"
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-lite.json /data/e2e-config/pinchtab-lite.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab bridge"]
     healthcheck: *pinchtab-healthcheck
 
@@ -93,7 +93,7 @@ services:
     volumes:
       - ./config/pinchtab-bridge.json:/fixture-config/pinchtab-bridge.json:ro
     ports:
-      - "9996:9999"
+      - "127.0.0.1:9996:9999"
     command: ["/bin/sh", "-lc", "mkdir -p /data/e2e-config && cp /fixture-config/pinchtab-bridge.json /data/e2e-config/pinchtab-bridge.json && exec /usr/local/bin/docker-entrypoint.sh pinchtab bridge"]
     healthcheck:
       # Bridge-mode pinchtab uses a different auth token. Same tightened
