@@ -27,6 +27,7 @@ func setupHandlerTest(t *testing.T) (*Scheduler, *http.ServeMux, *httptest.Serve
 	cfg.WorkerCount = 1
 
 	s := New(cfg, &mockResolver{port: port})
+	s.noAutoStart = true
 
 	mux := http.NewServeMux()
 	s.RegisterHandlers(mux)

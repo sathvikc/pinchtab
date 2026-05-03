@@ -118,6 +118,30 @@ func (d *Dashboard) IngestPersistedAgentActivity(rec activity.Recorder, since ti
 	return latest, nil
 }
 
+// IngestTail reads only newly-appended events from the tail reader, avoiding
+// a full file rescan on each tick.
+func (d *Dashboard) IngestTail(tr *activity.TailReader) (int, error) {
+	if d == nil || tr == nil {
+		return 0, nil
+	}
+
+	events, err := tr.Read(persistedAgentBootstrapLimit)
+	if err != nil {
+		return 0, err
+	}
+
+	batch := make([]apiTypes.ActivityEvent, 0, len(events))
+	for _, evt := range events {
+		if !shouldTrackPersistedAgentActivity(evt) {
+			continue
+		}
+		batch = append(batch, activityEventToLiveEvent(evt))
+	}
+	d.recordEvents(batch)
+
+	return len(events), nil
+}
+
 // LoadPersistedAgentActivity rebuilds the in-memory agent summaries and recent
 // tool-call history from the persisted activity log on server startup.
 func (d *Dashboard) LoadPersistedAgentActivity(rec activity.Recorder) error {

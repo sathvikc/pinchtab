@@ -84,7 +84,95 @@ type Store struct {
 	retentionDays int
 	events        EventSourceConfig
 
-	mu sync.Mutex
+	mu            sync.Mutex
+	lastPruneTime time.Time
+
+	tailMu     sync.Mutex
+	tailFile   string
+	tailOffset int64
+}
+
+// TailReader provides an incremental read interface that only scans new lines
+// appended since the last call, avoiding a full-file rescan on each poll.
+type TailReader struct {
+	store  *Store
+	source string
+}
+
+// NewTailReader creates a reader that efficiently tails new events for a given source.
+func (s *Store) NewTailReader(source string) *TailReader {
+	return &TailReader{store: s, source: source}
+}
+
+// Read returns events appended since the last Read call. It seeks to the
+// last known file offset rather than scanning from the beginning.
+func (tr *TailReader) Read(limit int) ([]Event, error) {
+	if tr.store == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = defaultQueryLimit
+	}
+
+	source := normalizeSourceName(tr.source)
+	path := tr.store.sourceFilePathFor(source, time.Now().UTC())
+	if path == "" {
+		return nil, nil
+	}
+
+	tr.store.tailMu.Lock()
+	prevFile := tr.store.tailFile
+	prevOffset := tr.store.tailOffset
+	tr.store.tailMu.Unlock()
+
+	// If the file changed (new day), reset offset.
+	if path != prevFile {
+		prevOffset = 0
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+
+	if prevOffset > 0 {
+		if _, err := f.Seek(prevOffset, 0); err != nil {
+			_, _ = f.Seek(0, 0)
+		}
+	}
+
+	var events []Event
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		var evt Event
+		if err := json.Unmarshal(scanner.Bytes(), &evt); err != nil {
+			continue
+		}
+		if source != "" && evt.Source != source {
+			continue
+		}
+		events = append(events, evt)
+		if len(events) >= limit {
+			break
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// Update offset to current position.
+	newOffset, _ := f.Seek(0, 1)
+	tr.store.tailMu.Lock()
+	tr.store.tailFile = path
+	tr.store.tailOffset = newOffset
+	tr.store.tailMu.Unlock()
+
+	return events, nil
 }
 
 type noopRecorder struct{}
@@ -121,6 +209,7 @@ func NewStoreWithEvents(stateDir string, retentionDays int, events EventSourceCo
 		dir:           activityDir,
 		retentionDays: retentionDays,
 		events:        events,
+		lastPruneTime: time.Now().UTC(),
 	}
 	if err := store.pruneExpiredFiles(time.Now().UTC()); err != nil {
 		return nil, err
@@ -150,8 +239,12 @@ func (s *Store) Record(evt Event) error {
 	}
 	evt.URL = sanitizeActivityURL(evt.URL)
 
-	if err := s.pruneExpiredFilesLocked(evt.Timestamp); err != nil {
-		return err
+	if evt.Timestamp.Sub(s.lastPruneTime) > 1*time.Hour ||
+		evt.Timestamp.UTC().Format(time.DateOnly) != s.lastPruneTime.Format(time.DateOnly) {
+		s.lastPruneTime = evt.Timestamp
+		if err := s.pruneExpiredFilesLocked(evt.Timestamp); err != nil {
+			return err
+		}
 	}
 
 	line, err := json.Marshal(evt)
@@ -321,7 +414,15 @@ func (s *Store) sourceFilePathFor(source string, ts time.Time) string {
 }
 
 func (s *Store) queryFiles(source string) []string {
-	_ = s.pruneExpiredFiles(time.Now().UTC())
+	now := time.Now().UTC()
+	s.mu.Lock()
+	if now.Sub(s.lastPruneTime) > 1*time.Hour {
+		s.lastPruneTime = now
+		s.mu.Unlock()
+		_ = s.pruneExpiredFiles(now)
+	} else {
+		s.mu.Unlock()
+	}
 
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
